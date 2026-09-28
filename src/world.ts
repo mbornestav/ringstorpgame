@@ -1,6 +1,6 @@
 import type { Rect, Vec2 } from './geometry';
 
-export type PropKind = 'house' | 'block' | 'villa' | 'tower' | 'tree' | 'car' | 'lamp' | 'bench' | 'sign' | 'hedge';
+export type PropKind = 'house' | 'block' | 'villa' | 'tower' | 'tree' | 'car' | 'lamp' | 'bench' | 'sign' | 'hedge' | 'plot';
 export interface Prop {
   kind: PropKind;
   x: number;
@@ -11,6 +11,7 @@ export interface Prop {
   variant?: number;
   label?: string;
   solid?: boolean;
+  elevation?: number;
 }
 export interface Parcel { x: number; y: number; name: string; recovered: boolean }
 
@@ -23,9 +24,12 @@ export const PARCELS: Parcel[] = [
   { x: 96.5, y: 12, name: 'Tågaborg', recovered: false },
 ];
 
+export const TOWER_ELEVATION = 7;
+export const HILL = { x: 49, y: 1, w: 9, h: 8, inset: 1.2, z: TOWER_ELEVATION };
+
 const props: Prop[] = [];
-const add = (kind: PropKind, x: number, y: number, w: number, h: number, height = 0, variant = 0, solid = false, label?: string) =>
-  props.push({ kind, x, y, w, h, height, variant, solid, label });
+const add = (kind: PropKind, x: number, y: number, w: number, h: number, height = 0, variant = 0, solid = false, label?: string, elevation = 0) =>
+  props.push({ kind, x, y, w, h, height, variant, solid, label, elevation });
 
 // Ringstorpsvägen: low cream row houses, gardens, and cars beside the broad road.
 for (let x = 3; x < 34; x += 6) {
@@ -40,7 +44,7 @@ add('sign', 5, 7, 0.2, 0.2, 15, 0, false, 'RINGSTORPSVÄGEN');
 for (const [x, y, v] of [[8, 9, 0], [18, 14.6, 2], [23, 9.5, 1], [33, 14, 0]]) add('car', x, y, 2.2, 1.15, 8, v, true);
 
 // The elevated green around the old water tower is the level's visual midpoint.
-add('tower', 51, 2.2, 5, 5, 62, 0, true, 'VATTENTORNET');
+add('tower', 51, 2.2, 5, 5, 58, 0, true, 'BORGEN · VATTENTORNET', TOWER_ELEVATION);
 add('sign', 43, 7, 0.2, 0.2, 15, 1, false, 'RINGSTORP');
 add('bench', 48.5, 7.8, 1.1, 0.5, 3, 0, true);
 add('bench', 59, 6.8, 1.1, 0.5, 3, 1, true);
@@ -51,6 +55,12 @@ for (const [x, y, v] of [[38, 3, 0], [42, 5, 1], [46, 2, 2], [59, 2, 0], [63, 4,
 add('hedge', 39, 18.2, 5, 0.6, 5, 0, true);
 add('hedge', 61, 18.2, 5, 0.6, 5, 0, true);
 
+// Ringstorps sommarstad: semicircular allotment gardens facing the water tower.
+for (let i = 0; i < 13; i++) {
+  const a = Math.PI + (Math.PI * i) / 12;
+  add('plot', 53.5 + Math.cos(a) * 14 - 0.55, 4.7 + Math.sin(a) * 7 - 0.375, 1.1, 0.75, 0, i % 4, false);
+}
+
 // Tågaborg: taller brick fronts and villas, with a tighter residential street.
 for (let x = 76; x < 112; x += 7) {
   add('villa', x, 1.5, 5, 4.2, 31 + (x % 2) * 4, Math.floor(x / 7) % 3, true);
@@ -58,6 +68,8 @@ for (let x = 76; x < 112; x += 7) {
   add('hedge', x + 0.5, 6.3, 4, 0.55, 5, 0, true);
 }
 add('sign', 78, 7.2, 0.2, 0.2, 15, 2, false, 'TÅGABORG');
+add('sign', 87, 6.8, 0.2, 0.2, 15, 3, false, 'KARL X GUSTAVS GATA');
+add('sign', 97, 6.8, 0.2, 0.2, 15, 2, false, 'TÅGAGATAN');
 add('sign', 108, 8, 0.2, 0.2, 15, 3, false, 'DROP-OFF');
 for (const [x, y, v] of [[80, 14.6, 2], [90, 9.3, 0], [101, 14.3, 1]]) add('car', x, y, 2.2, 1.15, 8, v, true);
 for (const [x, y, v] of [[74, 19, 1], [85, 6, 0], [98, 6, 2], [110, 19, 1]]) add('tree', x, y, 0.8, 0.8, 25, v, true);
@@ -70,7 +82,9 @@ for (let x = 7; x < 114; x += 12) {
 export const PROPS = props;
 export const OBSTACLES: Rect[] = props.filter(p => p.solid).map(p => ({ x: p.x, y: p.y, w: p.w, h: p.h }));
 
-export function groundKind(x: number, y: number): 'road' | 'walk' | 'grass' | 'paver' {
+export function groundKind(x: number, y: number): 'road' | 'walk' | 'grass' | 'paver' | 'beach' | 'sea' {
+  if (x >= 113.5) return 'sea';
+  if (x >= 112.5) return 'beach';
   if (y >= 9 && y <= 15) return 'road';
   if (y >= 7 && y < 9 || y > 15 && y <= 18) return 'walk';
   if (x >= 36 && x < 73) return 'grass';

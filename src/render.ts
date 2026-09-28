@@ -1,6 +1,6 @@
 import { distance, iso, normalize, type Vec2 } from './geometry';
 import type { Enemy, Game, Player } from './game';
-import { BOUNDS, DROPOFF, PROPS, groundKind, type Prop } from './world';
+import { BOUNDS, DROPOFF, HILL, PROPS, groundKind, type Prop } from './world';
 
 export const WIDTH = 480;
 export const HEIGHT = 270;
@@ -10,6 +10,10 @@ const PALETTE = {
   outline: '#172b34', road: '#687580', roadAlt: '#717e88', walk: '#b8afa0',
   walkAlt: '#c7bbab', grass: '#6e9a69', grassAlt: '#769f6b', paver: '#a59d91',
   cream: '#e0cb9f', brick: '#a96b58', shadow: '#314950', gold: '#f6c75b',
+  brickRed: '#a34a3a', brickDark: '#7c362c', brickLight: '#c15a43',
+  copper: '#5f8f7a', copperDark: '#43675a', granite: '#939a97', graniteDark: '#6d7572',
+  sandstone: '#d8c49b', hillSide: '#5f8b5c', hillSide2: '#6f9966', hillTop: '#7fa86c',
+  sea: '#2f6d7e', seaAlt: '#3b7f90', beach: '#d9c48f',
 };
 
 function hash(x: number, y: number): number {
@@ -67,6 +71,8 @@ export class Renderer {
     c.fillStyle = '#486b69';
     c.fillRect(0, 0, WIDTH, HEIGHT);
     this.drawGround();
+    this.drawHill();
+    this.drawShore();
     this.drawRoadDetails();
     this.drawRoute(game);
 
@@ -109,6 +115,8 @@ export class Renderer {
         if (kind === 'walk') fill = n % 5 === 0 ? PALETTE.walkAlt : PALETTE.walk;
         if (kind === 'paver') fill = n % 4 === 0 ? '#afa69a' : PALETTE.paver;
         if (kind === 'grass') fill = n % 4 === 0 ? PALETTE.grassAlt : PALETTE.grass;
+        if (kind === 'beach') fill = n % 3 === 0 ? '#e2cf9d' : PALETTE.beach;
+        if (kind === 'sea') fill = n % 5 === 0 ? PALETTE.seaAlt : PALETTE.sea;
         const points = [this.pt(x, y), this.pt(x + 1, y), this.pt(x + 1, y + 1), this.pt(x, y + 1)];
         this.poly(points, fill);
         if (kind === 'walk' && (x + y) % 3 === 0) {
@@ -122,12 +130,46 @@ export class Renderer {
           this.ctx.fillStyle = n % 3 ? '#42785a' : '#e8cd77';
           this.ctx.fillRect(p.x, p.y - 2, 2, 2);
         }
+        if (kind === 'sea' && (x + y) % 4 === 0) {
+          const p = this.pt(x + 0.5, y + 0.5);
+          this.ctx.fillStyle = '#9fd0d866';
+          this.ctx.fillRect(p.x, p.y, 3, 1);
+        }
       }
     }
   }
 
+  private drawHill(): void {
+    const { x, y, w, h, inset, z } = HILL;
+    const tx = x + inset, ty = y + inset, tw = w - inset * 2, th = h - inset * 2;
+    const bB = this.pt(x + w, y), bD = this.pt(x, y + h), bE = this.pt(x + w, y + h);
+    const tA = this.pt(tx, ty, z), tB = this.pt(tx + tw, ty, z), tD = this.pt(tx, ty + th, z), tE = this.pt(tx + tw, ty + th, z);
+    this.poly([bB, bE, tE, tB], PALETTE.hillSide, PALETTE.outline);
+    this.poly([bD, bE, tE, tD], PALETTE.hillSide2, PALETTE.outline);
+    this.poly([tA, tB, tE, tD], PALETTE.hillTop, PALETTE.outline);
+    const c = this.ctx;
+    for (let i = 0; i < 6; i++) {
+      const gx = tx + ((hash(i, 1) % 100) / 100) * tw;
+      const gy = ty + ((hash(i, 2) % 100) / 100) * th;
+      const p = this.pt(gx, gy, z + 1);
+      c.fillStyle = i % 2 ? '#5f8b5c' : '#6f9966';
+      c.fillRect(p.x, p.y - 2, 2, 2);
+    }
+  }
+
+  private drawShore(): void {
+    const c = this.ctx;
+    c.strokeStyle = '#e9f2e9';
+    c.lineWidth = 1;
+    for (let y = -10; y < BOUNDS.h + 12; y++) {
+      const a = this.pt(113.5, y), b = this.pt(113.5, y + 1);
+      c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke();
+    }
+  }
+
   private drawRoadDetails(): void {
-    for (let x = 0; x < BOUNDS.w; x++) {
+    const roadEnd = 112.5;
+    for (let x = 0; x < roadEnd; x++) {
       if (!this.visible(x, 12, 1, 1)) continue;
       if (x % 5 < 3) this.poly([this.pt(x, 12), this.pt(x + 0.75, 12), this.pt(x + 0.75, 12.08), this.pt(x, 12.08)], '#d3c9af');
       if (x % 17 === 0) {
@@ -139,7 +181,7 @@ export class Renderer {
       }
     }
     for (const y of [9, 16]) {
-      const a = this.pt(0, y), b = this.pt(BOUNDS.w, y);
+      const a = this.pt(0, y), b = this.pt(roadEnd, y);
       this.ctx.strokeStyle = '#e0d3b3'; this.ctx.lineWidth = 1;
       this.ctx.beginPath(); this.ctx.moveTo(a.x, a.y); this.ctx.lineTo(b.x, b.y); this.ctx.stroke();
     }
@@ -192,6 +234,140 @@ export class Renderer {
     }
   }
 
+  private box3d(x: number, y: number, w: number, h: number, z0: number, z1: number, right: string, left: string, top: string): void {
+    const b = this.pt(x + w, y, z0), d = this.pt(x, y + h, z0), e = this.pt(x + w, y + h, z0);
+    const bt = this.pt(x + w, y, z1), dt = this.pt(x, y + h, z1), et = this.pt(x + w, y + h, z1);
+    this.poly([b, e, et, bt], right, PALETTE.outline);
+    this.poly([d, e, et, dt], left, PALETTE.outline);
+    this.poly([this.pt(x, y, z1), bt, et, dt], top, PALETTE.outline);
+  }
+
+  private drawVilla(prop: Prop): void {
+    const { x, y, w, h } = prop;
+    const z = prop.height || 30;
+    const roof = ['#9c5a46', '#a8614b', '#8f4f40'][prop.variant || 0];
+    this.drawBox(prop, ['#c9957c', '#e3b292'], '#7a4538');
+    const apex = this.pt(x + w / 2, y + h / 2, z + 8);
+    const bT = this.pt(x + w, y, z), dT = this.pt(x, y + h, z), eT = this.pt(x + w, y + h, z);
+    this.poly([bT, eT, apex], '#7a4538', PALETTE.outline);
+    this.poly([dT, eT, apex], roof, PALETTE.outline);
+  }
+
+  private drawTower(prop: Prop): void {
+    const { x, y, w, h } = prop;
+    const el = prop.elevation || 0;
+    const z = prop.height || 58;
+    const o = 0.5;
+    const pz = el + 6;
+
+    // Granite plinth protruding from the hilltop.
+    this.box3d(x - o, y - o, w + o * 2, h + o * 2, el, pz, PALETTE.graniteDark, PALETTE.granite, PALETTE.granite);
+
+    // Rear square towers (their lower shafts hide behind the keep; roofs peek above).
+    this.castleTower(x, y, 1.3, el + z, el + z + 9, 'square');
+    this.castleTower(x + w, y, 1.3, el + z, el + z + 9, 'square');
+
+    // Main brick keep.
+    this.box3d(x, y, w, h, pz, el + z, PALETTE.brickDark, PALETTE.brickRed, '#7a2f26');
+    this.brickCourses(x, y, w, h, pz, el + z, 0);
+    this.brickCourses(x, y, w, h, pz, el + z, 1);
+    this.buttress(x, y, w, h, pz, el + z, 0);
+    this.buttress(x, y, w, h, pz, el + z, 1);
+    this.capBattlement(x, y, w, h, el + z);
+
+    // Front round towers with copper renaissance domes.
+    this.castleTower(x, y + h, 1.3, pz, el + z + 10, 'round');
+    this.castleTower(x + w, y + h, 1.3, pz, el + z + 10, 'round');
+
+    // Sandstone staircase (two flights) and memorial stones at the entrance.
+    this.staircase(x + w * 0.5, y + h, el);
+    this.memorial(x + w * 0.28, y + h + 0.7, el);
+    this.memorial(x + w * 0.72, y + h + 1.0, el);
+  }
+
+  private brickCourses(x: number, y: number, w: number, h: number, z0: number, z1: number, face: number): void {
+    const c = this.ctx;
+    const rows = 7;
+    c.strokeStyle = '#5f2a22';
+    c.lineWidth = 1;
+    for (let k = 1; k < rows; k++) {
+      const zk = z0 + ((z1 - z0) * k) / rows;
+      const a = face === 0 ? this.pt(x + w, y, zk) : this.pt(x, y + h, zk);
+      const b = face === 0 ? this.pt(x + w, y + h, zk) : this.pt(x + w, y + h, zk);
+      c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke();
+    }
+  }
+
+  private buttress(x: number, y: number, w: number, h: number, z0: number, z1: number, face: number): void {
+    const c = this.ctx;
+    c.strokeStyle = PALETTE.brickLight;
+    c.lineWidth = 2;
+    const span = face === 0 ? h : w;
+    for (let i = 1; i <= 3; i++) {
+      const t = (span * i) / 4;
+      const a = face === 0 ? this.pt(x + w, y + t, z0) : this.pt(x + t, y + h, z0);
+      const b = face === 0 ? this.pt(x + w, y + t, z1) : this.pt(x + t, y + h, z1);
+      c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke();
+    }
+  }
+
+  private capBattlement(x: number, y: number, w: number, h: number, z: number): void {
+    const c = this.ctx;
+    const b = this.pt(x + w, y, z), d = this.pt(x, y + h, z), e = this.pt(x + w, y + h, z);
+    c.strokeStyle = PALETTE.copper;
+    c.lineWidth = 2;
+    c.beginPath(); c.moveTo(b.x, b.y); c.lineTo(e.x, e.y); c.lineTo(d.x, d.y); c.stroke();
+    c.fillStyle = PALETTE.copperDark;
+    const steps = 4;
+    for (let i = 0; i < steps; i++) {
+      const tb = this.pt(x + w, y + (h * i) / steps, z + 2);
+      c.fillRect(tb.x, tb.y, 3, 3);
+      const td = this.pt(x + (w * i) / steps, y + h, z + 2);
+      c.fillRect(td.x, td.y, 3, 3);
+    }
+  }
+
+  private castleTower(cx: number, cy: number, size: number, z0: number, z1: number, shape: 'round' | 'square'): void {
+    const c = this.ctx;
+    const half = size / 2;
+    this.box3d(cx - half, cy - half, size, size, z0, z1, PALETTE.brickDark, PALETTE.brickRed, '#7a2f26');
+    if (shape === 'round') {
+      const top = this.pt(cx, cy, z1);
+      const r = half * 16;
+      c.fillStyle = PALETTE.copper;
+      c.beginPath(); c.arc(top.x, top.y, r, Math.PI, Math.PI * 2, false); c.fill();
+      c.strokeStyle = PALETTE.copperDark; c.lineWidth = 1;
+      c.beginPath(); c.arc(top.x, top.y, r, Math.PI, Math.PI * 2, false); c.stroke();
+      c.fillStyle = PALETTE.copperDark; c.fillRect(top.x - 1, top.y - r - 3, 2, 3);
+    } else {
+      const apex = this.pt(cx, cy, z1 + 7);
+      const bT = this.pt(cx + half, cy - half, z1), dT = this.pt(cx - half, cy + half, z1), eT = this.pt(cx + half, cy + half, z1);
+      this.poly([bT, eT, apex], PALETTE.copperDark, PALETTE.outline);
+      this.poly([dT, eT, apex], PALETTE.copper, PALETTE.outline);
+    }
+  }
+
+  private staircase(cx: number, cy: number, el: number): void {
+    const c = this.ctx;
+    const steps = 6;
+    for (let i = 0; i < steps; i++) {
+      const zk = el + 6 - ((el + 6) * i) / (steps - 1);
+      const a = this.pt(cx - 2 + i * 0.05, cy + 0.5 * i, zk);
+      const b = this.pt(cx + 2 - i * 0.05, cy + 0.5 * i, zk);
+      c.fillStyle = i % 2 ? '#d8c49b' : '#c9b48a';
+      c.fillRect(a.x, a.y, Math.max(2, b.x - a.x), 3);
+    }
+  }
+
+  private memorial(x: number, y: number, el: number): void {
+    const p = this.pt(x, y, el);
+    const c = this.ctx;
+    c.fillStyle = '#8f8c86';
+    c.fillRect(p.x - 2, p.y - 6, 4, 6);
+    c.fillStyle = '#a7a39c';
+    c.fillRect(p.x - 2, p.y - 7, 4, 2);
+  }
+
   private window(x: number, y: number, pane: string): void {
     const c = this.ctx;
     c.fillStyle = '#344651'; c.fillRect(x - 4, y - 5, 8, 7);
@@ -208,13 +384,14 @@ export class Renderer {
     } else if (kind === 'block') {
       this.drawBox(prop, prop.variant ? ['#8e6157', '#b98470'] : ['#866259', '#a86e5c'], '#777d79');
     } else if (kind === 'villa') {
-      this.drawBox(prop, ['#aa7468', '#d2a393'], ['#a36450', '#955f4f', '#b46c56'][prop.variant || 0]);
+      this.drawVilla(prop);
     } else if (kind === 'tower') {
-      this.drawBox(prop, ['#aa8c74', '#d2b393'], '#688780');
-      const p = this.pt(x + w * 0.5, y + h * 0.5, (prop.height || 60) + 12);
-      this.ctx.fillStyle = '#5e7777'; this.ctx.fillRect(p.x - 4, p.y, 8, 13);
-      this.ctx.fillStyle = '#e0be83'; this.ctx.fillRect(p.x - 6, p.y - 2, 12, 3);
-      this.ctx.fillStyle = '#314a52'; this.ctx.fillRect(p.x - 2, p.y + 4, 4, 5);
+      this.drawTower(prop);
+    } else if (kind === 'plot') {
+      const shades = ['#5c8f4b', '#8f9d3f', '#c08a4a', '#6d8f5b'];
+      this.poly([this.pt(x, y), this.pt(x + w, y), this.pt(x + w, y + h), this.pt(x, y + h)], shades[prop.variant || 0], '#3a5240');
+      const mid = this.pt(x + w / 2, y + h / 2);
+      this.ctx.fillStyle = '#3f6b3a'; this.ctx.fillRect(mid.x - 2, mid.y - 1, 4, 2);
     } else if (kind === 'tree') this.drawTree(prop);
     else if (kind === 'car') this.drawCar(prop);
     else if (kind === 'hedge') {
@@ -236,6 +413,12 @@ export class Renderer {
       this.ctx.fillStyle = '#263d44'; this.ctx.fillRect(p.x - 1, p.y - 18, 2, 18);
       this.ctx.fillStyle = '#247b7e'; this.ctx.fillRect(p.x - 4, p.y - 22, 8, 7);
       this.ctx.fillStyle = '#f7e8bc'; this.ctx.fillRect(p.x - 2, p.y - 20, 5, 2);
+      if (prop.label) {
+        this.ctx.font = 'bold 7px monospace';
+        const width = this.ctx.measureText(prop.label).width;
+        this.ctx.fillStyle = '#102c35d9'; this.ctx.fillRect(p.x - width / 2 - 2, p.y - 27, width + 4, 8);
+        this.ctx.fillStyle = '#f2e8c6'; this.ctx.textAlign = 'center'; this.ctx.fillText(prop.label, p.x, p.y - 21); this.ctx.textAlign = 'left';
+      }
     }
   }
 
