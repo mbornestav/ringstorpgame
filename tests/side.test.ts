@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { KINDS, SideGame, type SideEnemy } from '../src/side/game';
+import { computeScore } from '../src/game';
+import { CLIP, FINE, GIVE_UP, KINDS, SideGame, type Officer, type SideEnemy } from '../src/side/game';
 import { BAND_TOP, PX_PER_M, WIDTH } from '../src/side/layout';
 import { stageFor, streetAt, type Stage } from '../src/side/stage';
 import { KURIR_BUILDING_ID } from '../src/side/routes';
@@ -488,5 +489,191 @@ describe('side-scrolling game', () => {
     game.update(STEP);
     expect(game.mode).toBe('victory');
     expect(game.score).toBeGreaterThan(0);
+  });
+});
+
+describe('D.D, his handgun and the police', () => {
+  /** The middle of a long stretch of carriageway, where traffic can pass. */
+  const roadSpot = (stage: Stage) => {
+    const run = stage.surfaces.find(r => (r.value === 'major' || r.value === 'road') && r.x1 - r.x0 > 1400)!;
+    return Math.round((run.x0 + run.x1) / 2);
+  };
+  function onRoad(game: SideGame): void {
+    game.start('direct');
+    game.hasPackage = true;
+    clearStreets(game);
+    teleport(game, roadSpot(game.stage));
+    game.random = () => 0.9; // Heading left, towards the courier.
+  }
+  function officer(game: SideGame, dx: number, cooldown = 99): Officer {
+    const o: Officer = {
+      id: 77, unit: 99, x: game.player.x + dx, y: game.player.y, z: 0, vx: 0, vz: 0, facing: dx > 0 ? -1 : 1, hp: 1, maxHp: 1,
+      flash: 0, walk: 0, state: 'run', timer: 0, cooldown, gone: false,
+    };
+    game.police.push(o);
+    return o;
+  }
+
+  it('drives D.D by, pulls over when waved at, and hands over the gun', () => {
+    const game = new SideGame();
+    onRoad(game);
+    game.bmwTimer = 0;
+    game.update(STEP);
+    const bmw = game.cars.find(c => c.kind === 'bmw')!;
+    expect(bmw).toBeDefined();
+    expect(game.events).toContain('honk');
+    expect(game.interaction?.kind).not.toBe('hail');
+    for (let t = 0; t < 5 && !game.bmwInReach; t += STEP) game.update(STEP);
+    expect(game.interaction?.kind).toBe('hail');
+    game.interact();
+    expect(bmw.state).toBe('braking');
+    for (let t = 0; t < 3 && bmw.state !== 'stopped'; t += STEP) game.update(STEP);
+    expect(bmw.state).toBe('stopped');
+    // He pulls up with his window just beside the courier.
+    expect(Math.abs(bmw.x + bmw.dir * 7 - game.player.x)).toBeLessThan(60);
+    run(game, 0.7);
+    expect(game.ammo).toBe(CLIP);
+    expect(game.metDD).toBe(true);
+    run(game, 5);
+    expect(game.cars.some(c => c.kind === 'bmw')).toBe(false);
+    // While the courier is armed, he doesn't come round again.
+    game.bmwTimer = 0;
+    run(game, 1);
+    expect(game.cars.some(c => c.kind === 'bmw')).toBe(false);
+  });
+
+  it('drives on if nobody waves, and comes round again later', () => {
+    const game = new SideGame();
+    onRoad(game);
+    game.bmwTimer = 0;
+    run(game, 6);
+    expect(game.cars).toEqual([]);
+    expect(game.ammo).toBe(0);
+    expect(game.bmwTimer).toBeGreaterThan(20);
+  });
+
+  it('only comes by on an open road once the package has been picked up', () => {
+    const game = new SideGame();
+    game.start('direct');
+    game.bmwTimer = 0;
+    run(game, 1);
+    expect(game.cars).toEqual([]);
+    game.hasPackage = true;
+    teleport(game, game.stage.start.x);
+    run(game, 1);
+    expect(game.cars).toEqual([]);
+  });
+
+  it('shoots the nearest crew member in the lane ahead and staggers a bruiser mid-windup', () => {
+    const game = new SideGame();
+    const bruiser = sparring(game, 'bruiser', 90);
+    const behind = { ...bruiser, id: 501, kind: 'runner' as const, x: game.player.x - 60, hp: 3, maxHp: 3 };
+    const otherLane = { ...bruiser, id: 502, kind: 'runner' as const, x: game.player.x + 40, y: game.player.y + 30, hp: 3, maxHp: 3 };
+    game.enemies.push(behind, otherLane);
+    game.ammo = CLIP;
+    game.metDD = true;
+    game.player.facing = 1;
+    bruiser.state = 'windup';
+    bruiser.timer = 5;
+    game.queueShot();
+    game.update(STEP);
+    expect(game.ammo).toBe(CLIP - 1);
+    expect(bruiser.hp).toBe(KINDS.bruiser.hp - 2);
+    expect(bruiser.state).toBe('hurt');
+    expect(behind.hp).toBe(3);
+    expect(otherLane.hp).toBe(3);
+    expect(game.wanted).toBe(true);
+  });
+
+  it('holds fire with an officer in the way, and has nothing to fire when empty', () => {
+    const game = new SideGame();
+    const runner = sparring(game, 'runner', 60);
+    game.player.facing = 1;
+    officer(game, 30);
+    game.ammo = 3;
+    game.queueShot();
+    game.update(STEP);
+    expect(game.ammo).toBe(3);
+    expect(runner.hp).toBe(3);
+    expect(game.message).toBe('NOT AT THE POLICE');
+    game.police = [];
+    game.ammo = 0;
+    game.queueShot();
+    game.update(STEP);
+    expect(runner.hp).toBe(3);
+  });
+
+  it('sends a Swedish patrol after a shot, and an arrest takes the gun and costs a fine', () => {
+    const game = new SideGame();
+    onRoad(game);
+    game.bmwTimer = 99;
+    game.ammo = CLIP;
+    game.metDD = true;
+    game.queueShot();
+    game.update(STEP);
+    expect(game.dispatch).toBeCloseTo(3.5, 1);
+    run(game, 3.6);
+    expect(game.cars.some(c => c.kind === 'police')).toBe(true);
+    expect(game.events).toContain('siren');
+    for (let t = 0; t < 6 && !game.police.length; t += STEP) game.update(STEP);
+    expect(game.police).toHaveLength(2);
+    // Standing still, the courier gets caught.
+    for (let t = 0; t < 10 && !game.fines; t += STEP) game.update(STEP);
+    expect(game.fines).toBe(1);
+    expect(game.ammo).toBe(0);
+    expect(game.player.cuffTimer).toBeGreaterThan(0);
+    run(game, 8);
+    expect(game.wanted).toBe(false);
+    expect(game.police).toEqual([]);
+  });
+
+  it('shoves officers over but never knocks them out, and the police give up in time', () => {
+    const game = new SideGame();
+    sparring(game, 'runner', 300);
+    const o = officer(game, 24);
+    game.player.facing = 1;
+    for (let i = 0; i < 3; i++) { game.queueAttack(); run(game, 0.3); }
+    expect(o.state).toBe('down');
+    expect(o.gone).toBe(false);
+    expect(game.heat).toBeGreaterThan(0);
+    expect(game.koCount).toBe(0);
+    // Out of reach, the chase winds down once nothing else happens.
+    game.player.invulnerable = 99;
+    run(game, GIVE_UP + 1);
+    expect(game.message).toBe('THE POLICE LOST YOUR TRAIL');
+    run(game, 4);
+    expect(game.police).toEqual([]);
+  });
+
+  it('loses the police round the corner at a junction', () => {
+    const game = new SideGame();
+    game.start();
+    game.hasPackage = true;
+    clearStreets(game);
+    teleport(game, direct.forkX);
+    officer(game, -120);
+    game.dispatch = 2;
+    game.heat = 3;
+    expect(game.interaction?.kind).toBe('turn');
+    game.interact();
+    expect(game.route).toBe('marcus');
+    expect(game.police).toEqual([]);
+    expect(game.wanted).toBe(false);
+  });
+
+  it('deducts fines from the final score', () => {
+    const game = new SideGame();
+    game.start('direct');
+    game.hasPackage = true;
+    clearStreets(game);
+    game.fines = 2;
+    teleport(game, game.stage.length - WIDTH * 0.5);
+    game.update(STEP);
+    for (const e of game.enemies) if (e.encounter === 100) e.hp = 0;
+    game.update(STEP);
+    teleport(game, game.stage.homeX, BAND_TOP + 4);
+    game.update(STEP);
+    expect(game.mode).toBe('victory');
+    expect(game.score).toBe(Math.max(0, computeScore(game.elapsed, game.player.hp, game.koCount, game.continues) - 2 * FINE));
   });
 });

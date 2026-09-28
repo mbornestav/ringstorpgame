@@ -48,8 +48,53 @@ export interface SidePlayer extends Fighter {
   downTimer: number;
   riseTimer: number;
   moving: boolean;
+  /** Arm held out after a shot, for the aiming pose. */
+  aimTimer: number;
+  shotCooldown: number;
+  waveTimer: number;
+  /** Held in handcuffs by the police. */
+  cuffTimer: number;
 }
-export interface Effect { kind: 'spark' | 'smash' | 'dust' | 'heal'; x: number; y: number; z: number }
+/** Effects for the renderer; a tracer or a tossed gun also has an end point. */
+export interface Effect {
+  kind: 'spark' | 'smash' | 'dust' | 'heal' | 'muzzle' | 'tracer' | 'toss';
+  x: number;
+  y: number;
+  z: number;
+  x1?: number;
+  y1?: number;
+}
+
+export type CarKind = 'bmw' | 'police';
+export type CarState = 'driving' | 'braking' | 'stopped' | 'leaving';
+/** A car on the carriageway. Traffic keeps right, so cars heading right use the lane nearer the camera. */
+export interface Car {
+  id: number;
+  kind: CarKind;
+  /** Centre of the car along the street, and the line its tyres run on. */
+  x: number;
+  y: number;
+  dir: 1 | -1;
+  speed: number;
+  state: CarState;
+  timer: number;
+  /** Where it will pull up, if it is stopping. */
+  stopAt: number | null;
+  wheel: number;
+  /** D.D has handed over the gun. */
+  handed: boolean;
+}
+export type OfficerState = 'exit' | 'run' | 'grab' | 'cuff' | 'hurt' | 'down' | 'rise' | 'leave';
+/** Police officers try to arrest the courier. They can be shoved over but never knocked out. */
+export interface Officer extends Fighter {
+  id: number;
+  /** The patrol car they came in. */
+  unit: number;
+  state: OfficerState;
+  timer: number;
+  cooldown: number;
+  gone: boolean;
+}
 
 export const KINDS: Record<EnemyKind, { hp: number; speed: number; reach: number; windup: number; recover: number; damage: number; armor: boolean }> = {
   runner: { hp: 3, speed: 68, reach: 27, windup: 0.42, recover: 0.5, damage: 1, armor: false },
@@ -75,6 +120,19 @@ const DODGE_SPEED = 250, DODGE_TIME = 0.26;
 const MAX_ENGAGED = 2;
 const HOME_ENCOUNTER = 100;
 const TURN_REACH = 72;
+/** Tyre lines of the two lanes: near the camera for traffic heading right, far for traffic heading left. */
+export const LANES = { near: 244, far: 206 };
+const CAR_SPEED = 170, BRAKING = 520;
+/** D.D notices a wave from this close. */
+const HAIL_REACH = 150;
+/** Rounds in the handgun D.D hands over. */
+export const CLIP = 8;
+const SHOT_DAMAGE = 2, SHOT_COOLDOWN = 0.3;
+const POLICE_SPEED = 82;
+/** The police give up this many seconds after the last offence. */
+export const GIVE_UP = 20;
+/** Points deducted for each arrest. */
+export const FINE = 500;
 const BEST_KEY = 'ringstorp-side-best';
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -112,6 +170,21 @@ export class SideGame {
   shake = 0;
   events: string[] = [];
   effects: Effect[] = [];
+  cars: Car[] = [];
+  police: Officer[] = [];
+  /** Rounds left in D.D's handgun; none means no gun. */
+  ammo = 0;
+  metDD = false;
+  /** Seconds until the BMW next comes by. It waits for an open stretch of road, and for you to be unarmed. */
+  bmwTimer = 0;
+  /** Shots fired and officers shoved since the police were last shaken off. */
+  heat = 0;
+  sinceOffence = 0;
+  /** Seconds until the next patrol arrives, when one has been called. */
+  dispatch: number | null = null;
+  fines = 0;
+  /** Randomness for the passing traffic; tests can replace it. */
+  random: () => number = Math.random;
   private freeze = 0;
   private defeatTimer = 0;
   private fightTime = 0;
@@ -122,6 +195,8 @@ export class SideGame {
   private attackBuffer = 0;
   private jumpBuffer = 0;
   private dodgeBuffer = 0;
+  private shotBuffer = 0;
+  private nextUnit = 1;
 
   constructor() {
     try { this.bestScore = Number(localStorage.getItem(BEST_KEY) || 0) || 0; } catch { /* private mode */ }
@@ -136,6 +211,7 @@ export class SideGame {
       x: start.x, y: start.y, z: 0, vx: 0, vz: 0, facing: 1, hp: 5, maxHp: 5, flash: 0, walk: 0,
       invulnerable: 0, attackTimer: 0, attackLength: 0, attackHit: false, combo: 0, comboWindow: 0, kick: false, kickHit: false,
       dodgeTimer: 0, dodgeCooldown: 0, hurtTimer: 0, downTimer: 0, riseTimer: 0, moving: false,
+      aimTimer: 0, shotCooldown: 0, waveTimer: 0, cuffTimer: 0,
     };
     this.encounters = new Map(this.stage.encounters.map(e => [e.id, 'waiting' as EncounterState]));
     this.enemies = this.stage.encounters.filter(e => !e.home).flatMap(e => e.spawns.map(s => this.makeEnemy(s, e.id)));
@@ -161,7 +237,16 @@ export class SideGame {
     this.freeze = 0;
     this.defeatTimer = 0;
     this.backup = [];
-    this.attackBuffer = this.jumpBuffer = this.dodgeBuffer = 0;
+    this.attackBuffer = this.jumpBuffer = this.dodgeBuffer = this.shotBuffer = 0;
+    this.cars = [];
+    this.police = [];
+    this.ammo = 0;
+    this.metDD = false;
+    this.bmwTimer = 14 + this.random() * 12;
+    this.heat = 0;
+    this.sinceOffence = 0;
+    this.dispatch = null;
+    this.fines = 0;
   }
 
   start(route: Route = 'direct'): void {
@@ -181,10 +266,13 @@ export class SideGame {
     return this.stage.junctions.find(j => !this.decisions.has(j.id) && j.x >= this.player.x - TURN_REACH && j.x <= this.player.x + 280);
   }
 
-  get interaction(): { kind: 'turn' | 'shop'; label: string } | null {
-    if (!this.hasPackage || this.mode !== 'playing' || this.active || this.transition > 0) return null;
+  get interaction(): { kind: 'turn' | 'shop' | 'hail'; label: string } | null {
+    if (!this.hasPackage || this.mode !== 'playing' || this.transition > 0) return null;
     const p = this.player;
-    if (p.hp <= 0 || p.z > 0 || p.downTimer > 0 || p.hurtTimer > 0 || p.riseTimer > 0 || p.dodgeTimer > 0 || p.attackTimer > 0) return null;
+    if (p.hp <= 0 || p.z > 0 || p.downTimer > 0 || p.hurtTimer > 0 || p.riseTimer > 0 || p.dodgeTimer > 0 || p.attackTimer > 0 || p.cuffTimer > 0) return null;
+    // Waving down D.D works mid-fight; changing streets or shopping does not.
+    if (this.bmwInReach) return { kind: 'hail', label: 'Wave down the BMW' };
+    if (this.active) return null;
     const j = this.junctionAhead;
     if (j && Math.abs(p.x - j.x) <= TURN_REACH) return { kind: 'turn', label: `Turn · ${j.turn}` };
     if (this.stage.shopX !== null && Math.abs(p.x - this.stage.shopX) < 28 && p.y < BAND_TOP + 24) {
@@ -193,10 +281,11 @@ export class SideGame {
     return null;
   }
 
-  /** E is contextual: take a signed turn, or collect supplies at the shop door. */
+  /** E is contextual: wave down D.D, take a signed turn, or collect supplies at the shop door. */
   interact(): void {
     const action = this.interaction;
     if (!action) return;
+    if (action.kind === 'hail') { this.hail(); return; }
     if (action.kind === 'shop') {
       if (this.shopHealed) { this.say('KURIR LIVS · SUPPLIES ALREADY COLLECTED'); return; }
       if (this.player.hp === this.player.maxHp) { this.say('HEALTH IS FULL · SAVE THE SUPPLIES'); return; }
@@ -218,7 +307,12 @@ export class SideGame {
     this.enemies = this.stage.encounters.filter(e => !e.home && this.encounters.get(e.id) !== 'cleared')
       .flatMap(e => e.spawns.map(s => this.makeEnemy(s, e.id)));
     this.effects = [];
-    this.attackBuffer = this.jumpBuffer = this.dodgeBuffer = 0;
+    // Round the corner, passing traffic and the police lose track of you.
+    this.cars = [];
+    this.police = [];
+    this.heat = 0;
+    this.dispatch = null;
+    this.attackBuffer = this.jumpBuffer = this.dodgeBuffer = this.shotBuffer = 0;
     this.player.vx = this.player.vz = 0;
     this.transition = 0.35;
     this.events.push('go');
@@ -231,9 +325,13 @@ export class SideGame {
     const p = this.player;
     Object.assign(p, {
       x: this.checkpoint, y: BAND_TOP + 12, z: 0, vx: 0, vz: 0, facing: 1, hp: p.maxHp, invulnerable: 2, flash: 0,
-      attackTimer: 0, kick: false, dodgeTimer: 0, hurtTimer: 0, downTimer: 0, riseTimer: 0,
+      attackTimer: 0, kick: false, dodgeTimer: 0, hurtTimer: 0, downTimer: 0, riseTimer: 0, cuffTimer: 0, aimTimer: 0,
     });
     this.continues++;
+    this.cars = [];
+    this.police = [];
+    this.heat = 0;
+    this.dispatch = null;
     // The crew that won goes back to where it was waiting.
     if (this.active) {
       const e = this.active;
@@ -257,6 +355,17 @@ export class SideGame {
   queueAttack(): void { this.attackBuffer = 0.2; }
   queueJump(): void { this.jumpBuffer = 0.12; }
   queueDodge(): void { this.dodgeBuffer = 0.12; }
+  queueShot(): void { this.shotBuffer = 0.12; }
+
+  /** The BMW, while it is passing close enough to notice a wave. */
+  get bmwInReach(): Car | undefined {
+    const p = this.player;
+    return this.cars.find(c => c.kind === 'bmw' && c.state === 'driving' && !c.handed
+      && Math.abs(c.x - p.x) < HAIL_REACH && c.x > this.camera - 40 && c.x < this.camera + WIDTH + 40);
+  }
+
+  /** The police are after the courier, or on their way. */
+  get wanted(): boolean { return this.dispatch !== null || this.police.some(o => o.state !== 'leave'); }
 
   get homeCrewDown(): boolean {
     return this.crewSprung && this.encounters.get(HOME_ENCOUNTER) === 'cleared';
@@ -298,7 +407,10 @@ export class SideGame {
     this.updateEncounters(dt);
     const engaged = this.engaged();
     for (const e of this.enemies) this.updateEnemy(e, dt, engaged);
+    this.updatePolice(dt);
     this.separate(dt);
+    this.updateCars(dt);
+    this.updateBmw(dt);
     this.updateCamera(dt);
     const p = this.player;
     p.x = clamp(p.x, Math.max(EDGE, this.camera + EDGE), Math.min(this.stage.length - EDGE, this.camera + WIDTH - EDGE));
@@ -318,6 +430,11 @@ export class SideGame {
     this.attackBuffer = Math.max(0, this.attackBuffer - dt);
     this.jumpBuffer = Math.max(0, this.jumpBuffer - dt);
     this.dodgeBuffer = Math.max(0, this.dodgeBuffer - dt);
+    this.shotBuffer = Math.max(0, this.shotBuffer - dt);
+    p.aimTimer = Math.max(0, p.aimTimer - dt);
+    p.shotCooldown = Math.max(0, p.shotCooldown - dt);
+    p.waveTimer = Math.max(0, p.waveTimer - dt);
+    p.cuffTimer = Math.max(0, p.cuffTimer - dt);
     const grounded = p.z <= 0;
 
     if (p.downTimer > 0) {
@@ -325,8 +442,9 @@ export class SideGame {
       if (p.downTimer <= 0 && p.hp > 0) p.riseTimer = 0.35;
     } else if (p.riseTimer > 0) p.riseTimer = Math.max(0, p.riseTimer - dt);
     else if (p.hurtTimer > 0) p.hurtTimer = Math.max(0, p.hurtTimer - dt);
-    const stunned = p.downTimer > 0 || p.riseTimer > 0 || p.hurtTimer > 0 || p.hp <= 0;
+    const stunned = p.downTimer > 0 || p.riseTimer > 0 || p.hurtTimer > 0 || p.cuffTimer > 0 || p.hp <= 0;
 
+    if (!stunned && this.shotBuffer > 0 && grounded && p.attackTimer <= 0 && p.dodgeTimer <= 0 && p.shotCooldown <= 0) this.shoot();
     if (!stunned) {
       if (this.dodgeBuffer > 0 && grounded && p.dodgeCooldown <= 0 && p.attackTimer <= 0) {
         this.dodgeBuffer = 0;
@@ -413,10 +531,18 @@ export class SideGame {
       this.hitEnemy(e, damage, knockdown);
       landed = true;
     }
+    for (const o of this.police) {
+      if (o.gone || !['run', 'grab', 'hurt'].includes(o.state)) continue;
+      const dx = (o.x - p.x) * p.facing;
+      if (dx < -6 || dx > reach || Math.abs(o.y - p.y) > LANE || Math.abs(o.z - p.z) > 26) continue;
+      this.shoveOfficer(o, knockdown);
+      landed = true;
+    }
     return landed;
   }
 
-  private hitEnemy(e: SideEnemy, damage: number, knockdown: boolean): void {
+  /** Bullets stagger anyone they hit, even a bruiser or the boss winding up. */
+  private hitEnemy(e: SideEnemy, damage: number, knockdown: boolean, stagger = false): void {
     const dir = e.x >= this.player.x ? 1 : -1;
     const kind = KINDS[e.kind];
     e.hp = Math.max(0, e.hp - damage);
@@ -435,7 +561,7 @@ export class SideGame {
       this.freeze = 0.08;
       this.events.push('smash');
     } else {
-      if (!(kind.armor && e.state === 'windup')) { e.state = 'hurt'; e.timer = 0.3; }
+      if (stagger || !(kind.armor && e.state === 'windup')) { e.state = 'hurt'; e.timer = 0.3; }
       e.vx = dir * 55;
       this.effects.push({ kind: 'spark', ...at });
       this.freeze = 0.05;
@@ -656,6 +782,280 @@ export class SideGame {
     }
   }
 
+  // ---------------------------------------------------------------- D.D and the handgun
+
+  /** The view is on carriageway from edge to edge, so a car can drive through. */
+  private roadInView(): boolean {
+    const x0 = this.camera - 120, x1 = this.camera + WIDTH + 120;
+    return this.stage.surfaces.filter(r => r.x1 > x0 && r.x0 < x1).every(r => r.value === 'road' || r.value === 'major');
+  }
+
+  private makeCar(kind: CarKind, dir: 1 | -1, speed: number): Car {
+    const id = this.nextUnit++;
+    const car: Car = {
+      id, kind, dir, speed, x: dir > 0 ? this.camera - 70 : this.camera + WIDTH + 70, y: dir > 0 ? LANES.near : LANES.far,
+      state: 'driving', timer: 0, stopAt: null, wheel: 0, handed: false,
+    };
+    this.cars.push(car);
+    return car;
+  }
+
+  /** Every so often D.D drives by in his BMW, but only while the courier is empty-handed. */
+  private updateBmw(dt: number): void {
+    if (!this.hasPackage || this.ammo > 0 || this.cars.some(c => c.kind === 'bmw')) return;
+    this.bmwTimer -= dt;
+    if (this.bmwTimer > 0 || !this.roadInView()) return;
+    this.makeCar('bmw', this.random() < 0.5 ? 1 : -1, CAR_SPEED);
+    this.events.push('honk');
+  }
+
+  /** A wave gets D.D's attention: he pulls up by the courier, or as soon as the brakes allow. */
+  private hail(): void {
+    const car = this.bmwInReach!;
+    this.player.waveTimer = 0.7;
+    // D.D sits just ahead of the car's middle; stop with him beside the courier, not behind.
+    const beside = this.player.x - car.dir * 37;
+    const needed = car.speed * car.speed / (2 * BRAKING);
+    car.stopAt = (beside - car.x) * car.dir >= needed ? beside : car.x + car.dir * needed;
+    car.state = 'braking';
+    this.events.push('brake');
+    this.say('D.D? · HE’S PULLING OVER');
+  }
+
+  private handOver(car: Car): void {
+    car.handed = true;
+    this.ammo = CLIP;
+    this.metDD = true;
+    this.bmwTimer = 40 + this.random() * 20;
+    this.effects.push({ kind: 'toss', x: car.x + car.dir * 6, y: car.y, z: 24, x1: this.player.x, y1: this.player.y });
+    this.events.push('gun');
+    this.say('D.D: TAKE THIS, AND PRESS I TO SHOOT');
+  }
+
+  private updateCars(dt: number): void {
+    for (const car of this.cars) {
+      car.timer += dt;
+      if (car.state === 'driving') {
+        const left = car.stopAt === null ? Infinity : (car.stopAt - car.x) * car.dir;
+        if (left <= car.speed * car.speed / (2 * BRAKING) + 1) car.state = 'braking';
+        else car.x += car.dir * car.speed * dt;
+      }
+      if (car.state === 'braking') {
+        const left = Math.max(0, ((car.stopAt ?? car.x) - car.x) * car.dir);
+        car.speed = Math.min(car.speed, Math.sqrt(2 * BRAKING * left) + 20);
+        const step = Math.min(left, car.speed * dt);
+        car.x += car.dir * step;
+        if (left - step < 0.5) {
+          car.speed = 0;
+          car.state = 'stopped';
+          car.timer = 0;
+          if (car.kind === 'police') {
+            // Two officers get out on the pavement side and give chase.
+            for (const k of [0, 1]) this.police.push(this.makeOfficer(car.id, car.x + (k ? 12 : -12), clamp(car.y - 10 - k * 8, BAND_TOP, BAND_BOTTOM), 0.35 + k * 0.25));
+          }
+        }
+      } else if (car.state === 'stopped') {
+        if (car.kind === 'bmw') {
+          if (!car.handed && car.timer >= 0.55) this.handOver(car);
+          if (car.timer >= 1.7) { car.state = 'leaving'; this.events.push('honk'); }
+        } else if (car.timer > 1 && !this.police.some(o => o.unit === car.id)) car.state = 'leaving';
+      } else if (car.state === 'leaving') {
+        car.speed = Math.min(CAR_SPEED * 1.2, car.speed + 260 * dt);
+        car.x += car.dir * car.speed * dt;
+      }
+      car.wheel += car.dir * car.speed * dt / 7;
+    }
+    // Gone once they've driven off the far edge, or been left far behind.
+    const gone = this.cars.filter(car => {
+      if (car.state !== 'driving' && car.state !== 'leaving') return false;
+      const past = car.dir > 0 ? car.x > this.camera + WIDTH + 160 : car.x < this.camera - 160;
+      return past || Math.abs(car.x - (this.camera + WIDTH / 2)) > 900;
+    });
+    if (!gone.length) return;
+    this.cars = this.cars.filter(car => !gone.includes(car));
+    // D.D drove past without being noticed; he'll be round again.
+    if (gone.some(car => car.kind === 'bmw' && !car.handed)) this.bmwTimer = 25 + this.random() * 20;
+  }
+
+  /** I fires along the courier's lane at the nearest crew member, but never at the police. */
+  private shoot(): void {
+    const p = this.player;
+    this.shotBuffer = 0;
+    if (this.ammo <= 0) { if (this.metDD) this.events.push('empty'); return; }
+    const inLine = (f: Fighter) => {
+      const dx = (f.x - p.x) * p.facing;
+      return dx > 6 && f.x > this.camera - 10 && f.x < this.camera + WIDTH + 10 && Math.abs(f.y - p.y) <= LANE + 2 && f.z < 30 ? dx : Infinity;
+    };
+    const target = this.enemies.filter(e => e.hp > 0 && !OUT.has(e.state)).map(e => ({ e, d: inLine(e) }))
+      .filter(o => o.d < Infinity).sort((a, b) => a.d - b.d)[0];
+    const officer = Math.min(Infinity, ...this.police.filter(o => !o.gone && o.state !== 'down').map(inLine));
+    if (officer < (target?.d ?? Infinity)) { this.say('NOT AT THE POLICE'); return; }
+    this.ammo--;
+    p.aimTimer = 0.28;
+    p.shotCooldown = SHOT_COOLDOWN;
+    const muzzle = { x: p.x + p.facing * 24, y: p.y, z: 30 };
+    const end = target ? target.e.x - p.facing * 4 : p.x + p.facing * WIDTH;
+    this.effects.push({ kind: 'muzzle', ...muzzle }, { kind: 'tracer', ...muzzle, x1: end, y1: p.y });
+    this.events.push('shot');
+    if (target) this.hitEnemy(target.e, SHOT_DAMAGE, target.e.kind === 'runner', true);
+    this.offence();
+    if (this.ammo === 0) this.say('D.D’S GUN IS EMPTY');
+  }
+
+  // ---------------------------------------------------------------- police
+
+  /** Gunfire and shoving officers bring the police; enough of it brings a second patrol. */
+  private offence(): void {
+    this.heat++;
+    this.sinceOffence = 0;
+    const units = new Set(this.police.filter(o => o.state !== 'leave').map(o => o.unit)).size + (this.dispatch !== null ? 1 : 0);
+    if (units === 0) {
+      this.dispatch = 3.5;
+      if (this.heat === 1) this.say('SHOTS FIRED · SOMEONE CALLED THE POLICE');
+    } else if (units === 1 && this.heat >= 6 && this.dispatch === null) this.dispatch = 5;
+  }
+
+  private makeOfficer(unit: number, x: number, y: number, delay: number): Officer {
+    return {
+      id: unit * 10 + this.police.length, unit, x, y, z: 0, vx: 0, vz: 0, facing: this.player.x < x ? -1 : 1, hp: 1, maxHp: 1,
+      flash: 0, walk: 0, state: 'exit', timer: delay, cooldown: 0.8, gone: false,
+    };
+  }
+
+  /** A patrol car comes up from behind the courier; off the road, the officers come on foot. */
+  private sendUnit(): void {
+    const p = this.player;
+    this.events.push('siren');
+    this.say('POLIS! · DON’T GET CAUGHT');
+    const dir: 1 | -1 = p.facing > 0 ? 1 : -1;
+    if (this.roadInView()) {
+      const car = this.makeCar('police', dir, CAR_SPEED * 1.25);
+      car.stopAt = clamp(p.x - dir * 50, this.camera + 70, this.camera + WIDTH - 70);
+      return;
+    }
+    const unit = this.nextUnit++;
+    for (const k of [0, 1]) {
+      const x = dir > 0 ? this.camera - 24 - k * 22 : this.camera + WIDTH + 24 + k * 22;
+      const officer = this.makeOfficer(unit, x, clamp(p.y + (k ? 14 : -14), BAND_TOP, BAND_BOTTOM), 0);
+      officer.state = 'run';
+      this.police.push(officer);
+    }
+  }
+
+  private catchable(): boolean {
+    const p = this.player;
+    return p.hp > 0 && p.cuffTimer <= 0 && p.downTimer <= 0 && p.riseTimer <= 0 && p.dodgeTimer <= 0 && p.invulnerable <= 0 && p.z < 10;
+  }
+
+  private updatePolice(dt: number): void {
+    if (this.dispatch !== null) {
+      this.dispatch -= dt;
+      if (this.dispatch <= 0) { this.dispatch = null; this.sendUnit(); }
+    }
+    if (this.police.some(o => o.state !== 'leave')) {
+      this.sinceOffence += dt;
+      if (this.sinceOffence > GIVE_UP) this.standDown('THE POLICE LOST YOUR TRAIL');
+    }
+    for (const o of this.police) this.updateOfficer(o, dt);
+    this.police = this.police.filter(o => !o.gone);
+  }
+
+  private standDown(message: string): void {
+    for (const o of this.police) if (o.state !== 'cuff') o.state = 'leave';
+    this.heat = 0;
+    this.dispatch = null;
+    this.say(message);
+  }
+
+  private updateOfficer(o: Officer, dt: number): void {
+    const p = this.player;
+    o.flash = Math.max(0, o.flash - dt);
+    o.cooldown = Math.max(0, o.cooldown - dt);
+    if (o.z > 0 || o.vz > 0) {
+      o.vz -= GRAVITY * dt;
+      o.z += o.vz * dt;
+      if (o.z <= 0) { o.z = 0; o.vz = 0; if (o.state === 'down') { o.vx *= 0.25; this.effects.push({ kind: 'dust', x: o.x, y: o.y, z: 0 }); this.events.push('thud'); } }
+    }
+    o.x += o.vx * dt;
+    if (o.z <= 0) o.vx *= Math.max(0, 1 - dt * 9);
+    switch (o.state) {
+      case 'exit':
+      case 'hurt':
+      case 'rise':
+        o.timer -= dt;
+        if (o.timer <= 0) { o.state = 'run'; o.cooldown = Math.max(o.cooldown, 0.3); }
+        return;
+      case 'down':
+        if (o.z > 0) return;
+        o.timer -= dt;
+        if (o.timer <= 0) { o.state = 'rise'; o.timer = 0.4; }
+        return;
+      case 'cuff':
+        o.timer -= dt;
+        o.facing = p.x >= o.x ? 1 : -1;
+        if (o.timer <= 0) o.state = 'leave';
+        return;
+      case 'grab':
+        o.timer -= dt;
+        if (o.timer > 0) return;
+        if (this.catchable() && Math.abs(p.x - o.x) <= 28 && Math.abs(p.y - o.y) <= LANE) this.bust(o);
+        else { o.state = 'run'; o.cooldown = 0.7; }
+        return;
+      case 'leave': {
+        // Back to the patrol car, or off the edge of the screen.
+        const car = this.cars.find(c => c.id === o.unit);
+        const tx = car ? car.x : o.x < this.camera + WIDTH / 2 ? this.camera - 80 : this.camera + WIDTH + 80;
+        const dx = tx - o.x;
+        o.x += clamp(dx, -70 * dt, 70 * dt);
+        o.facing = dx >= 0 ? 1 : -1;
+        o.walk += dt * 9;
+        if (Math.abs(dx) < 8 || o.x < this.camera - 60 || o.x > this.camera + WIDTH + 60) o.gone = true;
+        return;
+      }
+    }
+    // Running the courier down.
+    o.x = clamp(o.x, this.camera - 60, this.camera + WIDTH + 60);
+    const side = o.x < p.x ? -1 : 1;
+    const dx = p.x + side * 16 - o.x, dy = p.y - o.y;
+    o.x += clamp(dx, -POLICE_SPEED * dt, POLICE_SPEED * dt);
+    o.y = clamp(o.y + clamp(dy, -POLICE_SPEED * 0.65 * dt, POLICE_SPEED * 0.65 * dt), BAND_TOP, BAND_BOTTOM);
+    if (Math.abs(dx) > 1.5 || Math.abs(dy) > 1.5) o.walk += dt * 12;
+    o.facing = p.x >= o.x ? 1 : -1;
+    const gap = Math.abs(p.x - o.x);
+    if (o.cooldown <= 0 && gap <= 24 && gap >= 6 && Math.abs(dy) <= 6 && this.catchable()) {
+      o.state = 'grab';
+      o.timer = 0.45;
+      this.events.push('warn');
+    }
+  }
+
+  /** Caught: cuffed, the gun confiscated, a fine, and the police are satisfied. */
+  private bust(officer: Officer): void {
+    const p = this.player;
+    p.cuffTimer = 1.4;
+    p.attackTimer = 0; p.kick = false; p.vx = 0; p.aimTimer = 0;
+    p.invulnerable = Math.max(p.invulnerable, 2.6);
+    officer.state = 'cuff';
+    officer.timer = 1.4;
+    this.ammo = 0;
+    this.fines++;
+    this.standDown(`BUSTED · GUN CONFISCATED · ${FINE} FINE`);
+    this.events.push('cuff');
+  }
+
+  /** A punch staggers an officer and a finisher knocks one over, but it keeps the police after you. */
+  private shoveOfficer(o: Officer, knockdown: boolean): void {
+    const dir = o.x >= this.player.x ? 1 : -1;
+    o.flash = 0.16;
+    o.facing = dir > 0 ? -1 : 1;
+    if (knockdown) { o.state = 'down'; o.timer = 1.1; o.vx = dir * 140; o.vz = 150; o.z = Math.max(o.z, 1); this.events.push('smash'); }
+    else { o.state = 'hurt'; o.timer = 0.35; o.vx = dir * 60; this.events.push('hit'); }
+    this.effects.push({ kind: knockdown ? 'smash' : 'spark', x: o.x - dir * 6, y: o.y, z: o.z + 27 });
+    this.freeze = knockdown ? 0.08 : 0.05;
+    if (this.heat === 0 && !this.messageTimer) this.say('ASSAULTING AN OFFICER · MORE POLICE ARE COMING');
+    this.offence();
+  }
+
   // ---------------------------------------------------------------- mission
 
   private checkObjectives(): void {
@@ -678,7 +1078,7 @@ export class SideGame {
       this.effects.push({ kind: 'heal', x: p.x, y: p.y, z: 30 });
     }
     if (this.homeCrewDown && Math.abs(p.x - st.homeX) < 18 && p.y < BAND_TOP + 24 && p.z <= 0 && p.hp > 0) {
-      this.score = computeScore(this.elapsed, p.hp, this.koCount, this.continues);
+      this.score = Math.max(0, computeScore(this.elapsed, p.hp, this.koCount, this.continues) - this.fines * FINE);
       this.bestScore = Math.max(this.bestScore, this.score);
       try { localStorage.setItem(BEST_KEY, String(this.bestScore)); } catch { /* private mode */ }
       this.mode = 'victory';

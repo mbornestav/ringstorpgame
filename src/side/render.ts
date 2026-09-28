@@ -1,6 +1,7 @@
 import { Backdrop, CHUNK, DISTANT_PARALLAX, HORIZON, bakeClouds, bakeSky, drawNearLamp, facadeBox } from './backdrop';
 import { LOOKS, POSES, drawFighter, type Look, type Pose } from './fighters';
-import type { Effect, SideEnemy, SideGame, SidePlayer } from './game';
+import type { Effect, Officer, SideEnemy, SideGame, SidePlayer } from './game';
+import { drawCar, drawPortrait } from './vehicles';
 import { BAND_TOP, HEIGHT, WIDTH } from './layout';
 import { disc, ellipse, rand, rect, seg, text, textWidth } from './pixel';
 import type { Facade, Stage } from './stage';
@@ -172,6 +173,8 @@ export class SideRenderer {
     const enemies = game.enemies.filter(e => !e.gone && e.x > cam - 60 && e.x < cam + WIDTH + 60);
     // Shadows first, so nobody's shadow falls across someone standing in front.
     for (const e of enemies) this.shadow(e.x - cam, e.y, e.z, e.kind === 'boss' ? 13 : e.kind === 'bruiser' ? 11 : 9);
+    const officers = game.police.filter(o => o.x > cam - 60 && o.x < cam + WIDTH + 60);
+    for (const o of officers) this.shadow(o.x - cam, o.y, o.z, 9);
     this.shadow(p.x - cam, p.y, p.z, 9);
     if (!game.hasPackage) this.shadow(game.stage.package.x - cam, game.stage.package.y, 0, 8);
 
@@ -180,6 +183,9 @@ export class SideRenderer {
 
     const actors: Array<{ y: number; x: number; draw: () => void }> = [];
     for (const e of enemies) actors.push({ y: e.y, x: e.x, draw: () => this.drawEnemy(e, cam) });
+    for (const o of officers) actors.push({ y: o.y, x: o.x, draw: () => this.drawOfficer(o, cam) });
+    // A car covers anyone standing behind its tyre line.
+    for (const car of game.cars) if (car.x > cam - 90 && car.x < cam + WIDTH + 90) actors.push({ y: car.y + 0.5, x: car.x, draw: () => drawCar(c, car, car.x - cam, this.elapsed) });
     actors.push({ y: p.y + 0.1, x: p.x, draw: () => this.drawPlayer(game, p, cam) });
     if (!game.hasPackage) actors.push({ y: game.stage.package.y, x: game.stage.package.x, draw: () => this.drawPackage(game.stage.package.x - cam, game.stage.package.y) });
     actors.sort((a, b) => a.y - b.y || a.x - b.x);
@@ -195,7 +201,7 @@ export class SideRenderer {
   private drawPlayer(game: SideGame, p: SidePlayer, cam: number): void {
     const c = this.c;
     const pose = this.playerPose(game, p);
-    const opts = { parcel: game.hasPackage, satchel: true };
+    const opts = { parcel: game.hasPackage, satchel: true, gun: game.ammo > 0 };
     for (const t of this.trail) {
       c.globalAlpha = 0.35 * (1 - t.t / 0.18);
       drawFighter(c, t.x - cam, t.y, t.z, t.facing, LOOKS.player, POSES.dodge(), { ...opts, tint: '#86d5c7' });
@@ -214,11 +220,14 @@ export class SideRenderer {
 
   private playerPose(game: SideGame, p: SidePlayer): Pose {
     if (p.hp <= 0 || p.downTimer > 0) return POSES.down(this.fall(p.z, p.vz));
+    if (p.cuffTimer > 0) return POSES.cuffed();
     if (p.riseTimer > 0) return POSES.rise(1 - p.riseTimer / 0.35);
     if (p.hurtTimer > 0) return POSES.hurt();
     if (p.dodgeTimer > 0) return POSES.dodge();
     if (p.z > 0) return p.kick ? POSES.kick() : POSES.jump();
     if (p.attackTimer > 0) return POSES.punch(p.combo, 1 - p.attackTimer / p.attackLength);
+    if (p.aimTimer > 0) return POSES.aim();
+    if (p.waveTimer > 0) return POSES.wave(this.elapsed);
     if (game.mode === 'victory') return POSES.cheer(this.elapsed);
     if (p.moving) return POSES.walk(p.walk);
     return POSES.idle(this.elapsed);
@@ -262,6 +271,27 @@ export class SideRenderer {
     }
   }
 
+  private drawOfficer(o: Officer, cam: number): void {
+    const c = this.c;
+    let pose: Pose;
+    switch (o.state) {
+      case 'run': case 'leave': pose = POSES.walk(o.walk); break;
+      case 'grab': pose = POSES.grab(); break;
+      case 'hurt': pose = POSES.hurt(); break;
+      case 'down': pose = POSES.down(this.fall(o.z, o.vz)); break;
+      case 'rise': pose = POSES.rise(1 - o.timer / 0.4); break;
+      default: pose = POSES.idle(this.elapsed + o.id);
+    }
+    const x = o.x - cam;
+    drawFighter(c, x, o.y, o.z, o.facing, LOOKS.police, pose, { tint: o.flash > 0 ? FLASH : undefined });
+    if (o.state === 'grab') {
+      const top = o.y - o.z - LOOKS.police.height - 8;
+      c.font = 'bold 12px monospace';
+      c.fillStyle = '#10181f'; c.fillText('!', x - 2, top + 1);
+      c.fillStyle = '#9cc4ff'; c.fillText('!', x - 3, top);
+    }
+  }
+
   private drawPackage(x: number, y: number): void {
     const c = this.c, X = Math.round(x), Y = Math.round(y);
     rect(c, X - 8, Y - 12, 16, 12, '#3a2a22');
@@ -276,7 +306,7 @@ export class SideRenderer {
   private drawEffects(game: SideGame, cam: number, dt: number): void {
     for (const e of game.effects.splice(0)) this.fx.push({ ...e, t: 0, seed: Math.floor(rand(e.x, this.elapsed * 100) * 1000) });
     const c = this.c;
-    const life = { spark: 0.16, smash: 0.26, dust: 0.4, heal: 0.9 };
+    const life = { spark: 0.16, smash: 0.26, dust: 0.4, heal: 0.9, muzzle: 0.07, tracer: 0.07, toss: 0.45 };
     this.fx = this.fx.filter(f => (f.t += dt) < life[f.kind]);
     for (const f of this.fx) {
       const x = Math.round(f.x - cam), y = Math.round(f.y - f.z);
@@ -293,6 +323,19 @@ export class SideRenderer {
           c.strokeStyle = `rgba(255, 170, 90, ${1 - k})`; c.lineWidth = 2;
           c.beginPath(); c.arc(x, y, 6 + k * 14, 0, Math.PI * 2); c.stroke();
         }
+      } else if (f.kind === 'muzzle') {
+        disc(c, x, y, 3, '#fff6c8');
+        for (const a of [0, Math.PI / 2, Math.PI, Math.PI * 1.5]) seg(c, x, y, x + Math.cos(a) * 6, y + Math.sin(a) * 4, 1, '#ffd166');
+      } else if (f.kind === 'tracer') {
+        c.globalAlpha = 1 - k;
+        seg(c, x, y, Math.round((f.x1 ?? f.x) - cam), y, 1, '#fff2b0');
+        c.globalAlpha = 1;
+      } else if (f.kind === 'toss') {
+        // The gun spins across in an arc from D.D's window to the courier.
+        const tx = x + ((f.x1 ?? f.x) - f.x) * k, ty = y + ((f.y1 ?? f.y) - 30 - (f.y - f.z)) * k - Math.sin(k * Math.PI) * 26;
+        const flip = Math.floor(k * 8) % 2;
+        rect(c, tx - 4, ty - 2, flip ? 8 : 4, flip ? 4 : 7, '#141820');
+        rect(c, tx - 3, ty - 1, flip ? 6 : 2, flip ? 2 : 5, '#3b4148');
       } else if (f.kind === 'dust') {
         for (const side of [-1, 1]) {
           const r = 3 + k * 5;
@@ -347,7 +390,17 @@ export class SideRenderer {
       c.fillStyle = '#102c35e6'; c.fillRect((WIDTH - width) / 2, 40, width, 20);
       c.strokeStyle = '#eec36e'; c.lineWidth = 1; c.strokeRect((WIDTH - width) / 2 + 0.5, 40.5, width - 1, 19);
       c.fillStyle = '#f7e8c4'; c.textAlign = 'center'; c.fillText(game.message, WIDTH / 2, 53); c.textAlign = 'left';
+      if (game.message.startsWith('D.D')) drawPortrait(c, Math.round((WIDTH - width) / 2) - 25, 38);
       c.globalAlpha = 1;
+    }
+    if (game.wanted) {
+      // Flashing blue lights: the police are after you.
+      const on = Math.floor(this.elapsed * 6) % 2;
+      rect(c, 10, 64, 58, 14, '#101c33e6');
+      rect(c, 10, 64, 58, 1, '#5aa2ff');
+      rect(c, 14, 68, 6, 6, on ? '#5aa2ff' : '#1d3566');
+      rect(c, 58, 68, 6, 6, on ? '#1d3566' : '#5aa2ff');
+      text(c, 'POLIS', 29, 69, '#f2d31b');
     }
     const boss = game.enemies.find(e => e.kind === 'boss' && e.hp > 0 && e.state !== 'idle');
     if (boss) {

@@ -152,3 +152,35 @@ test('takes both turns during play, refills at Kurir Livs, delivers and replays'
   await page.screenshot({ path: 'test-results/compact.png', fullPage: true });
   expect(errors).toEqual([]);
 });
+
+test('D.D pulls over for a wave, and firing his gun brings the police', async ({ page }) => {
+  test.setTimeout(60000);
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/');
+  await page.getByRole('button', { name: /start run/i }).click();
+  await page.evaluate(() => {
+    const g = (window as unknown as Exposed).__ringstorpGame;
+    for (const e of g.stage.encounters) if (!e.home) g.encounters.set(e.id, 'cleared');
+    for (const e of g.enemies) { e.hp = 0; e.gone = true; }
+    g.hasPackage = true;
+    // The middle of a long stretch of road, with D.D due and heading towards the courier.
+    const road = g.stage.surfaces.find(r => (r.value === 'major' || r.value === 'road') && r.x1 - r.x0 > 1400)!;
+    const x = Math.round((road.x0 + road.x1) / 2);
+    g.camera = x - 192; g.player.x = x; g.player.y = 214; g.messageTimer = 0;
+    g.random = () => 0.9;
+    g.bmwTimer = 0;
+  });
+  await expect(page.getByText('Is that D.D?')).toBeVisible();
+  await page.waitForFunction(() => !!(window as unknown as Exposed).__ringstorpGame.bmwInReach);
+  await page.keyboard.press('e');
+  const ammo = () => page.evaluate(() => (window as unknown as Exposed).__ringstorpGame.ammo);
+  await expect.poll(ammo).toBe(8);
+  await expect(page.locator('#ammo')).toBeVisible();
+  await page.locator('#game').screenshot({ path: 'test-results/side-dd.png' });
+  await page.keyboard.press('i');
+  await expect.poll(ammo).toBe(7);
+  await expect.poll(() => page.evaluate(() => (window as unknown as Exposed).__ringstorpGame.police.length), { timeout: 10000 }).toBeGreaterThan(0);
+  await page.locator('#game').screenshot({ path: 'test-results/side-police.png' });
+  expect(errors).toEqual([]);
+});

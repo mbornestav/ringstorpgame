@@ -32,12 +32,23 @@ Open the local URL printed by Vite. `npm run build` creates a static production 
 | Space or L | Jump |
 | J | Punch. Time repeated presses for a jab, a cross and a hook that knocks down. In the air, J is a flying kick |
 | K | Dodge, with brief invulnerability |
-| E | Take the optional turn at a junction, or refill health at Kurir Livs' entrance |
+| I | Fire D.D's handgun, once he has given it to you |
+| E | Wave down D.D's BMW as it passes, take the optional turn at a junction, or refill health at Kurir Livs' entrance |
 | Esc | Pause or resume |
 | M | Toggle sound |
 | Enter | Start, continue from Marcus A, or replay |
 
 Blows only land on someone in the same lane, so line up before you swing. A **!** means an attack is coming. Bruisers and the boss shrug off jabs while winding up, so dodge, jump clear, or finish the combo with the hook.
+
+## D.D, the handgun and the police
+
+Now and then, on an open stretch of road, a blue 90s BMW comes by. It's **D.D**. Wave it down with **E** while it's close and he pulls over, leans out of the window and tosses you his handgun with 8 rounds. If you miss him, he comes round again later, and once you're out of ammo he'll bring you more. The prompt at the top of the screen tells you when he's in reach.
+
+**I** fires along your lane at the nearest crew member in front of you. A hit does 2 damage and staggers anyone, even a bruiser or the boss mid-windup; runners go down. The courier won't shoot at the police: with an officer in the line of fire, he holds fire.
+
+Gunfire brings the **police**. A few seconds after the first shot, a Swedish patrol car pulls up behind you with sirens and blue lights, and two officers in hi-vis vests give chase. Keep shooting and a second patrol joins them. Off the road they arrive on foot. Officers don't hurt you; they try to arrest you, and a **!** means one is reaching for you. If they catch you, you're **busted**: the gun is confiscated and you're fined 500 points. You can shove officers away or knock them over with a hook or kick, but they get back up, and hitting them keeps them after you. They give up about 20 seconds after your last offence, and you lose them if you turn off at a junction.
+
+The courier and D.D are pixel-art impressions from photos the user supplied; the patrol car follows the blue-and-yellow Swedish police livery on a Volvo estate.
 
 ## How the street is built
 

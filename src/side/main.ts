@@ -2,7 +2,7 @@ import { type Mode } from '../game';
 import { ROUTE_NAMES } from './routes';
 import { MAP_ATTRIBUTION } from '../map';
 import '../style.css';
-import { SideGame } from './game';
+import { CLIP, FINE, SideGame } from './game';
 import { SideRenderer } from './render';
 
 // Entry point for the side-scrolling edition. The isometric edition's entry, src/main.ts, is kept
@@ -22,14 +22,14 @@ app.innerHTML = `
       <section class="game-frame" aria-label="Ringstorp Run game">
         <canvas id="game" aria-label="Side-scrolling game view"></canvas>
         <div class="game-hud" id="game-hud" hidden>
-          <div class="hud-card life-card"><span class="hud-label">COURIER / HEALTH</span><div id="hearts" class="hearts"></div></div>
+          <div class="hud-card life-card"><span class="hud-label">COURIER / HEALTH</span><div id="hearts" class="hearts"></div><div id="ammo" class="ammo" hidden></div></div>
           <div class="hud-card objective-card"><span class="hud-label">CURRENT OBJECTIVE</span><strong id="objective"></strong><div class="progress" id="progress"></div></div>
           <div class="hud-card time-card"><span class="hud-label">TIME / SCORE</span><strong><span id="time">00:00</span> <span class="slash">/</span> <span id="score">00000</span></strong></div>
         </div>
         <div class="street-choice" id="street-choice" hidden aria-live="polite"></div>
         <div class="overlay" id="overlay"></div>
       </section>
-      <div class="bottomline"><span>A D / ← → <b>WALK</b></span><span>W S / ↑ ↓ <b>STEP</b></span><span>SPACE / L <b>JUMP</b></span><span>J <b>PUNCH</b></span><span>K <b>DODGE</b></span><span>E <b>TURN / USE</b></span><span>ESC <b>PAUSE</b></span><span>M <b>SOUND</b></span></div>
+      <div class="bottomline"><span>A D / ← → <b>WALK</b></span><span>W S / ↑ ↓ <b>STEP</b></span><span>SPACE / L <b>JUMP</b></span><span>J <b>PUNCH</b></span><span>K <b>DODGE</b></span><span>I <b>SHOOT</b></span><span>E <b>TURN / USE / WAVE</b></span><span>ESC <b>PAUSE</b></span><span>M <b>SOUND</b></span></div>
     </main>
     <footer><span>ORIGINAL PIXEL ART · MAP DATA ${MAP_ATTRIBUTION.toUpperCase()}</span><span>BEST RUN <b id="best-score">00000</b></span></footer>
   </div>`;
@@ -39,6 +39,7 @@ const overlay = document.querySelector<HTMLDivElement>('#overlay')!;
 const streetChoice = document.querySelector<HTMLDivElement>('#street-choice')!;
 const hud = document.querySelector<HTMLDivElement>('#game-hud')!;
 const hearts = document.querySelector<HTMLDivElement>('#hearts')!;
+const ammo = document.querySelector<HTMLDivElement>('#ammo')!;
 const objective = document.querySelector<HTMLElement>('#objective')!;
 const progress = document.querySelector<HTMLDivElement>('#progress')!;
 const timeDisplay = document.querySelector<HTMLElement>('#time')!;
@@ -85,17 +86,22 @@ class Sound {
         pickup: [[523, 0.12, 0], [784, 0.16, 0.1]],
         parcel: [[392, 0.1, 0], [523, 0.1, 0.1], [784, 0.23, 0.2]],
         crew: [[196, 0.1, 0], [185, 0.14, 0.1]], go: [[659, 0.08, 0], [880, 0.12, 0.09]],
+        honk: [[392, 0.12, 0], [494, 0.12, 0], [392, 0.16, 0.18], [494, 0.16, 0.18]], brake: [[1300, 0.35, 0]],
+        shot: [[1100, 0.03, 0], [170, 0.12, 0.01], [85, 0.16, 0.02]], empty: [[1800, 0.02, 0]],
+        gun: [[330, 0.08, 0], [494, 0.08, 0.08], [659, 0.18, 0.16]], cuff: [[2100, 0.03, 0], [2500, 0.03, 0.08], [1400, 0.05, 0.16]],
+        // The two-tone siren of a Swedish patrol car.
+        siren: [[650, 0.42, 0], [980, 0.42, 0.44], [650, 0.42, 0.88], [980, 0.42, 1.32]],
         victory: [[392, 0.12, 0], [523, 0.12, 0.12], [659, 0.12, 0.24], [784, 0.45, 0.36]],
         defeat: [[270, 0.18, 0], [210, 0.18, 0.18], [150, 0.3, 0.36]],
       };
       for (const [frequency, duration, delay] of notes[name] || []) {
         const osc = c.createOscillator();
         const gain = c.createGain();
-        osc.type = name === 'hit' || name === 'hurt' || name === 'smash' || name === 'thud' ? 'sawtooth' : 'square';
+        osc.type = ['hit', 'hurt', 'smash', 'thud', 'shot', 'brake'].includes(name) ? 'sawtooth' : name === 'siren' ? 'triangle' : 'square';
         osc.frequency.setValueAtTime(frequency, now + delay);
-        if (name === 'swing' || name === 'dodge') osc.frequency.exponentialRampToValueAtTime(Math.max(40, frequency / 3), now + delay + duration);
+        if (name === 'swing' || name === 'dodge' || name === 'shot' || name === 'brake') osc.frequency.exponentialRampToValueAtTime(Math.max(40, frequency / 3), now + delay + duration);
         gain.gain.setValueAtTime(0.0001, now + delay);
-        gain.gain.exponentialRampToValueAtTime(name === 'warn' ? 0.012 : 0.035, now + delay + 0.01);
+        gain.gain.exponentialRampToValueAtTime(name === 'warn' || name === 'brake' ? 0.012 : name === 'siren' ? 0.05 : 0.035, now + delay + 0.01);
         gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + duration);
         osc.connect(gain).connect(c.destination);
         osc.start(now + delay); osc.stop(now + delay + duration + 0.01);
@@ -117,7 +123,7 @@ function panelFor(mode: Mode): string {
       <div class="eyebrow"><span class="chip">01</span> HELSINGBORG / SWEDEN <span class="gold-line"></span> 1994</div>
       <h1>RINGSTORP<br><span>RUN</span><i>▸</i></h1>
       <p class="subtitle">ONE PACKAGE. YOUR STREETS. FIND YOUR WAY HOME.</p>
-      <p class="story">Pick up the package at Pålsjö kiosk and carry it home to Ringstorpsvägen 55B. Choose your turns as you play: visit Marcus A for a checkpoint, stop at Kurir Livs for health, or keep heading home. Follow the street signs and press E at a junction to turn. Crews stand in your way.</p>
+      <p class="story">Pick up the package at Pålsjö kiosk and carry it home to Ringstorpsvägen 55B. Choose your turns as you play: visit Marcus A for a checkpoint, stop at Kurir Livs for health, or keep heading home. Follow the street signs and press E at a junction to turn. Crews stand in your way, and if a blue BMW comes by, wave at it: it might be a friend.</p>
       <div class="action-row route-row">
         <button class="primary-button" data-action="start">▶ &nbsp; START RUN</button>
         <span>ENTER TO PLAY · CHOOSE TURNS ON THE STREET</span>
@@ -125,7 +131,7 @@ function panelFor(mode: Mode): string {
       <div class="controls-grid"><div><kbd>WASD</kbd> / <kbd>↑↓←→</kbd><span>WALK · STEP</span></div><div><kbd>SPACE</kbd><span>JUMP · J IN AIR KICKS</span></div><div><kbd>J</kbd><span>PUNCH · COMBO</span></div><div><kbd>K</kbd><span>DODGE</span></div></div>
     </div>`;
   if (mode === 'paused') return `<div class="panel compact-panel"><div class="eyebrow">MISSION ON HOLD</div><h2>PAUSED<span class="blink">_</span></h2><p>Take a breath. The streets can wait.</p><div class="action-row"><button class="primary-button" data-action="resume">▶ &nbsp; RESUME</button><button class="secondary-button" data-action="restart">↻ &nbsp; RESTART</button></div><small>ESC TO RESUME</small></div>`;
-  if (mode === 'victory') return `<div class="panel compact-panel outcome-panel"><div class="eyebrow">MISSION COMPLETE / RINGSTORPSVÄGEN 55B</div><h2>DELIVERED<span class="gold">.</span></h2><p>The package made it home${game.healed ? ', with a patch-up at Marcus A' : ''}${game.shopHealed ? ' and supplies from Kurir Livs' : ''}.</p><div class="result-grid"><div><span>RUN TIME</span><b>${formatTime(game.elapsed)}</b></div><div><span>CREWS DOWN</span><b>${game.koCount}</b></div><div><span>FINAL SCORE</span><b>${game.score.toString().padStart(5, '0')}</b></div></div><div class="action-row"><button class="primary-button" data-action="restart">↻ &nbsp; PLAY AGAIN</button><span>PRESS ENTER TO REPLAY</span></div></div>`;
+  if (mode === 'victory') return `<div class="panel compact-panel outcome-panel"><div class="eyebrow">MISSION COMPLETE / RINGSTORPSVÄGEN 55B</div><h2>DELIVERED<span class="gold">.</span></h2><p>The package made it home${game.healed ? ', with a patch-up at Marcus A' : ''}${game.shopHealed ? ' and supplies from Kurir Livs' : ''}${game.metDD ? '. D.D had your back' : ''}${game.fines ? `, but the police fined you ${game.fines * FINE} points` : ''}.</p><div class="result-grid"><div><span>RUN TIME</span><b>${formatTime(game.elapsed)}</b></div><div><span>CREWS DOWN</span><b>${game.koCount}</b></div><div><span>FINAL SCORE</span><b>${game.score.toString().padStart(5, '0')}</b></div></div><div class="action-row"><button class="primary-button" data-action="restart">↻ &nbsp; PLAY AGAIN</button><span>PRESS ENTER TO REPLAY</span></div></div>`;
   const resume = game.checkpoint !== null
     ? `<button class="primary-button" data-action="continue">✚ &nbsp; CONTINUE FROM MARCUS A</button><button class="secondary-button" data-action="restart">↻ &nbsp; START OVER</button>`
     : `<button class="primary-button" data-action="restart">↻ &nbsp; TRY AGAIN</button><span>PRESS ENTER TO RETRY</span>`;
@@ -143,6 +149,8 @@ function syncUI(): void {
   }
   if (game.mode !== 'title') {
     hearts.innerHTML = Array.from({ length: game.player.maxHp }, (_, i) => `<span class="heart ${i >= game.player.hp ? 'empty' : ''}">♥</span>`).join('');
+    ammo.hidden = game.ammo <= 0;
+    if (game.ammo > 0) ammo.innerHTML = `<b>I</b> ${Array.from({ length: CLIP }, (_, i) => `<i class="${i < game.ammo ? '' : 'spent'}"></i>`).join('')}`;
     objective.textContent = game.objective;
     const marcusState = game.healed ? 'done' : game.hasPackage && game.marcusAhead ? 'active' : 'optional';
     const shopState = game.shopHealed ? 'done' : game.stage.shopX !== null && game.player.x < game.stage.shopX + 90 ? 'active' : 'optional';
@@ -154,7 +162,7 @@ function syncUI(): void {
     ];
     progress.innerHTML = steps.map(([state, icon, title]) => `<span class="progress-step ${state}" title="${title}">${icon}</span>`).join('<i></i>') + `<em class="route-name">${ROUTE_NAMES[game.route]}</em>`;
     timeDisplay.textContent = formatTime(game.elapsed);
-    scoreDisplay.textContent = (game.koCount * 85 + (game.hasPackage ? 500 : 0) + (game.healed ? 250 : 0)).toString().padStart(5, '0');
+    scoreDisplay.textContent = Math.max(0, game.koCount * 85 + (game.hasPackage ? 500 : 0) + (game.healed ? 250 : 0) - game.fines * FINE).toString().padStart(5, '0');
     const street = game.street ?? (game.hasPackage ? (game.metresToHome < 60 ? 'RINGSTORPSVÄGEN 55B' : 'PÅLSJÖ') : 'PÅLSJÖ KIOSK');
     streetLine.textContent = `${street.toUpperCase()} · ${Math.round(game.metresToHome)} M TO HOME`;
   } else streetLine.textContent = 'PÅLSJÖ KIOSK → RINGSTORPSVÄGEN 55B';
@@ -162,8 +170,11 @@ function syncUI(): void {
   soundButton.textContent = soundOn ? '♪ ON' : '♪ OFF';
   soundButton.setAttribute('aria-label', soundOn ? 'Mute sound' : 'Unmute sound');
   const junction = game.junctionAhead, action = game.interaction;
+  const bmw = game.cars.find(c => c.kind === 'bmw' && c.state === 'driving' && !c.handed && c.x > game.camera - 60 && c.x < game.camera + 540);
   let choice = '';
-  if (game.mode === 'playing' && junction) {
+  if (game.mode === 'playing' && bmw) {
+    choice = `<div><small>A BLUE BMW · COMING ${bmw.dir > 0 ? 'FROM BEHIND' : 'TOWARDS YOU'}</small><strong>Is that D.D?</strong><span>${action?.kind === 'hail' ? 'Wave it down before it’s gone' : 'Get closer to the car to wave'}</span></div><button type="button" ${action?.kind === 'hail' ? '' : 'disabled'} aria-label="Wave down the BMW"><kbd>E</kbd> WAVE</button>`;
+  } else if (game.mode === 'playing' && junction) {
     const distance = Math.max(0, Math.ceil((junction.x - game.player.x) / 60) * 5);
     choice = `<div><small>${junction.street.toUpperCase()}${distance > 5 ? ` · ${distance} M` : ' · JUNCTION'}</small><strong>↗ ${junction.turn}</strong><span>Keep walking → ${junction.straight}</span></div><button type="button" ${action?.kind === 'turn' ? '' : 'disabled'} aria-label="Turn towards ${junction.id === 'romares' ? 'Marcus A' : 'Kurir Livs'}"><kbd>E</kbd> ${game.active ? 'CLEAR CREW' : action?.kind === 'turn' ? 'TURN' : 'APPROACH'}</button>`;
   } else if (game.mode === 'playing' && game.stage.shopX !== null && Math.abs(game.player.x - game.stage.shopX) < 150) {
@@ -205,7 +216,7 @@ window.addEventListener('keydown', event => {
   if (event.ctrlKey || event.metaKey || event.altKey) return;
   // Let keyboard users activate the focused UI button normally.
   if ((key === 'enter' || key === ' ') && event.target instanceof HTMLButtonElement) return;
-  if (movementKeys.has(key) || ['j', 'k', 'l', 'e', 'escape', 'enter', 'm', ' '].includes(key)) event.preventDefault();
+  if (movementKeys.has(key) || ['j', 'k', 'l', 'i', 'e', 'escape', 'enter', 'm', ' '].includes(key)) event.preventDefault();
   if (key === 'e' && !event.repeat && game.mode === 'playing') { game.interact(); syncUI(); }
   if (key === 'm' && !event.repeat) toggleSound();
   if (key === 'escape' && !event.repeat) { game.togglePause(); syncUI(); }
@@ -213,6 +224,7 @@ window.addEventListener('keydown', event => {
   else if (key === 'enter' && !event.repeat && ['title', 'victory', 'defeat'].includes(game.mode)) restart();
   if (key === 'j' && !event.repeat && game.mode === 'playing') game.queueAttack();
   if (key === 'k' && !event.repeat && game.mode === 'playing') game.queueDodge();
+  if (key === 'i' && !event.repeat && game.mode === 'playing') game.queueShot();
   if ((key === ' ' || key === 'l') && !event.repeat && game.mode === 'playing') game.queueJump();
   held.add(key);
 });

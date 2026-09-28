@@ -20,6 +20,13 @@ export interface Look {
   shades?: boolean;
   chain?: boolean;
   stripe?: string;
+  /** Long hair with a side-swept fringe over the forehead, and a lighter streak. */
+  fringe?: string;
+  /** T-shirt sleeves: bare forearms below the shirt colour. */
+  shortSleeves?: boolean;
+  /** A hi-vis vest with reflective bands, over a darker uniform. */
+  vest?: boolean;
+  badge?: boolean;
 }
 
 /** Angles in radians. Limbs are measured from hanging straight down, positive towards the facing side. */
@@ -35,10 +42,13 @@ export interface Pose {
 }
 
 export const LOOKS = {
-  player: { skin: '#e0ae8a', hair: '#263d45', jacket: '#298f9d', arms: '#edbd59', trousers: '#26343f', shoes: '#f1ede2', height: 44, build: 9, limb: 4, cap: '#1d3038' },
+  // The courier, after the player's photo: straight blond hair swept over the forehead, a royal-blue T-shirt and jeans.
+  player: { skin: '#eec2a2', hair: '#c3a063', fringe: '#e6cd92', jacket: '#2459b8', arms: '#2459b8', shortSleeves: true, trousers: '#34435e', shoes: '#ece7da', height: 44, build: 9, limb: 4 },
   runner: { skin: '#d9a985', hair: '#3a2f2c', jacket: '#985c57', arms: '#7e4a46', trousers: '#2c2f3a', shoes: '#e9e4d8', height: 43, build: 9, limb: 4, stripe: '#e9e4d8' },
   bruiser: { skin: '#c9967a', hair: '#2a2420', jacket: '#7b586f', arms: '#644659', trousers: '#262a33', shoes: '#191b1f', height: 47, build: 12, limb: 5, bald: true },
   boss: { skin: '#d2a07e', hair: '#1b1b1f', jacket: '#a34254', arms: '#86343f', trousers: '#1f2129', shoes: '#191b1f', height: 54, build: 14, limb: 6, shades: true, chain: true },
+  // Swedish police: a yellow hi-vis vest over a navy uniform, and a navy cap with the badge.
+  police: { skin: '#e8b995', hair: '#5a4634', jacket: '#d3dc3a', arms: '#1d2a44', trousers: '#1b2436', shoes: '#141517', height: 45, build: 10, limb: 4, cap: '#1b2640', badge: true, vest: true },
 } satisfies Record<string, Look>;
 
 const OUTLINE = '#141820';
@@ -73,6 +83,13 @@ export const POSES = {
   windup: (t: number): Pose => ({ lean: -0.14 - 0.04 * Math.sin(t * 30), head: 0, legs: [[0.4, -0.2], [-0.42, -0.1]], arms: [[0.9, 0.9], [-0.55, 2.3]], rot: 0 }),
   strike: (): Pose => ({ lean: 0.32, head: 0.05, legs: [[0.45, -0.15], [-0.45, -0.05]], arms: [[0.3, 1.9], [1.6, 0.08]], rot: 0 }),
   cheer: (t: number): Pose => ({ lean: -0.05, head: -0.15, legs: [[0.15, -0.1], [-0.15, -0.1]], arms: [[3.0 + Math.sin(t * 8) * 0.12, 0.2], [0.4, 1.6]], rot: 0 }),
+  /** Both hands out on the gun, level with the shoulder. */
+  aim: (): Pose => ({ lean: 0.02, head: 0.05, legs: [[0.32, -0.1], [-0.32, -0.08]], arms: [[1.57, 0], [1.38, 0.28]], rot: 0 }),
+  wave: (t: number): Pose => ({ lean: -0.04, head: -0.12, legs: [[0.12, -0.08], [-0.12, -0.08]], arms: [[2.75 + Math.sin(t * 16) * 0.35, 0.35], [0.2, 0.5]], rot: 0 }),
+  /** An officer reaching for the courier's arms. */
+  grab: (): Pose => ({ lean: 0.22, head: 0, legs: [[0.4, -0.12], [-0.4, -0.08]], arms: [[1.4, 0.15], [1.2, 0.35]], rot: 0 }),
+  /** Hands behind the back, head down. */
+  cuffed: (): Pose => ({ lean: 0.12, head: 0.3, legs: [[0.08, -0.05], [-0.08, -0.05]], arms: [[-0.55, 1.1], [-0.45, 1.25]], rot: 0 }),
 };
 
 type Pt = [number, number];
@@ -84,7 +101,7 @@ const dir = (a: number): Pt => [Math.sin(a), Math.cos(a)];
  */
 export function drawFighter(
   c: CanvasRenderingContext2D, x: number, ground: number, z: number, facing: 1 | -1, look: Look, pose: Pose,
-  opts: { tint?: string; parcel?: boolean; satchel?: boolean } = {},
+  opts: { tint?: string; parcel?: boolean; satchel?: boolean; gun?: boolean } = {},
 ): void {
   const s = look.height / 40;
   const thigh = 9 * s, shin = 9 * s, torso = 13 * s, upper = 7 * s, fore = 7 * s, headH = Math.round(8 * s), headW = Math.round(7 * s + (look.build > 9 ? 1 : 0));
@@ -119,7 +136,7 @@ export function drawFighter(
   const [bElbow, bHand] = arms[1], [fElbow, fHand] = arms[0];
   const [bKnee, bFoot] = legs[1], [fKnee, fFoot] = legs[0];
   limb(shoulder, bElbow, A, back(look.arms));
-  limb(bElbow, bHand, A, back(look.arms));
+  limb(bElbow, bHand, A, back(look.shortSleeves ? look.skin : look.arms));
   limb(bHand, bHand, A, back(look.skin));
   limb(hip, bKnee, L, back(look.trousers));
   limb(bKnee, bFoot, L, back(look.trousers));
@@ -138,6 +155,11 @@ export function drawFighter(
     rect(c, belt[0] - look.build / 2, belt[1] - 1, look.build, 2, shade(look.trousers, 0.8));
     if (look.chain) for (let k = 0; k < 5; k++) { const q2 = at([look.build * 0.3 - k * 0.8, -torso * 0.72 + k * 1.4]); rect(c, q2[0], q2[1], 1, 1, '#e5c35a'); }
     if (look.stripe) { const a1 = at([-look.build / 2 + 1, -torso + 2]), a2 = at([-look.build / 2 + 1, -2]); seg(c, a1[0], a1[1], a2[0], a2[1], 1, look.stripe); }
+    if (look.vest) {
+      // Two reflective bands across the vest.
+      const across = (t: number, off: number): Pt => at([shoulder[0] * t + off * Math.cos(pose.lean), shoulder[1] * t + off * Math.sin(pose.lean)]);
+      for (const t of [0.35, 0.62]) { const a1 = across(t, -look.build / 2 + 1), a2 = across(t, look.build / 2 - 1); seg(c, a1[0], a1[1], a2[0], a2[1], 1, '#c9d0d5'); }
+    }
   }
   if (opts.parcel) {
     // The package rides on the courier's back, strapped on so both fists are free.
@@ -153,8 +175,17 @@ export function drawFighter(
   if (look.stripe && !tint) { const p = at(hip), q = at(fKnee); seg(c, p[0], p[1], q[0], q[1], 1, look.stripe); }
   shoe(c, at(fFoot), facing, pose.rot, col(look.shoes), L, !tint);
   limb(shoulder, fElbow, A, look.arms);
-  limb(fElbow, fHand, A, look.arms);
+  limb(fElbow, fHand, A, look.shortSleeves ? look.skin : look.arms);
   const h = at(fHand);
+  if (opts.gun) {
+    // D.D's pistol, pointing along the forearm.
+    const e = at(fElbow), len = Math.hypot(h[0] - e[0], h[1] - e[1]) || 1;
+    const dx = (h[0] - e[0]) / len, dy = (h[1] - e[1]) / len;
+    seg(c, h[0] + dx, h[1] + dy, h[0] + dx * 7, h[1] + dy * 7, 4, tint ? tint : OUTLINE);
+    seg(c, h[0] + dx, h[1] + dy, h[0] + dx * 7, h[1] + dy * 7, 2, col('#2b3036'));
+    seg(c, h[0] + dx * 2, h[1] + dy * 2 - 1, h[0] + dx * 6, h[1] + dy * 6 - 1, 1, col('#727a82'));
+    rect(c, h[0] - 1, h[1] + 1, 2, 3, col('#23272b'));
+  }
   rect(c, h[0] - 2, h[1] - 2, 4, 4, tint ? tint : OUTLINE);
   rect(c, h[0] - 1, h[1] - 1, 3, 3, col(look.skin));
 }
@@ -190,6 +221,15 @@ function drawHead(c: CanvasRenderingContext2D, p: Pt, facing: 1 | -1, w: number,
   if (look.cap) {
     rect(c, x - 1, y - 1, w + 2, 3, look.cap);
     rect(c, facing > 0 ? x + w - 1 : x - 3, y + 1, 4, 1, look.cap);
+    if (look.badge) rect(c, front(2), y, 1, 1, '#e3c35a');
+  } else if (look.fringe) {
+    // Straight hair to the jaw at the back, swept across the forehead at the front.
+    rect(c, x - 1, y - 1, w + 2, 3, look.hair);
+    rect(c, facing > 0 ? x - 1 : x + w - 3, y, 4, h - 1, look.hair);
+    rect(c, x, y + 2, w - 1, 1, look.hair);
+    rect(c, front(0), y + 2, 1, 2, look.hair);
+    rect(c, facing > 0 ? x + 1 : x + w - 4, y - 1, 3, 1, look.fringe);
+    rect(c, front(2), y + 1, 2, 1, look.fringe);
   } else if (look.bald) {
     rect(c, x, y, w, 1, shade(look.skin, 1.1));
     rect(c, facing > 0 ? x : x + w - 2, y + 1, 2, 3, shade(look.skin, 0.82));
@@ -201,5 +241,5 @@ function drawHead(c: CanvasRenderingContext2D, p: Pt, facing: 1 | -1, w: number,
   else rect(c, front(1), y + 3, 1, 1, '#1a1a1e');
   rect(c, facing > 0 ? x + w : x - 1, y + 4, 1, 1, look.skin);
   rect(c, front(1), y + h - 2, 2, 1, shade(look.skin, 0.72));
-  rect(c, facing > 0 ? x + 1 : x + w - 3, y + 3, 2, 3, shade(look.skin, 0.85));
+  if (!look.fringe) rect(c, facing > 0 ? x + 1 : x + w - 3, y + 3, 2, 3, shade(look.skin, 0.85));
 }

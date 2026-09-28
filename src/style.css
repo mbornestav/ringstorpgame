@@ -98,3 +98,8 @@ footer b { color: #e1bd80; font-size: 14px; }
 .street-choice button:not(:disabled):hover { background: #628e64; }
 .street-choice kbd { margin-right: 4px; }
 @media (max-height: 760px), (max-width: 1050px) { .street-choice { padding: 8px 10px; gap: 8px; } .street-choice strong { font-size: 11px; } .street-choice span { font-size: 9px; } .street-choice button { padding: 7px; font-size: 10px; } }
+.ammo { display: flex; align-items: center; gap: 2px; margin-top: 6px; color: #9ab1b0; font-size: 9px; }
+.ammo[hidden] { display: none; }
+.ammo b { margin-right: 4px; color: #edc278; }
+.ammo i { width: 4px; height: 9px; background: #e8c07a; box-shadow: inset 0 3px 0 #c98f4a; }
+.ammo i.spent { background: #34494e; box-shadow: none; }
