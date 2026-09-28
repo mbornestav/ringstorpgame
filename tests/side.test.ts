@@ -146,6 +146,21 @@ describe('side-scrolling stage', () => {
       expect(marcus.facades.find(f => f.address === address)?.reference).toEqual(direct.facades.find(f => f.address === address)?.reference);
     }
   });
+
+  it('shows the pictured side of Långåkersgatan and aligns Marcus’s checkpoint with the side approach', () => {
+    for (const stage of [marcus, both]) {
+      const row = stage.facades.filter(f => f.reference?.source === 'user-langakers').sort((a, b) => a.x0 - b.x0);
+      expect(row.map(f => f.address)).toEqual(['Långåkersgatan 2', 'Långåkersgatan 4', 'Långåkersgatan 6', 'Långåkersgatan 8', 'Almgatan 3']);
+      expect(row.filter(f => f.row !== 0).map(f => f.address)).toEqual([]);
+      expect(stage.facades.some(f => /^Långåkersgatan [135]$/.test(f.address ?? ''))).toBe(false);
+      const house = row.find(f => f.role === 'marcus')!;
+      expect(house.reference?.silhouette).toBe('eaves');
+      expect(house.reference?.door).toBeUndefined();
+      expect(stage.marcusX).toBe(house.x0 + (house.x1 - house.x0) * house.reference!.gate);
+      expect(house.door).toBe(stage.marcusX);
+    }
+    expect(direct.facades.some(f => f.reference?.source === 'user-langakers')).toBe(false);
+  });
 });
 
 describe('side-scrolling game', () => {

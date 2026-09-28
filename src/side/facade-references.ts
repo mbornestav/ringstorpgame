@@ -16,7 +16,7 @@ export interface FacadeOpening {
 
 export interface FacadeReference {
   source: 'user-johan-1' | 'user-johan-2' | 'user-langakers';
-  /** Only this elevation is pictured; don't apply it to the rear on the Marcus route. */
+  /** Only this street-facing elevation is pictured; other sides remain generic. */
   street: 'Johan Banérs gata' | 'Långåkersgatan';
   silhouette: 'gable' | 'eaves' | 'hip' | 'mansard-gable' | 'mansard-eaves';
   material: 'brick' | 'plaster';

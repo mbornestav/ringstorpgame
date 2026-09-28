@@ -42,7 +42,7 @@ export interface Facade {
   style: BuildingStyle;
   /** The roof ridge runs along the street, so the courier sees the eaves rather than a gable. */
   eavesFront: boolean;
-  /** Door centre in stage pixels, or null for garages and blank walls. */
+  /** Door or landmark approach centre in stage pixels; null for other blank walls. */
   door: number | null;
   seed: number;
   address?: string;
@@ -265,7 +265,6 @@ function buildingCandidates(route: Route): Facade[] {
     const hit = locate(route, { x: f.obb.cx, y: f.obb.cy });
     if (!hit) continue;
     const street = facingStreet(hit), side = picturedSide(street);
-    const johan = street === 'Johan Banérs gata';
     if (side && Math.sign(hit.d) !== side) continue;
     const photo = f.address ? FACADE_REFERENCES[f.address] : undefined;
     const reference = photo?.street === street ? photo : undefined;
@@ -287,7 +286,7 @@ function buildingCandidates(route: Route): Facade[] {
     const long = f.obb.w >= f.obb.h ? f.obb.angle : f.obb.angle + Math.PI / 2;
     let { appearance, style } = appearanceOf(f);
     const backOnly = !!side && !reference && !f.address?.startsWith(`${street} `);
-    if (johan && !f.address && !f.use && f.area < 150) {
+    if (side && !f.address && !f.use && f.area < 150) {
       style = 'garage';
       appearance = { ...appearance, wall: '#cfcdc4', roof: '#5e6465', material: 'plaster', roofShape: 'flat', floors: 1, eaves: 10, rise: 0 };
     }
@@ -365,7 +364,7 @@ function buildStage(route: Route): Stage {
         }
         if (!n) continue;
         const d = hit.leg.dx * (n.y - v.y) - hit.leg.dy * (n.x - v.x);
-        const far = Math.sign(d) === LEFT;
+        const far = Math.sign(d) === (picturedSide(facingStreet(hit)) || LEFT);
         const x = px(hit.s);
         if (sideStreets.some(o => o.far === far && Math.abs(o.x - x) < 40)) continue;
         const nameHere = streets.find(r => x >= r.x0 && x < r.x1)?.value;
@@ -399,6 +398,18 @@ function buildStage(route: Route): Stage {
   const rows: Array<Array<[number, number]>> = [facades.map(f => [f.x0, f.x1]), []];
   for (const c of buildingCandidates(route).filter(c => c.x1 > -40 && c.x0 < length + 40)
     .sort((a, b) => Number(!!b.reference) - Number(!!a.reference) || a.dist - b.dist)) {
+    if (c.reference) {
+      // At a corner, the oblique footprint's rear edge can project slightly into
+      // the side street. Trim that sliver instead of shrinking the entire house
+      // into the distant row; retain larger overlaps as genuinely obscured houses.
+      const w = c.x1 - c.x0;
+      for (const street of sideStreets.filter(s => s.far)) {
+        const left = street.x - street.width / 2, right = street.x + street.width / 2;
+        if (left > c.x0 && left < c.x1 && c.x1 - left < w * 0.15) c.x1 = left - 4;
+        else if (right > c.x0 && right < c.x1 && right - c.x0 < w * 0.15) c.x0 = right + 4;
+      }
+      if (c.reference.door) c.door = c.x0 + (c.x1 - c.x0) * c.reference.door.x;
+    }
     const w = c.x1 - c.x0;
     const clash = (row: Array<[number, number]>) => row.reduce((sum, [a, b]) => sum + overlap(a, b, c.x0 - 6, c.x1 + 6), 0);
     if (!c.backOnly && c.dist < BACK_ROW && !farGap(c.x0, c.x1) && clash(rows[0]) === 0) {
@@ -435,7 +446,7 @@ function buildStage(route: Route): Stage {
     if (!hit || hit.dist * MPU > (p.kind === 'busstop' ? 16 : 11)) continue;
     const x = px(hit.s);
     if (!inside(x) || (p.kind === 'sign' && p.variant !== undefined)) continue;
-    const near = Math.sign(hit.d) !== LEFT;
+    const near = Math.sign(hit.d) !== (picturedSide(facingStreet(hit)) || LEFT);
     if (near && p.kind !== 'lamp') continue;
     if (!near && landmarks.some(f => x > f.x0 - 8 && x < f.x1 + 8) && p.kind !== 'busstop') continue;
     furniture.push({ kind: p.kind as FurnitureKind, x, near, label: p.label });
@@ -453,7 +464,7 @@ function buildStage(route: Route): Stage {
     if (mouth && !f.near) f.x = mouth.x + Math.sign(f.x - mouth.x || 1) * (mouth.width / 2 + 8);
   }
   furniture.push({ kind: 'sign', x: homeX + 62, near: false, label: 'HEM 55B', variant: 2 });
-  if (marcusX !== null) furniture.push({ kind: 'sign', x: marcusX - 34, near: false, label: 'MARCUS A', variant: 3 });
+  if (marcusX !== null) furniture.push({ kind: 'sign', x: marcusX + 24, near: false, label: 'MARCUS A', variant: 3 });
   furniture.sort((a, b) => a.x - b.x);
 
   // Garden fronts: hedges, fences and walls in stretches, open for parks and the kiosk forecourt.

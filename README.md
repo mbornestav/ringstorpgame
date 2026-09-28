@@ -41,14 +41,14 @@ Blows only land on someone in the same lane, so line up before you swing. A **!*
 
 ## How the street is built
 
-`src/side/routes.ts` defines the two junctions and four route combinations. `src/side/stage.ts` unrolls each route into one long street, 12 pixels to the metre. Buildings within about 40 m of the route appear in their real order and at their real width, either across the pavement or in a hazier back row. On Johan Banérs gata, the backdrop uses the **left-hand side when travelling towards Ringstorpsvägen**. Side-street buildings and garden outbuildings stay in the back row. The terrace at Home is laid out along its row with the real stagger between units. Side streets open where the map's roads leave the route. Taking a turn changes the street ahead with a brief fade while retaining the run's progress.
+`src/side/routes.ts` defines the two junctions and four route combinations. `src/side/stage.ts` unrolls each route into one long street, 12 pixels to the metre. Buildings within about 40 m of the route appear in their real order and at their real width, either across the pavement or in a hazier back row. On Johan Banérs gata, the backdrop uses the **left-hand side when travelling towards Ringstorpsvägen**. On Långåkersgatan, it uses the **even-numbered side containing Marcus A**, to the courier's right towards Almgatan. Side-street buildings and garden outbuildings stay in the back row. The terrace at Home is laid out along its row with the real stagger between units. Side streets open where the map's roads leave the route. Taking a turn changes the street ahead with a brief fade while retaining the run's progress.
 
 ## Building references
 
 The three supplied Google Street View screenshots guide the landmark elevations:
 
 - **Home, Ringstorpsvägen 55B:** a two-storey terrace with yellow brick upstairs, white horizontal cladding below, white window frames, a low tiled roof and chimney. The adjacent terrace units use the same palette and roof profile.
-- **Marcus A, Långåkersgatan 4:** yellow brick, a grey basement, dark shutters, dark vertical timber in the gables, a steep grey roof and a tall chimney.
+- **Marcus A, Långåkersgatan 4:** pale yellow brick, a grey basement, dark shutters and a tall chimney. The newer boxed aerial reference sets the side-scroller's street elevation: the broad, weathered reddish-brown roof slope, two wide window groups and an approach beside the house.
 - **Pålsjö kiosk:** pale walls, a broad closed service shutter, blue fascia, red lettering, side glazing and a low dark gable roof with pale overhanging edges. Its approach is paved.
 
 `src/buildings.ts` stores these landmark profiles separately from the renderers, and `src/side/backdrop.ts` draws them as front elevations.
@@ -59,6 +59,8 @@ The two additional oblique views of **Johan Banérs gata** supply individual ele
 - **Second image, 53–63 (odd numbers):** white villas with broken-slope roofs, solar panels at 53, the hipped roofs of 57 and 59, the glazed extension at 59, and the paired dormers at 61. The partly visible orange house at 63 has a more approximate profile and can appear further back, up to 65 m away.
 
 Window layouts, visible entrances, garden boundaries and driveways are set per house. These elevations apply when viewed from Johan Banérs gata; the Marcus detour does not reuse them for unseen sides. Number 49 and the other unpictured buildings still use generic profiles. Address matching was cross-checked against the map and the photographs in [Helsingborg's 2022 building survey](https://media.helsingborg.se/uploads/networks/1/2022/07/bevarandeprogram-ringstorp-hagaplan-antagandehandling-layout.pdf), particularly pages 59–62 and 71–73.
+
+The additional **Långåkersgatan** photo identifies Marcus A in the red box and supplies five street elevations, matched to the existing footprints: **2, 4, 6, 8, then the corner house at Almgatan 3** in the courier's travel order (right to left in the photograph). They include the white dark-roofed gable, Marcus A's eaves-facing villa, the brick house with a small dormer, the white house with a grey roof and rooflight, and the long brick corner house. These profiles live in `src/side/facade-references.ts` and appear on both Marcus route variants. The checkpoint marker follows the side approach; no central street-facing door is added to Marcus A's two-window frontage. The far side of Långåkersgatan is omitted from this backdrop.
 
 These are original pixel-art interpretations of the supplied images, not surveyed replicas. Heights, obscured details and unpictured elevations remain approximations. Live Google Street View could not be viewed in this session; no Google imagery is bundled with the game.
 

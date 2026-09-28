@@ -10,13 +10,13 @@ const state = (page: Page) => page.evaluate(() => {
 });
 
 /** Skip intervening fights to exercise the real keyboard/UI at each landmark. */
-async function approach(page: Page, spot: 'romares' | 'kurir' | 'marcus' | 'shop' | 'home') {
+async function approach(page: Page, spot: 'romares' | 'kurir' | 'marcus' | 'langakers' | 'shop' | 'home') {
   await page.evaluate(spot => {
     const g = (window as unknown as Exposed).__ringstorpGame;
     for (const e of g.stage.encounters) if (!e.home) g.encounters.set(e.id, 'cleared');
     for (const e of g.enemies) { e.hp = 0; e.gone = true; }
     g.hasPackage = true;
-    const x = spot === 'marcus' ? g.stage.marcusX! : spot === 'shop' ? g.stage.shopX! : spot === 'home' ? g.stage.homeX - 120 : g.stage.junctions.find(j => j.id === spot)!.x;
+    const x = spot === 'marcus' ? g.stage.marcusX! : spot === 'langakers' ? g.stage.marcusX! + 560 : spot === 'shop' ? g.stage.shopX! : spot === 'home' ? g.stage.homeX - 120 : g.stage.junctions.find(j => j.id === spot)!.x;
     g.camera = Math.max(0, Math.min(g.stage.length - 480, x - 192));
     g.player.x = x;
     g.player.y = spot === 'marcus' || spot === 'shop' ? 180 : 214;
@@ -78,9 +78,10 @@ test('picks up the package on foot and scrolls along the street past the landmar
   await expect.poll(async () => (await state(page)).route).toBe('marcus');
   await expect.poll(async () => (await state(page)).transition).toBe(0);
   await expect(page.getByText('Patch up at Marcus A · Långåkersgatan 4')).toBeVisible();
-  for (const spot of ['marcus', 'home'] as const) {
+  for (const spot of ['marcus', 'langakers', 'home'] as const) {
     await approach(page, spot);
     await page.waitForTimeout(400);
+    await page.evaluate(() => { (window as unknown as Exposed).__ringstorpGame.messageTimer = 0; });
     await canvas.screenshot({ path: `test-results/side-${spot}.png` });
   }
   expect((await state(page)).camera).toBeGreaterThan(5000);
