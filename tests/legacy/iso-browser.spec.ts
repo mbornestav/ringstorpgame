@@ -1,6 +1,9 @@
+// Browser tests for the isometric edition, which is kept but inactive. Playwright's testMatch only
+// picks up tests/browser.spec.ts. To run these, point index.html back at /src/main.ts and set
+// testMatch in playwright.config.ts to 'legacy/iso-browser.spec.ts'.
 import { expect, test } from '@playwright/test';
-import type { Game } from '../src/game';
-import type { Renderer } from '../src/render';
+import type { Game } from '../../src/game';
+import type { Renderer } from '../../src/render';
 
 declare global { interface Window { __ringstorpGame: Game; __ringstorpRenderer: Renderer } }
 
@@ -17,7 +20,7 @@ test('rotates the world through all views, preserves controls, and shows referen
     await expect(page.locator('#view-angle')).toHaveText(`${step % 8 * 45}°`);
     await page.evaluate(async () => {
       const path = '/src/world.ts';
-      const world: typeof import('../src/world') = await import(/* @vite-ignore */ path);
+      const world: typeof import('../../src/world') = await import(/* @vite-ignore */ path);
       window.__ringstorpGame.player.pos = { ...world.START };
     });
     const before = await page.evaluate(() => ({ ...window.__ringstorpGame.player.pos }));
@@ -52,7 +55,7 @@ test('rotates the world through all views, preserves controls, and shows referen
   for (const landmark of ['kiosk', 'marcus', 'home']) {
     await page.evaluate(async landmark => {
       const path = '/src/world.ts';
-      const world: typeof import('../src/world') = await import(/* @vite-ignore */ path);
+      const world: typeof import('../../src/world') = await import(/* @vite-ignore */ path);
       const game = window.__ringstorpGame;
       game.enemies.forEach(e => e.state = 'ko');
       game.player.pos = { ...(landmark === 'home' ? world.HOME : landmark === 'marcus' ? world.MARCUS_A : world.START) };
@@ -113,7 +116,7 @@ test('the Marcus A route reaches home, can replay, and keeps its aspect ratio', 
     const game = window.__ringstorpGame;
     // Served by the Vite dev server, so the test can use the real mission points.
     const path = '/src/world.ts';
-    const world: typeof import('../src/world') = await import(/* @vite-ignore */ path);
+    const world: typeof import('../../src/world') = await import(/* @vite-ignore */ path);
     game.enemies.forEach(e => e.state = 'ko');
     for (const spot of [world.PACKAGE, world.MARCUS_A, world.HOME]) {
       game.player.pos = { ...spot };

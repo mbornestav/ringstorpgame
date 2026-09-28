@@ -1,15 +1,18 @@
 # Ringstorp Run
 
-A self-contained, desktop browser isometric arcade game on the real streets between Pålsjö and Ringstorp in Helsingborg. The streets, building footprints, forest and parks come from OpenStreetMap. The pixel art is original. No map service, account or server is needed to play.
+A self-contained, desktop browser side-scrolling arcade brawler on the real streets between Pålsjö and Ringstorp in Helsingborg. The route, the buildings along it, the street names, side streets, lamps, signs and bus stops come from OpenStreetMap. The pixel art is original. No map service, account or server is needed to play.
 
 ## The mission
 
-A valuable package is waiting at **Pålsjö kiosk** (Johan Banérs gata 35). Pick it up and carry it home to **Ringstorpsvägen 55B**. Choose your route on the title screen, and press R to switch during the run:
+A valuable package is waiting at **Pålsjö kiosk** (Johan Banérs gata 35). Pick it up and carry it home to **Ringstorpsvägen 55B**. Start playing, then choose your path at the signed junctions. **Keep walking to continue straight, or press E near a sign to take the turn.** The on-screen turn button works too. You can visit neither stop, either one, or both in the same run:
 
-- **Direct**: north on Romares väg, then along Johan Banérs gata to the Ringstorpsvägen roundabout. It's shorter, but a bigger crew hangs around there.
-- **Via Marcus A**: further up Romares väg, along Långåkersgatan past **Marcus A** (Långåkersgatan 4), and back down Almgatan. It's longer, but Marcus A patches you up to full health and becomes a checkpoint. If you're knocked out after visiting, you can continue from there for a score penalty.
+- **Direct**: along Johan Banérs gata to Ringstorpsvägen. It's shorter, but bigger crews hang around there.
+- **Via Marcus A**: up Romares väg, along Långåkersgatan past **Marcus A** (Långåkersgatan 4), and back down Almgatan. It's longer, but stepping up to Marcus A's gate patches you up to full health and makes it a checkpoint. If you're knocked out after visiting, you can continue from there for a score penalty.
+- **Via Kurir Livs**: a later turn near Ringstorpsvägen leads around the roundabout to the shopping forecourt on Kurirgatan. Walk up to the glass entrance under the **ICA Nära / Kurir Livs** sign and press **E** for a full health refill. Supplies can be collected once per run; arriving at full health doesn't use them up. Pass the rest of the shopping block and a new crew on the way back to the home approach.
 
-A final crew waits on Ringstorpsvägen; shake it off and reach the door. The in-world markers match the route plan: a **?** over the package, googly eyes over Marcus A, and a star over Home. Your best score is saved in this browser.
+Turns preserve your package, health, cleared crews, score and Marcus checkpoint. You must finish an active fight before turning. A new run starts with both choices open again.
+
+Crews wait where they hang around on the map. When you reach one, the screen stops scrolling until you've shaken them off, and bigger crews call for backup. A final crew, led by a boss, waits outside the terrace on Ringstorpsvägen: beat them and step up to the door. The markers show a **?** over the package, googly eyes over Marcus A, a green **+** over Kurir Livs, and a star over Home. The strip along the bottom shows the junctions, stops and remaining crews. Your best score is saved in this browser.
 
 ## Run
 
@@ -24,34 +27,50 @@ Open the local URL printed by Vite. `npm run build` creates a static production 
 
 | Key | Action |
 | --- | --- |
-| WASD or arrows | Move |
-| J | Punch; time repeated presses for a three-hit combo |
-| K | Dodge with brief invulnerability |
-| R | Switch between the direct route and the route via Marcus A |
-| Q / E or the ↶ / ↷ buttons | Rotate the map left / right in 45° steps, through all 360° |
-| Drag the map left / right | Rotate the view (mouse or touch) |
-| 0 or RESET | Return to the original view |
+| A / D or ← / → | Walk along the street |
+| W / S or ↑ / ↓ | Step towards the far pavement or the near kerb |
+| Space or L | Jump |
+| J | Punch. Time repeated presses for a jab, a cross and a hook that knocks down. In the air, J is a flying kick |
+| K | Dodge, with brief invulnerability |
+| E | Take the optional turn at a junction, or refill health at Kurir Livs' entrance |
 | Esc | Pause or resume |
 | M | Toggle sound |
-| Enter | Start (direct route), continue from Marcus A, or replay |
+| Enter | Start, continue from Marcus A, or replay |
 
-Movement follows the screen at every angle. Rotation preserves the mission, collisions and world positions, and works with Q/E while paused too.
+Blows only land on someone in the same lane, so line up before you swing. A **!** means an attack is coming. Bruisers and the boss shrug off jabs while winding up, so dodge, jump clear, or finish the combo with the hook.
+
+## How the street is built
+
+`src/side/routes.ts` defines the two junctions and four route combinations. `src/side/stage.ts` unrolls each route into one long street, 12 pixels to the metre. Buildings within about 40 m of the route appear in their real order and at their real width, either across the pavement or in a hazier back row. On Johan Banérs gata, the backdrop uses the **left-hand side when travelling towards Ringstorpsvägen**. Side-street buildings and garden outbuildings stay in the back row. The terrace at Home is laid out along its row with the real stagger between units. Side streets open where the map's roads leave the route. Taking a turn changes the street ahead with a brief fade while retaining the run's progress.
 
 ## Building references
 
-The three supplied Google Street View screenshots guide the landmark models:
+The three supplied Google Street View screenshots guide the landmark elevations:
 
 - **Home, Ringstorpsvägen 55B:** a two-storey terrace with yellow brick upstairs, white horizontal cladding below, white window frames, a low tiled roof and chimney. The adjacent terrace units use the same palette and roof profile.
 - **Marcus A, Långåkersgatan 4:** yellow brick, a grey basement, dark shutters, dark vertical timber in the gables, a steep grey roof and a tall chimney.
 - **Pålsjö kiosk:** pale walls, a broad closed service shutter, blue fascia, red lettering, side glazing and a low dark gable roof with pale overhanging edges. Its approach is paved.
 
-`src/buildings.ts` stores these profiles separately from the renderer. Building walls and roofs follow the actual OSM polygons, including recesses and extensions. Roof ridges, windows and chimneys stay attached to the same world sides during rotation.
+`src/buildings.ts` stores these landmark profiles separately from the renderers, and `src/side/backdrop.ts` draws them as front elevations.
 
-These are pixel-art interpretations of the visible photographs, not surveyed replicas. Exact dimensions, hidden facades and unpictured buildings remain approximations; the other buildings use generic materials. The screenshots were supplied by the user; a live Google Maps inspection was unavailable in this session.
+The two additional oblique views of **Johan Banérs gata** supply individual elevations in `src/side/facade-references.ts`:
+
+- **First image, 37–47 (odd numbers):** individual brick and plaster colours, hipped and gabled roofs, the balcony at 39, the dormer and bay window at 41, white corner detailing at 43, the pale facade at 45, and the yellow facade and bay at 47.
+- **Second image, 53–63 (odd numbers):** white villas with broken-slope roofs, solar panels at 53, the hipped roofs of 57 and 59, the glazed extension at 59, and the paired dormers at 61. The partly visible orange house at 63 has a more approximate profile and can appear further back, up to 65 m away.
+
+Window layouts, visible entrances, garden boundaries and driveways are set per house. These elevations apply when viewed from Johan Banérs gata; the Marcus detour does not reuse them for unseen sides. Number 49 and the other unpictured buildings still use generic profiles. Address matching was cross-checked against the map and the photographs in [Helsingborg's 2022 building survey](https://media.helsingborg.se/uploads/networks/1/2022/07/bevarandeprogram-ringstorp-hagaplan-antagandehandling-layout.pdf), particularly pages 59–62 and 71–73.
+
+These are original pixel-art interpretations of the supplied images, not surveyed replicas. Heights, obscured details and unpictured elevations remain approximations. Live Google Street View could not be viewed in this session; no Google imagery is bundled with the game.
+
+The supplied aerial view and entrance photograph of **Kurir Livs** guide the shopping block: gold vertical panels, a flat roof with vents, a continuous band of upper windows, green fascia, glass shopfronts and a paved forecourt. The ICA entrance is near the left end, at the marked position, with a red-and-white sign, a pale shutter and flower racks. The long frontage continues past Direkten and Ringstorp Pizzeria. The detour uses the existing map's paths and building footprint (OSM way 95562951); its elevation and entrance placement are interpreted from the photographs. [ICA's shop page](https://www.ica.se/butiker/nara/helsingborg/ica-nara-kurir-livs-1004435/) confirms the address as Kurirgatan 1.
+
+## The isometric edition
+
+The original isometric version, with its rotating camera, is still in the repository but no longer loaded. Its entry point is `src/main.ts`, with `src/game.ts`, `src/render.ts`, `src/camera.ts` and `src/world.ts`. The side-scroller reuses its map data, mission points, crews, building profiles and scoring. To play it again, point the script tag in `index.html` at `/src/main.ts`. Its browser tests are in `tests/legacy/iso-browser.spec.ts`. The unit tests for its world and camera still run with `npm test`.
 
 ## Map data
 
-`src/map-data.json` is generated from OpenStreetMap by `scripts/build-map.mjs`, and is © OpenStreetMap contributors under the ODbL 1.0. The script uses 2 m world units and rotates the map so the camera looks east-north-east across Pålsjö skog towards Ringstorp. To refresh the data:
+`src/map-data.json` is generated from OpenStreetMap by `scripts/build-map.mjs`, and is © OpenStreetMap contributors under the ODbL 1.0. The script uses 2 m world units and rotates the map for the isometric camera. To refresh the data:
 
 ```sh
 node scripts/build-map.mjs

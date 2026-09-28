@@ -85,3 +85,16 @@ footer { display: flex; align-items: center; justify-content: space-between; min
 footer b { color: #e1bd80; font-size: 14px; }
 @media (max-width: 1050px) { .shell { padding: 0 20px; } .overlay { padding: 25px; } .title-panel h1 { font-size: 70px; } .story { font-size: 12px; } .controls-grid { margin-top: 18px; } .hud-card { padding: 7px; } .objective-card { min-width: 220px; } .bottomline { gap: 18px; } }
 @media (max-height: 760px) { .masthead { height: 60px; } main { padding: 10px 0; } .topline { padding-bottom: 7px; } .bottomline { padding-top: 8px; } footer { min-height: 34px; } .overlay { padding: 16px; } .title-panel h1 { margin-top: 10px; font-size: 64px; } .subtitle { margin-top: 14px; } .story { margin-bottom: 12px; } .controls-grid { margin-top: 15px; } }
+/* Side-scrolling edition: no drag-to-rotate on the canvas. */
+.side-edition #game { cursor: default; }
+.street-choice { position: absolute; top: 20%; left: 50%; transform: translateX(-50%); width: min(640px, 78%); display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 12px 15px; background: #102f36ed; border: 1px solid #91bfa2; box-shadow: 4px 4px 0 #07171e80; }
+.street-choice[hidden] { display: none; }
+.street-choice small, .street-choice strong, .street-choice span { display: block; }
+.street-choice small { color: #8dc7a3; font-size: 9px; letter-spacing: 1.4px; margin-bottom: 5px; }
+.street-choice strong { color: #f4e6c9; font-size: 13px; margin-bottom: 5px; }
+.street-choice span { color: #b9c9c3; font-size: 10px; }
+.street-choice button { flex-shrink: 0; border: 1px solid #b7d5b2; padding: 9px 11px; background: #49765a; color: #fff2d5; font-weight: bold; font-size: 11px; }
+.street-choice button:disabled { cursor: default; background: #273f43; border-color: #56736c; color: #94a8a1; }
+.street-choice button:not(:disabled):hover { background: #628e64; }
+.street-choice kbd { margin-right: 4px; }
+@media (max-height: 760px), (max-width: 1050px) { .street-choice { padding: 8px 10px; gap: 8px; } .street-choice strong { font-size: 11px; } .street-choice span { font-size: 9px; } .street-choice button { padding: 7px; font-size: 10px; } }
