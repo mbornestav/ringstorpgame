@@ -1,6 +1,7 @@
 import { FACADE_PX_PER_M, FRONTAGE_Y, HEIGHT, KERB_Y, NEAR_KERB_Y, WIDTH } from './layout';
 import { disc, ellipse, mix, noise, pick, poly, rand, rect, rgb, seg, shade, text, textWidth } from './pixel';
 import type { Facade, FrontKind, Furniture, Run, SideStreet, Stage, Surface, Tree } from './stage';
+import { drawThaeo } from './graffiti';
 
 // The static scenery, baked into chunks as the camera approaches. The sky rows stay transparent
 // so the distant ridge and the clouds show through.
@@ -249,7 +250,7 @@ function drawKurirLivs(c: CanvasRenderingContext2D, f: Facade): void {
   text(c, 'NÄRA', door - 30, fascia + 1, '#aa303d');
   rect(c, door - 56, fascia + 12, 39, 20, '#b6bfba');
   for (let y = fascia + 13; y < b.floor; y += 3) rect(c, door - 56, y, 39, 1, '#939f9b');
-  text(c, 'LIVS', door - 48, fascia + 23, '#4e9fb7');
+  drawThaeo(c, door - 54, fascia + 13, 0.75, '#746c9a');
   rect(c, door - 9, fascia + 11, 18, 23, '#c5c8bd');
   rect(c, door - 7, fascia + 13, 6, 18, '#334b51');
   rect(c, door + 1, fascia + 13, 6, 18, '#425e66');
@@ -479,6 +480,8 @@ function kioskDetails(c: CanvasRenderingContext2D, f: Facade, b: FacadeBox): voi
   rect(c, sx0 - 1, sy0 - 1, sx1 - sx0 + 2, sy1 - sy0 + 2, '#5f6d70');
   rect(c, sx0, sy0, sx1 - sx0, sy1 - sy0, '#b3bdb9');
   for (let y = sy0 + 1; y < sy1; y += 2) rect(c, sx0, y, sx1 - sx0, 1, '#dfe3da');
+  const tagScale = Math.min(0.85, (sy1 - sy0 - 1) / 18, (sx1 - sx0 - 6) / 46);
+  drawThaeo(c, (sx0 + sx1) / 2 - 23 * tagScale, sy0, tagScale, '#699faa');
   rect(c, sx0 - 2, sy1 + 1, sx1 - sx0 + 4, 2, '#e4e4d5');
   for (const gx of [x0 + 2, x1 - 6]) { rect(c, gx, sy0, 4, sy1 - sy0, '#51646a'); rect(c, gx, sy0, 1, sy1 - sy0, '#8fb0c0'); }
   // A dropped ice-cream sign by the door.
@@ -623,6 +626,16 @@ function drawFront(c: CanvasRenderingContext2D, run: Run<FrontKind>, gaps: Array
       default: break;
     }
   }
+  // Occasional tags on solid garden boundaries. Anchor them to the whole run so
+  // they join cleanly across cached chunks and stay put when returning to a street.
+  const height = run.value === 'plank' ? 12 : run.value === 'rendered-wall' ? 9 : run.value === 'wall' ? 7 : 0;
+  if (!height || run.x1 - run.x0 < 62 || rand(run.x0, 137) > (run.value === 'plank' ? 0.78 : 0.42)) return;
+  const scale = height / 18, width = scale < 0.6 ? 22 : 46 * scale;
+  const tx = [0.28, 0.62, 0.82].map(t => Math.round(run.x0 + (run.x1 - run.x0 - width) * t))
+    .find(x => x >= run.x0 + 5 && x + width < run.x1 - 5 && !gaps.some(([a, b]) => x < b + 4 && x + width > a - 4));
+  if (tx === undefined || tx + width < from || tx > to) return;
+  const paint = run.value === 'plank' ? '#d1c4b7' : pick(['#629398', '#a96b83', '#71698c'], rand(run.x0, 149));
+  drawThaeo(c, tx, y - height + 1, scale, paint);
 }
 
 function drawGate(c: CanvasRenderingContext2D, x: number, seed: number): void {
