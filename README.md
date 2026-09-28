@@ -28,9 +28,26 @@ Open the local URL printed by Vite. `npm run build` creates a static production 
 | J | Punch; time repeated presses for a three-hit combo |
 | K | Dodge with brief invulnerability |
 | R | Switch between the direct route and the route via Marcus A |
+| Q / E or the ↶ / ↷ buttons | Rotate the map left / right in 45° steps, through all 360° |
+| Drag the map left / right | Rotate the view (mouse or touch) |
+| 0 or RESET | Return to the original view |
 | Esc | Pause or resume |
 | M | Toggle sound |
 | Enter | Start (direct route), continue from Marcus A, or replay |
+
+Movement follows the screen at every angle. Rotation preserves the mission, collisions and world positions, and works with Q/E while paused too.
+
+## Building references
+
+The three supplied Google Street View screenshots guide the landmark models:
+
+- **Home, Ringstorpsvägen 55B:** a two-storey terrace with yellow brick upstairs, white horizontal cladding below, white window frames, a low tiled roof and chimney. The adjacent terrace units use the same palette and roof profile.
+- **Marcus A, Långåkersgatan 4:** yellow brick, a grey basement, dark shutters, dark vertical timber in the gables, a steep grey roof and a tall chimney.
+- **Pålsjö kiosk:** pale walls, a broad closed service shutter, blue fascia, red lettering, side glazing and a low dark gable roof with pale overhanging edges. Its approach is paved.
+
+`src/buildings.ts` stores these profiles separately from the renderer. Building walls and roofs follow the actual OSM polygons, including recesses and extensions. Roof ridges, windows and chimneys stay attached to the same world sides during rotation.
+
+These are pixel-art interpretations of the visible photographs, not surveyed replicas. Exact dimensions, hidden facades and unpictured buildings remain approximations; the other buildings use generic materials. The screenshots were supplied by the user; a live Google Maps inspection was unavailable in this session.
 
 ## Map data
 

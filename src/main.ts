@@ -22,8 +22,13 @@ app.innerHTML = `
           <div class="hud-card time-card"><span class="hud-label">TIME / SCORE</span><strong><span id="time">00:00</span> <span class="slash">/</span> <span id="score">00000</span></strong></div>
         </div>
         <div class="overlay" id="overlay"></div>
+        <nav class="view-controls" aria-label="Map rotation">
+          <button id="rotate-left" type="button" aria-label="Rotate map left" title="Rotate left (Q)">↶ <kbd>Q</kbd></button>
+          <button id="reset-view" type="button" aria-label="Reset map view" title="Reset view (0)"><span id="view-angle">0°</span> <span class="view-reset">RESET</span></button>
+          <button id="rotate-right" type="button" aria-label="Rotate map right" title="Rotate right (E)"><kbd>E</kbd> ↷</button>
+        </nav>
       </section>
-      <div class="bottomline"><span>WASD / ARROWS <b>MOVE</b></span><span>J <b>PUNCH</b></span><span>K <b>DODGE</b></span><span>R <b>SWITCH ROUTE</b></span><span>ESC <b>PAUSE</b></span><span>M <b>SOUND</b></span></div>
+      <div class="bottomline"><span>WASD / ARROWS <b>MOVE</b></span><span>J <b>PUNCH</b></span><span>K <b>DODGE</b></span><span>R <b>ROUTE</b></span><span>Q / E · DRAG <b>ROTATE</b></span><span>ESC <b>PAUSE</b></span><span>M <b>SOUND</b></span></div>
     </main>
     <footer><span>ORIGINAL PIXEL ART · MAP DATA ${MAP_ATTRIBUTION.toUpperCase()}</span><span>BEST RUN <b id="best-score">00000</b></span></footer>
   </div>`;
@@ -51,6 +56,32 @@ sizeFrame();
 const game = new Game();
 const renderer = new Renderer(canvas);
 if (import.meta.env.DEV) Object.defineProperty(window, '__ringstorpGame', { value: game });
+if (import.meta.env.DEV) Object.defineProperty(window, '__ringstorpRenderer', { value: renderer });
+const angleDisplay = document.querySelector<HTMLElement>('#view-angle')!;
+function setView(step: number): void {
+  renderer.setView(step);
+  angleDisplay.textContent = `${renderer.view.step * 45}°`;
+}
+document.querySelector('#rotate-left')!.addEventListener('click', () => setView(renderer.view.step - 1));
+document.querySelector('#rotate-right')!.addEventListener('click', () => setView(renderer.view.step + 1));
+document.querySelector('#reset-view')!.addEventListener('click', () => setView(0));
+
+let drag: { id: number; x: number; step: number } | null = null;
+canvas.addEventListener('pointerdown', event => {
+  if (event.button !== 0) return;
+  drag = { id: event.pointerId, x: event.clientX, step: renderer.view.step };
+  canvas.setPointerCapture(event.pointerId);
+  canvas.classList.add('rotating');
+});
+canvas.addEventListener('pointermove', event => {
+  if (!drag || drag.id !== event.pointerId) return;
+  const threshold = Math.max(45, canvas.clientWidth / 10);
+  setView(drag.step + Math.trunc((event.clientX - drag.x) / threshold));
+});
+function endDrag(): void { drag = null; canvas.classList.remove('rotating'); }
+canvas.addEventListener('pointerup', endDrag);
+canvas.addEventListener('pointercancel', endDrag);
+canvas.addEventListener('lostpointercapture', endDrag);
 const held = new Set<string>();
 let lastMode: Mode | '' = '';
 let soundOn = true;
@@ -120,6 +151,7 @@ function panelFor(mode: Mode): string {
 }
 
 function syncUI(): void {
+  angleDisplay.textContent = `${renderer.view.step * 45}°`;
   if (lastMode !== game.mode) {
     lastMode = game.mode;
     overlay.innerHTML = panelFor(game.mode);
@@ -164,7 +196,12 @@ soundButton.addEventListener('click', toggleSound);
 const movementKeys = new Set(['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright']);
 window.addEventListener('keydown', event => {
   const key = event.key.toLowerCase();
-  if (movementKeys.has(key) || ['j', 'k', 'r', 'escape', 'enter', 'm', ' '].includes(key)) event.preventDefault();
+  if (event.ctrlKey || event.metaKey || event.altKey) return;
+  // Let keyboard users activate the focused UI button normally.
+  if ((key === 'enter' || key === ' ') && event.target instanceof HTMLButtonElement) return;
+  if (movementKeys.has(key) || ['j', 'k', 'r', 'q', 'e', '0', 'escape', 'enter', 'm', ' '].includes(key)) event.preventDefault();
+  if (!event.repeat && (key === 'q' || key === 'e')) setView(renderer.view.step + (key === 'q' ? -1 : 1));
+  if (!event.repeat && key === '0') setView(0);
   if (key === 'r' && !event.repeat && game.mode === 'playing') game.toggleRoute();
   if (key === 'm' && !event.repeat) toggleSound();
   if (key === 'escape' && !event.repeat) { game.togglePause(); syncUI(); }
@@ -175,7 +212,7 @@ window.addEventListener('keydown', event => {
   held.add(key);
 });
 window.addEventListener('keyup', event => held.delete(event.key.toLowerCase()));
-window.addEventListener('blur', () => { held.clear(); if (game.mode === 'playing') { game.togglePause(); syncUI(); } });
+window.addEventListener('blur', () => { held.clear(); endDrag(); if (game.mode === 'playing') { game.togglePause(); syncUI(); } });
 
 let previous = performance.now();
 function tick(now: number): void {
@@ -184,7 +221,8 @@ function tick(now: number): void {
   const x = Number(held.has('d') || held.has('arrowright')) - Number(held.has('a') || held.has('arrowleft'));
   const y = Number(held.has('s') || held.has('arrowdown')) - Number(held.has('w') || held.has('arrowup'));
   // Keep arrow/WASD directions aligned with the screen despite the isometric projection.
-  game.setMovement(x + y, y - x);
+  const movement = renderer.view.movement(x, y);
+  game.setMovement(movement.x, movement.y);
   game.update(dt);
   for (const event of game.events.splice(0)) sound.play(event);
   renderer.render(game, dt);

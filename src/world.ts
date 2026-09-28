@@ -1,4 +1,5 @@
-import { ObstacleGrid, orientedCorners, shape, type Rect, type Shape, type Vec2 } from './geometry';
+import { ObstacleGrid, orientedCorners, pointInShape, shape, type Rect, type Shape, type Vec2 } from './geometry';
+import { appearanceFor, buildingFront, frontagePolygon, type BuildingAppearance } from './buildings';
 import {
   CROSSINGS, FOOTPRINTS, MAP_SIZE, POIS, RAILS, ROADS, distanceToPolygon, fromMetres, nearestRoad, surfaceAt,
   type Footprint, type SurfaceKind,
@@ -24,6 +25,7 @@ export interface Prop {
   solid?: boolean;
   style?: BuildingStyle;
   footprint?: Footprint;
+  appearance?: BuildingAppearance;
   /** Direction a lamp arm reaches out towards the street. */
   facing?: Vec2;
   /** Set on Home, Marcus A and the kiosk so the renderer can dress them up. */
@@ -126,7 +128,8 @@ for (const f of FOOTPRINTS) {
   if (!inside({ x: f.obb.cx, y: f.obb.cy }, SCENERY)) continue;
   const { style, height } = styleOf(f);
   const role = f === homeFootprint ? 'home' : f === marcusFootprint ? 'marcus' : style === 'kiosk' ? 'kiosk' : undefined;
-  props.push({ kind: 'building', x: f.obb.cx, y: f.obb.cy, w: f.obb.w, h: f.obb.h, angle: f.obb.angle, height, style, footprint: f, solid: true, variant: f.id % 997, role });
+  const appearance = appearanceFor(f, height);
+  props.push({ kind: 'building', x: f.obb.cx, y: f.obb.cy, w: f.obb.w, h: f.obb.h, angle: f.obb.angle, height: appearance.eaves, style, footprint: f, appearance, solid: true, variant: f.id % 997, role });
 }
 const buildingNear = (p: Vec2, r: number) => FOOTPRINTS.some(f => Math.abs(f.obb.cx - p.x) < 20 && Math.abs(f.obb.cy - p.y) < 20 && distanceToPolygon(p, f.pts) < r);
 const groundAt = (p: Vec2): SurfaceKind => surfaceAt(p.x, p.y).kind;
@@ -270,14 +273,17 @@ for (let gy = SCENERY.y; gy < SCENERY.y + SCENERY.h; gy += 3.1) {
   }
 }
 
-export const PROPS = props;
+/** The reference kiosk has an open asphalt forecourt, with no trees growing in its approach. */
+const kioskProp = props.find(p => p.role === 'kiosk')!;
+export const KIOSK_FORECOURT = shape(frontagePolygon(buildingFront(kioskProp.footprint!, PACKAGE), 5, 1.3));
+export const PROPS = props.filter(p => !(['tree', 'bush'].includes(p.kind) && pointInShape(p, KIOSK_FORECOURT, 0.5)));
 
 // ---------------------------------------------------------------- collision
 
 export function propCorners(p: Prop): Vec2[] {
   return orientedCorners(p.x, p.y, p.w, p.h, p.angle);
 }
-const shapes: Shape[] = props.filter(p => p.solid).map(p => {
+const shapes: Shape[] = PROPS.filter(p => p.solid).map(p => {
   if (p.kind === 'building' && p.footprint) return shape(p.footprint.pts);
   if (p.kind === 'tree') return shape(orientedCorners(p.x, p.y, 0.5, 0.5, 0));
   return shape(propCorners(p));

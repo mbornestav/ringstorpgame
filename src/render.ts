@@ -1,7 +1,9 @@
-import { TILE_X, TILE_Y, distance, iso, normalize, orientedCorners, uniso, type Vec2 } from './geometry';
+import { buildingFront, roofGeometry, signedArea } from './buildings';
+import { MapCamera } from './camera';
+import { TILE_X, TILE_Y, distance, normalize, orientedCorners, pointInShape, type Vec2 } from './geometry';
 import type { Enemy, Game, Player } from './game';
-import { CROSSINGS, METRES_PER_UNIT, nearestRoad, surfaceAt } from './map';
-import { HOME, MARCUS_A, PACKAGE, PROPS, ROUTES, START, propCorners, type Prop } from './world';
+import { CROSSINGS, FOOTPRINTS, METRES_PER_UNIT, distanceToPolygon, nearestRoad, surfaceAt } from './map';
+import { HOME, KIOSK_FORECOURT, MARCUS_A, PACKAGE, PROPS, ROUTES, START, propCorners, type Prop } from './world';
 
 const MARCUS_HOUSE = PROPS.find(p => p.role === 'marcus');
 const HOME_HOUSE = PROPS.find(p => p.role === 'home');
@@ -123,6 +125,11 @@ function grassColour(x: number, y: number, sx: number, sy: number, lush: number)
 function groundColour(x: number, y: number, sx: number, sy: number): void {
   const s = surfaceAt(x, y);
   const grain = rand(sx, sy) - 0.5;
+  if (!['road', 'curb', 'walk'].includes(s.kind) && pointInShape({ x, y }, KIOSK_FORECOURT, 0)) {
+    const v = grain * 9 + vnoise(x * 2, y * 2) * 7;
+    set(116 + v, 118 + v, 113 + v);
+    return;
+  }
   switch (s.kind) {
     case 'road': {
       const road = s.road!;
@@ -189,6 +196,7 @@ function groundColour(x: number, y: number, sx: number, sy: number): void {
 }
 
 export class Renderer {
+  readonly view = new MapCamera();
   readonly canvas: HTMLCanvasElement;
   readonly screen: CanvasRenderingContext2D;
   /** The context drawing primitives target; swapped while baking chunks and sprites. */
@@ -221,11 +229,21 @@ export class Renderer {
 
   resetCamera(): void { this.initialized = false; }
 
+  setView(step: number): void {
+    if (!this.view.setStep(step)) return;
+    this.chunks.clear();
+    this.sprites.clear();
+    this.anchors.clear();
+    this.shadowBoxes = null;
+    this.pending = null;
+    this.resetCamera();
+  }
+
   private pt(x: number, y: number, z = 0): Point {
     let wx = x, wy = y;
     const f = this.frame;
     if (f) { wx = f.ox + x * f.c - y * f.s; wy = f.oy + x * f.s + y * f.c; }
-    const p = iso(wx, wy);
+    const p = this.view.project(wx, wy);
     return { x: Math.round(p.x) - this.cam.x, y: Math.round(p.y - z - this.lift) - this.cam.y };
   }
 
@@ -248,7 +266,7 @@ export class Renderer {
     if (!this.warmed) { this.warmed = true; this.warmUp(START); }
     const c = this.screen;
     const focusPos = game.mode === 'title' ? this.attractPoint() : game.player.pos;
-    const focus = iso(focusPos.x, focusPos.y);
+    const focus = this.view.project(focusPos.x, focusPos.y);
     const target = { x: focus.x - WIDTH * 0.45, y: focus.y - HEIGHT * 0.56 };
     if (!this.initialized) {
       this.camera = target;
@@ -278,7 +296,7 @@ export class Renderer {
 
   /** Bakes the ground and sprites around a point up front, so starting a run doesn't stall. */
   private warmUp(point: Vec2): void {
-    const f = iso(point.x, point.y);
+    const f = this.view.project(point.x, point.y);
     const cx = Math.round(f.x - WIDTH * 0.45), cy = Math.round(f.y - HEIGHT * 0.56);
     for (let y = Math.floor((cy - CHUNK) / CHUNK); y <= Math.floor((cy + HEIGHT + CHUNK) / CHUNK); y++) {
       for (let x = Math.floor((cx - CHUNK) / CHUNK); x <= Math.floor((cx + WIDTH + CHUNK) / CHUNK); x++) this.chunk(x, y);
@@ -304,7 +322,7 @@ export class Renderer {
 
   private anchorOf(prop: Prop): Point {
     let a = this.anchors.get(prop);
-    if (!a) { const p = iso(prop.x, prop.y); a = { x: Math.round(p.x), y: Math.round(p.y) }; this.anchors.set(prop, a); }
+    if (!a) { const p = this.view.project(prop.x, prop.y); a = { x: Math.round(p.x), y: Math.round(p.y) }; this.anchors.set(prop, a); }
     return a;
   }
 
@@ -323,9 +341,9 @@ export class Renderer {
     items.sort((a, b) => a.depth - b.depth);
 
     const actors: Actor[] = [];
-    if (!game.hasPackage) actors.push({ pos: PACKAGE, depth: PACKAGE.x + PACKAGE.y, draw: () => this.drawPackage(PACKAGE.x, PACKAGE.y), fades: false });
-    actors.push({ pos: game.player.pos, depth: game.player.pos.x + game.player.pos.y, draw: () => this.drawPlayer(game.player, game.hasPackage), fades: game.mode !== 'title' });
-    for (const enemy of game.enemies) actors.push({ pos: enemy.pos, depth: enemy.pos.x + enemy.pos.y, draw: () => this.drawEnemy(enemy), fades: enemy.state !== 'ko' });
+    if (!game.hasPackage) actors.push({ pos: PACKAGE, depth: this.view.depth(PACKAGE.x, PACKAGE.y), draw: () => this.drawPackage(PACKAGE.x, PACKAGE.y), fades: false });
+    actors.push({ pos: game.player.pos, depth: this.view.depth(game.player.pos.x, game.player.pos.y), draw: () => this.drawPlayer(game.player, game.hasPackage), fades: game.mode !== 'title' });
+    for (const enemy of game.enemies) actors.push({ pos: enemy.pos, depth: this.view.depth(enemy.pos.x, enemy.pos.y), draw: () => this.drawEnemy(enemy), fades: enemy.state !== 'ko' });
     actors.sort((a, b) => a.depth - b.depth);
 
     // Each actor goes after every overlapping prop it stands in front of and before those it stands behind.
@@ -359,16 +377,29 @@ export class Renderer {
     for (const actor of tail) actor.draw();
   }
 
-  /** In the prop's own frame its +x and +y walls face the camera, so beyond either means in front. */
+  /** Compare the actor with the nearest footprint edge at its projected horizontal position. */
   private inFront(pos: Vec2, p: Prop): boolean {
-    const c = Math.cos(p.angle), s = Math.sin(p.angle);
+    if (p.footprint) {
+      const actor = this.view.project(pos.x, pos.y);
+      const outline = p.footprint.pts.map(q => this.view.project(q.x, q.y));
+      let nearest = -Infinity;
+      for (let i = 0; i < outline.length; i++) {
+        const a = outline[i], b = outline[(i + 1) % outline.length];
+        if (actor.x < Math.min(a.x, b.x) || actor.x > Math.max(a.x, b.x)) continue;
+        const t = Math.abs(b.x - a.x) < 1e-8 ? 0 : (actor.x - a.x) / (b.x - a.x);
+        nearest = Math.max(nearest, a.y + (b.y - a.y) * t);
+      }
+      return Number.isFinite(nearest) ? actor.y >= nearest - 0.1 : this.view.depth(pos.x, pos.y) >= this.view.depth(p.x, p.y);
+    }
+    const frame = this.view.frame(p.angle, p.w, p.h);
+    const c = Math.cos(frame.angle), s = Math.sin(frame.angle);
     const dx = pos.x - p.x, dy = pos.y - p.y;
-    return dx * c + dy * s >= p.w / 2 || -dx * s + dy * c >= p.h / 2;
+    return dx * c + dy * s >= frame.w / 2 || -dx * s + dy * c >= frame.h / 2;
   }
 
   private depthOf(p: Prop): number {
-    if (p.kind === 'tree' || p.kind === 'bush') return p.x + p.y + 0.4;
-    return Math.max(...propCorners(p).map(q => q.x + q.y));
+    if (p.kind === 'tree' || p.kind === 'bush') return this.view.depth(p.x, p.y) + 0.4;
+    return Math.max(...(p.footprint?.pts ?? propCorners(p)).map(q => this.view.depth(q.x, q.y)));
   }
 
   private covers(item: Item, s: Point): boolean {
@@ -387,7 +418,7 @@ export class Renderer {
     const cached = this.sprites.get(key);
     if (cached) return cached;
     const anchor = this.anchorOf(prop);
-    const corners = propCorners(prop).map(q => iso(q.x, q.y));
+    const corners = propCorners(prop).map(q => this.view.project(q.x, q.y));
     const left = Math.floor(Math.min(...corners.map(p => p.x)) - anchor.x) - 64;
     const right = Math.ceil(Math.max(...corners.map(p => p.x)) - anchor.x) + 64;
     const top = Math.floor(Math.min(...corners.map(p => p.y)) - anchor.y - (prop.height || 0)) - 110;
@@ -417,12 +448,14 @@ export class Renderer {
   }
 
   private drawProp(prop: Prop): void {
-    if (ORIENTED.has(prop.kind) && !(prop.kind === 'building' && this.isFreeform(prop))) {
+    if (prop.kind === 'building') { this.drawBuilding(prop); return; }
+    if (ORIENTED.has(prop.kind)) {
+      const axes = this.view.frame(prop.angle, prop.w, prop.h);
+      prop = { ...prop, ...axes };
       const c = Math.cos(prop.angle), s = Math.sin(prop.angle);
       this.frame = { ox: prop.x - (prop.w / 2) * c + (prop.h / 2) * s, oy: prop.y - (prop.w / 2) * s - (prop.h / 2) * c, c, s };
       const local: Prop = { ...prop, x: 0, y: 0 };
       switch (prop.kind) {
-        case 'building': this.drawBuilding(local); break;
         case 'car': this.drawCar(local); break;
         case 'shelter': this.drawShelter(local); break;
         case 'bench': this.drawBench(local); break;
@@ -433,7 +466,6 @@ export class Renderer {
       return;
     }
     switch (prop.kind) {
-      case 'building': this.drawFreeform(prop); break;
       case 'tree': this.drawTree(prop); break;
       case 'bush': this.drawBush(prop); break;
       case 'lamp': this.drawLamp(prop); break;
@@ -444,12 +476,6 @@ export class Renderer {
       case 'bin': this.drawBin(prop); break;
       default: break;
     }
-  }
-
-  /** Irregular footprints (L-shapes, courtyards, schools) are extruded as they are, with flat roofs. */
-  private isFreeform(p: Prop): boolean {
-    const f = p.footprint;
-    return !!f && (p.style === 'block' || f.fill < (p.style === 'house' ? 0.62 : 0.8));
   }
 
   // ---------------------------------------------------------------- primitives
@@ -557,12 +583,12 @@ export class Renderer {
     return nx * SUN.x + ny * SUN.y > 0.25;
   }
 
-  private window(f: Face, u: number, z: number, ww: number, wh: number, seed: number, frame = '#efe9dc', cross = false, warm = false): void {
+  private window(f: Face, u: number, z: number, ww: number, wh: number, seed: number, frame = '#efe9dc', cross = false, warm = false, reference = false): void {
     const sunlit = this.sunlit(f);
     const r = rand(seed, 77);
-    const lamp = warm || r > 0.93;
-    const glass = lamp ? '#f4c877' : sunlit ? (r > 0.6 ? '#e6a55c' : '#6f8ea3') : '#3d5063';
-    const shine = lamp ? '#fff0b8' : sunlit ? '#f7d9a0' : '#7892a6';
+    const lamp = warm || (!reference && r > 0.93);
+    const glass = reference ? '#3d4b50' : lamp ? '#f4c877' : sunlit ? (r > 0.6 ? '#e6a55c' : '#6f8ea3') : '#3d5063';
+    const shine = reference ? '#6d8085' : lamp ? '#fff0b8' : sunlit ? '#f7d9a0' : '#7892a6';
     const fr = this.faceLit(f, frame);
     this.fquad(f, u - ww / 2 - 0.07, u + ww / 2 + 0.07, z - 1, z + wh + 1, fr);
     this.fquad(f, u - ww / 2, u + ww / 2, z, z + wh, glass);
@@ -576,77 +602,6 @@ export class Renderer {
     this.fquad(f, u - width / 2 - 0.07, u + width / 2 + 0.07, z, z + height + 1, this.faceLit(f, '#e8e2d4'));
     this.fquad(f, u - width / 2, u + width / 2, z, z + height, this.faceLit(f, color));
     this.fquad(f, u - width / 2 + 0.06, u + width / 2 - 0.06, z + height * 0.55, z + height - 1, '#5d7488');
-  }
-
-  /** Gable roof with the ridge along the longer side and a gable wall on the visible end. */
-  private gableRoof(x: number, y: number, w: number, h: number, z: number, rise: number, roof: string, gableWall: string, texture: 'brick' | 'plaster' | 'wood', seed: number): void {
-    const o = 0.16;
-    const alongX = w >= h;
-    const back = alongX ? this.lit(roof, 0, -0.7, 0.7) : this.lit(roof, -0.7, 0, 0.7);
-    const front = alongX ? this.lit(roof, 0, 0.7, 0.7) : this.lit(roof, 0.7, 0, 0.7);
-    if (alongX) {
-      const ym = y + h / 2;
-      this.shape([[x - o, y - o, z - 1], [x + w + o, y - o, z - 1], [x + w + o, ym, z + rise], [x - o, ym, z + rise]], back);
-      const g = [this.pt(x + w, y, z), this.pt(x + w, y + h, z), this.pt(x + w, ym, z + rise)];
-      this.poly(g, this.lit(gableWall, 1, 0, 0));
-      this.clip(g, () => this.texture({ ax: x + w, ay: y, dx: 0, dy: 1, len: h, nx: 1, ny: 0 }, z, z + rise, gableWall, texture, seed + 5));
-      this.shape([[x - o, ym, z + rise], [x + w + o, ym, z + rise], [x + w + o, y + h + o, z - 1], [x - o, y + h + o, z - 1]], front);
-      for (let k = 1; k < 6; k++) {
-        const t = k / 6, yy = ym + (y + h + o - ym) * t, zz = z + rise - (rise + 1) * t;
-        this.line(this.pt(x - o, yy, zz), this.pt(x + w + o, yy, zz), shade(front, 0.86));
-      }
-      this.line(this.pt(x - o, ym, z + rise), this.pt(x + w + o, ym, z + rise), mix(this.lit(roof, 0, 0, 1), '#fff0d0', 0.25));
-      this.line(this.pt(x - o, y + h + o, z - 1), this.pt(x + w + o, y + h + o, z - 1), shade(front, 0.6));
-      this.line(this.pt(x + w + o, ym, z + rise), this.pt(x + w + o, y + h + o, z - 1), shade(front, 0.7));
-      this.line(this.pt(x + w + o, ym, z + rise), this.pt(x + w + o, y - o, z - 1), shade(back, 0.7));
-    } else {
-      const xm = x + w / 2;
-      this.shape([[x - o, y - o, z - 1], [x - o, y + h + o, z - 1], [xm, y + h + o, z + rise], [xm, y - o, z + rise]], back);
-      const g = [this.pt(x, y + h, z), this.pt(x + w, y + h, z), this.pt(xm, y + h, z + rise)];
-      this.poly(g, this.lit(gableWall, 0, 1, 0));
-      this.clip(g, () => this.texture({ ax: x, ay: y + h, dx: 1, dy: 0, len: w, nx: 0, ny: 1 }, z, z + rise, gableWall, texture, seed + 5));
-      this.shape([[xm, y - o, z + rise], [xm, y + h + o, z + rise], [x + w + o, y + h + o, z - 1], [x + w + o, y - o, z - 1]], front);
-      for (let k = 1; k < 6; k++) {
-        const t = k / 6, xx = xm + (x + w + o - xm) * t, zz = z + rise - (rise + 1) * t;
-        this.line(this.pt(xx, y - o, zz), this.pt(xx, y + h + o, zz), shade(front, 0.86));
-      }
-      this.line(this.pt(xm, y - o, z + rise), this.pt(xm, y + h + o, z + rise), mix(this.lit(roof, 0, 0, 1), '#fff0d0', 0.25));
-      this.line(this.pt(x + w + o, y - o, z - 1), this.pt(x + w + o, y + h + o, z - 1), shade(front, 0.6));
-      this.line(this.pt(xm, y + h + o, z + rise), this.pt(x + w + o, y + h + o, z - 1), shade(front, 0.7));
-      this.line(this.pt(xm, y + h + o, z + rise), this.pt(x - o, y + h + o, z - 1), shade(back, 0.7));
-    }
-  }
-
-  /** Hipped roof over a rectangle, ridge along the longer side. */
-  private hipRoof(x: number, y: number, w: number, h: number, z: number, rise: number, roof: string): void {
-    const o = 0.2;
-    const X0 = x - o, X1 = x + w + o, Y0 = y - o, Y1 = y + h + o;
-    const alongX = w >= h;
-    const inset = (alongX ? Y1 - Y0 : X1 - X0) / 2;
-    const r0 = alongX ? [X0 + inset, (Y0 + Y1) / 2] : [(X0 + X1) / 2, Y0 + inset];
-    const r1 = alongX ? [X1 - inset, (Y0 + Y1) / 2] : [(X0 + X1) / 2, Y1 - inset];
-    const zt = z + rise, ze = z - 1;
-    this.shape([[X0, Y0, ze], [X1, Y0, ze], [r1[0], r1[1], zt], [r0[0], r0[1], zt]], this.lit(roof, 0, -0.7, 0.7));
-    this.shape([[X0, Y0, ze], [X0, Y1, ze], [r1[0], r1[1], zt], [r0[0], r0[1], zt]], this.lit(roof, -0.7, 0, 0.7));
-    this.shape([[X1, Y0, ze], [X1, Y1, ze], [r1[0], r1[1], zt], [r0[0], r0[1], zt]], this.lit(roof, 0.7, 0, 0.7));
-    this.shape([[X0, Y1, ze], [X1, Y1, ze], [r1[0], r1[1], zt], [r0[0], r0[1], zt]], this.lit(roof, 0, 0.7, 0.7));
-    const front = this.lit(roof, 0, 0.7, 0.7), side = this.lit(roof, 0.7, 0, 0.7);
-    for (let k = 1; k < 5; k++) {
-      const t = k / 5;
-      const a = [X0 + (r0[0] - X0) * (1 - t), Y1 + (r0[1] - Y1) * (1 - t)], b = [X1 + (r1[0] - X1) * (1 - t), Y1 + (r1[1] - Y1) * (1 - t)];
-      const zz = ze + (zt - ze) * (1 - t);
-      this.line(this.pt(a[0], a[1], zz), this.pt(b[0], b[1], zz), shade(front, 0.87));
-      const s0 = [X1 + (r1[0] - X1) * (1 - t), Y0 + (r1[1] - Y0) * (1 - t)];
-      this.line(this.pt(s0[0], s0[1], zz), this.pt(b[0], b[1], zz), shade(side, 0.88));
-    }
-    this.line(this.pt(X1, Y1, ze), this.pt(r1[0], r1[1], zt), mix(side, '#fff0d0', 0.3));
-    this.line(this.pt(r0[0], r0[1], zt), this.pt(r1[0], r1[1], zt), mix(side, '#fff0d0', 0.3));
-    this.line(this.pt(X0, Y1, ze), this.pt(X1, Y1, ze), shade(front, 0.6));
-  }
-
-  private chimney(x: number, y: number, z0: number, z1: number, color = '#8c4a38'): void {
-    this.box(x, y, 0.32, 0.32, z0, z1, color);
-    this.box(x - 0.04, y - 0.04, 0.4, 0.4, z1, z1 + 1.5, '#5a5552');
   }
 
   private pixelText(text: string, x: number, y: number, color: string): void {
@@ -663,215 +618,169 @@ export class Renderer {
 
   // ---------------------------------------------------------------- buildings
 
+  /** Every wall follows the mapped polygon; facades and roof ridges stay fixed in world space. */
   private drawBuilding(p: Prop): void {
-    switch (p.style) {
-      case 'apartment': this.drawApartment(p); break;
-      case 'tower': this.drawTowerBlock(p); break;
-      case 'garage': this.drawGarage(p); break;
-      case 'kiosk': this.drawKiosk(p); break;
-      default: this.drawHouse(p); break;
-    }
-  }
-
-  private drawHouse(p: Prop): void {
-    const { x, y, w, h } = p;
-    const H = p.height || 20;
-    const seed = p.variant || 0;
-    const walls = ['#ece6d8', '#ece6d8', '#e2c992', '#b8603f', '#d9b56c', '#d3d5d0', '#e9d3b8', '#f1eee6'];
-    const roofs = ['#c0603e', '#c0603e', '#b35437', '#cf6d45', '#9e4a36', '#4d4e55', '#6b4a3c'];
-    const wall = pick(walls, seed), roof = pick(roofs, seed >> 3);
-    const tex = wall === '#b8603f' || wall === '#d9b56c' ? 'brick' as const : 'plaster' as const;
-    const home = p.role === 'home', marcus = p.role === 'marcus';
-    const { left, right } = this.faces(x, y, w, h);
-    this.box(x, y, w, h, 0, 2, '#8d8a84', '#8d8a84', false);
-    this.box(x, y, w, h, 2, H, wall);
-    this.texture(left, 2, H, wall, tex, seed);
-    this.texture(right, 2, H, wall, tex, seed + 400);
-    const floors = H > 16 ? 2 : 1, fh = (H - 3) / floors;
-    const door = w * 0.28;
-    for (const f of [left, right]) {
-      const n = Math.max(1, Math.round(f.len / 1.35));
-      for (let k = 0; k < n; k++) {
-        const u = (k + 0.5) * f.len / n;
-        for (let fl = 0; fl < floors; fl++) {
-          if (f === left && fl === 0 && Math.abs(u - door) < 0.5) continue;
-          this.window(f, u, 3 + fl * fh + 2, 0.46, fh - 5, seed + k * 13 + fl + (f === right ? 50 : 0), '#f2eee4', true, home && fl === 0);
-        }
+    const appearance = p.appearance!, footprint = p.footprint!;
+    const H = appearance.eaves, seed = p.variant || 0;
+    const ring = signedArea(footprint.pts) > 0 ? footprint.pts : [...footprint.pts].reverse();
+    const faces: Face[] = ring.map((a, i) => {
+      const b = ring[(i + 1) % ring.length], len = Math.hypot(b.x - a.x, b.y - a.y);
+      const dx = (b.x - a.x) / len, dy = (b.y - a.y) / len;
+      return { ax: a.x, ay: a.y, dx, dy, len, nx: dy, ny: -dx };
+    }).filter(f => f.len > 0.05);
+    const road = nearestRoad(p.x, p.y);
+    const entrance = p.role === 'home' ? HOME : p.role === 'marcus' ? MARCUS_A : p.role === 'kiosk' ? PACKAGE : road ?? { x: p.x, y: p.y + 1 };
+    const front = buildingFront(footprint, entrance);
+    const angle = Math.atan2(front.dy, front.dx), c = Math.cos(angle), s = Math.sin(angle);
+    const us = ring.map(q => q.x * c + q.y * s), vs = ring.map(q => -q.x * s + q.y * c);
+    const u0 = Math.min(...us), u1 = Math.max(...us), v0 = Math.min(...vs), v1 = Math.max(...vs);
+    const w = u1 - u0, h = v1 - v0, um = (u0 + u1) / 2, vm = (v0 + v1) / 2;
+    const cx = um * c - vm * s, cy = um * s + vm * c;
+    const toWorld = (u: number, v: number): Vec2 => ({ x: cx + u * c - v * s, y: cy + u * s + v * c });
+    const ridgeAlongX = appearance.model === 'kiosk' ? false : appearance.model === 'generic' ? w >= h : true;
+    const geometry = roofGeometry(ring, angle, w, h, cx, cy, appearance, ridgeAlongX);
+    const visible = faces.filter(f => this.view.depth(f.nx, f.ny) > 0.001)
+      .sort((f, g) => this.view.depth(f.ax + f.dx * f.len / 2, f.ay + f.dy * f.len / 2) - this.view.depth(g.ax + g.dx * g.len / 2, g.ay + g.dy * g.len / 2));
+    for (const f of visible) {
+      // Adjacent terrace homes share party walls; never paint windows through their neighbours.
+      const middle = { x: f.ax + f.dx * f.len / 2 + f.nx * 0.08, y: f.ay + f.dy * f.len / 2 + f.ny * 0.08 };
+      const shared = appearance.model === 'terrace' && FOOTPRINTS.some(other => other !== footprint && Math.hypot(other.obb.cx - middle.x, other.obb.cy - middle.y) < 12 && distanceToPolygon(middle, other.pts) < 0.1);
+      if (shared) continue;
+      const cuts = [0, 1];
+      for (let i = 0; i < geometry.planes.length; i++) for (let j = i + 1; j < geometry.planes.length; j++) {
+        const a = geometry.planes[i], b = geometry.planes[j];
+        const delta = (a.a - b.a) * f.dx * f.len + (a.b - b.b) * f.dy * f.len;
+        if (Math.abs(delta) < 1e-8) continue;
+        const t = -((a.a - b.a) * f.ax + (a.b - b.b) * f.ay + a.c - b.c) / delta;
+        if (t > 0 && t < 1) cuts.push(t);
       }
-    }
-    this.door(left, door, 2, 0.36, 8, marcus ? '#2f6b4a' : pick(['#5b3b2a', '#2f4a3e', '#6b2d2a', '#e9e4d8', '#3a4a6b'], seed >> 2));
-    this.box(x + door - 0.4, y + h, 0.8, 0.3, 0, 1.5, '#b9b2a4', '#c9c2b4', false);
-    if (home) {
-      const lamp = this.fp(left, door + 0.45, 8);
-      this.ctx.fillStyle = '#fff0b8'; this.ctx.fillRect(lamp.x, lamp.y - 2, 2, 2);
-    }
-    if (marcus) {
-      // A first-aid plate by the door of Marcus A.
-      this.fquad(left, door + 0.42, door + 0.95, 7, 13, '#f4f1e6');
-      this.fquad(left, door + 0.62, door + 0.75, 8, 12, '#2f9a55');
-      this.fquad(left, door + 0.48, door + 0.89, 9.5, 10.5, '#2f9a55');
-    }
-    const rise = Math.max(8, Math.min(15, Math.min(w, h) * 2.6));
-    if (seed % 3 === 0) this.gableRoof(x, y, w, h, H, rise, roof, wall, tex, seed);
-    else this.hipRoof(x, y, w, h, H, rise, roof);
-    this.chimney(x + w * 0.62, y + h * 0.38, H + rise * 0.45, H + rise + 3, tex === 'brick' ? '#8c4a38' : '#b8a48a');
-  }
-
-  private drawApartment(p: Prop): void {
-    const { x, y, w, h } = p;
-    const H = p.height || 36;
-    const seed = p.variant || 0;
-    const style = [
-      { wall: '#d8b56a', roof: '#a9523a', balcony: '#ece6da', tex: 'brick' as const },
-      { wall: '#e4d3ae', roof: '#8e4a36', balcony: '#5f8f6a', tex: 'plaster' as const },
-      { wall: '#a65139', roof: '#4e4b50', balcony: '#ddd6c6', tex: 'brick' as const },
-      { wall: '#d2ad62', roof: '#b35437', balcony: '#a8423a', tex: 'brick' as const },
-    ][seed % 4];
-    const { left, right } = this.faces(x, y, w, h);
-    this.box(x, y, w, h, 0, 3, '#8d8a84', '#8d8a84', false);
-    this.box(x, y, w, h, 3, H, style.wall);
-    this.texture(left, 3, H, style.wall, style.tex, seed);
-    this.texture(right, 3, H, style.wall, style.tex, seed + 400);
-    const floors = Math.max(2, Math.round((H - 5) / 11));
-    const fh = (H - 4) / floors;
-    for (const f of [left, right]) {
-      const doorU = f.len / 2;
-      const cols: number[] = [];
-      for (let u = 0.5; u < f.len - 0.3; u += 0.92) cols.push(u);
-      cols.forEach((u, k) => {
-        const door = f === left && Math.abs(u - doorU) < 0.46;
-        for (let fl = 0; fl < floors; fl++) {
-          const z = 4 + fl * fh + 3;
-          if (door) {
-            if (fl === 0) this.door(f, u, 3, 0.36, 8, '#5b3b2a');
-            else this.window(f, u, z + 1, 0.22, 5, seed + k * 13 + fl);
-          } else if (k % 3 === 1 && fl > 0 && f.len > 3) {
-            this.fquad(f, u - 0.2, u + 0.2, z - 1, z + 7, '#34404d');
-            this.fquad(f, u - 0.4, u + 0.4, z - 3, z + 1.8, this.faceLit(f, style.balcony), 0.32);
-            this.fquad(f, u - 0.4, u + 0.4, z - 3, z - 2, 'rgba(30,30,40,0.35)', 0.32);
-          } else this.window(f, u, z, 0.42, 6, seed + k * 13 + fl + (f === right ? 70 : 0));
+      cuts.sort((a, b) => a - b);
+      const top = cuts.map(t => { const q = { x: f.ax + f.dx * f.len * t, y: f.ay + f.dy * f.len * t }; return this.pt(q.x, q.y, geometry.height(q)); });
+      const wallPoly = [this.fp(f, 0, 0), this.fp(f, f.len, 0), ...top.reverse()];
+      this.poly(wallPoly, this.faceLit(f, appearance.wall));
+      this.clip(wallPoly, () => {
+        this.texture(f, 0, H + appearance.rise, appearance.wall, appearance.material, seed + Math.round(f.ax * 7));
+        this.fquad(f, 0, f.len, 0, appearance.model === 'marcus' ? 5 : 2, this.faceLit(f, '#777b7d'));
+        const streetFace = f.nx * front.nx + f.ny * front.ny > 0.9;
+        if (appearance.model === 'terrace') this.terraceFacade(f, streetFace, H, seed);
+        else if (appearance.model === 'marcus') this.marcusFacade(f, streetFace, H, appearance.rise, seed);
+        else if (appearance.model === 'kiosk') this.kioskFacade(f, streetFace, H);
+        else {
+          const floors = Math.max(1, appearance.floors), fh = (H - 3) / floors;
+          const n = Math.max(1, Math.floor(f.len / 1.3));
+          for (let k = 0; k < n; k++) for (let fl = 0; fl < floors; fl++) {
+            if (streetFace && k === 0 && fl === 0) this.door(f, (k + 0.5) * f.len / n, 2, 0.36, Math.min(9, fh - 1), '#4a4e43');
+            else this.window(f, (k + 0.5) * f.len / n, 4 + fl * fh, 0.46, Math.max(3, fh - 5), seed + k * 7 + fl);
+          }
         }
       });
+      this.line(this.fp(f, 0, 0), this.fp(f, 0, geometry.height({ x: f.ax, y: f.ay })), OUTLINE);
     }
-    const rise = Math.min(12, Math.min(w, h) * 3.1);
-    this.gableRoof(x, y, w, h, H, rise, style.roof, style.wall, style.tex, seed);
-  }
-
-  private drawTowerBlock(p: Prop): void {
-    const { x, y, w, h } = p;
-    const H = p.height || 90;
-    const seed = p.variant || 0;
-    const wall = pick(['#e8e4da', '#d9d2c2', '#c8b89a'], seed);
-    const { left, right } = this.faces(x, y, w, h);
-    this.box(x, y, w, h, 0, 4, '#7f7b75', '#7f7b75', false);
-    this.box(x, y, w, h, 4, H - 4, wall);
-    this.texture(left, 4, H - 4, wall, 'plaster', seed);
-    this.texture(right, 4, H - 4, wall, 'plaster', seed + 7);
-    const floors = Math.max(4, Math.round((H - 12) / 9)), fh = (H - 10) / floors;
-    for (let f = 0; f < floors; f++) {
-      const z = 5 + f * fh + 2;
-      for (const face of [left, right]) {
-        const n = Math.max(2, Math.round(face.len / 1.1));
-        for (let k = 0; k < n; k++) {
-          const u = (k + 0.5) * face.len / n;
-          if (f === 0 && face === left && k === Math.floor(n / 2)) this.door(face, u, 4, 0.4, 7, '#3f3a36');
-          else this.window(face, u, z, 0.44, 5, seed + f * 9 + k + (face === right ? 300 : 0));
-        }
+    // Render complete roof planes after the facades. Triangulation preserves every extension and recess.
+    const overhang = appearance.model === 'kiosk' ? 0.22 : appearance.model === 'marcus' ? 0.08 : 0;
+    const roofRing = overhang ? ring.map(q => {
+      const u = (q.x - cx) * c + (q.y - cy) * s, v = -(q.x - cx) * s + (q.y - cy) * c;
+      return toWorld(u * (1 + overhang * 2 / w), v * (1 + overhang * 2 / h));
+    }) : ring;
+    const roof = overhang ? roofGeometry(roofRing, angle, w + overhang * 2, h + overhang * 2, cx, cy, appearance, ridgeAlongX) : geometry;
+    const roofDepth = (plane: typeof roof.planes[number]) => {
+      const pts = roof.patches.filter(patch => patch.plane === plane).flatMap(patch => patch.pts);
+      return pts.reduce((sum, q) => sum + this.view.depth(q.x, q.y), 0) / Math.max(1, pts.length);
+    };
+    for (const plane of [...roof.planes].sort((a, b) => roofDepth(a) - roofDepth(b))) {
+      if (this.view.depth(-plane.a, -plane.b) + 2 * TILE_Y <= 0) continue;
+      const patches = roof.patches.filter(patch => patch.plane === plane);
+      const color = litWorld(appearance.roof, -plane.a / Z_UNIT, -plane.b / Z_UNIT, 1);
+      const zAt = (q: Vec2) => plane.a * q.x + plane.b * q.y + plane.c;
+      for (const patch of patches) {
+        const screen = patch.pts.map(q => this.pt(q.x, q.y, zAt(q)));
+        this.poly(screen, color);
+        // World-anchored tile lines remain attached to the roof as the camera turns.
+        this.clip(screen, () => {
+          for (let v = -h / 2 - overhang; v <= h / 2 + overhang; v += 0.28) {
+            const a = toWorld(-w / 2 - overhang, v), b = toWorld(w / 2 + overhang, v);
+            this.line(this.pt(a.x, a.y, zAt(a)), this.pt(b.x, b.y, zAt(b)), shade(color, 0.83));
+          }
+          for (let u = -w / 2 - overhang; u <= w / 2 + overhang; u += 0.22) {
+            const a = toWorld(u, -h / 2 - overhang), b = toWorld(u, h / 2 + overhang);
+            this.line(this.pt(a.x, a.y, zAt(a)), this.pt(b.x, b.y, zAt(b)), shade(color, 0.94));
+          }
+        });
       }
-      if (f > 0) this.fquad(left, 0.2, 1.1, z - 2, z - 1, this.faceLit(left, '#b9b4aa'), 0.25);
     }
-    this.box(x - 0.06, y - 0.06, w + 0.12, h + 0.12, H - 4, H, '#6f6b66', '#5e5a56');
-    this.box(x + w * 0.3, y + h * 0.3, 1.2, 1.1, H, H + 7, '#8a8680');
+    for (let i = 0; i < roofRing.length; i++) {
+      const a = roofRing[i], b = roofRing[(i + 1) % roofRing.length];
+      const ts = [0, 1];
+      for (let j = 0; j < roof.planes.length; j++) for (let k = j + 1; k < roof.planes.length; k++) {
+        const p0 = roof.planes[j], p1 = roof.planes[k];
+        const denominator = (p0.a - p1.a) * (b.x - a.x) + (p0.b - p1.b) * (b.y - a.y);
+        const t = -((p0.a - p1.a) * a.x + (p0.b - p1.b) * a.y + p0.c - p1.c) / denominator;
+        if (Number.isFinite(t) && t > 0 && t < 1) ts.push(t);
+      }
+      ts.sort((a, b) => a - b);
+      const edge = ts.map(t => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }));
+      for (let k = 1; k < edge.length; k++) this.line(this.pt(edge[k - 1].x, edge[k - 1].y, roof.height(edge[k - 1])), this.pt(edge[k].x, edge[k].y, roof.height(edge[k])), appearance.model === 'kiosk' || appearance.model === 'marcus' ? '#c9cec5' : shade(appearance.roof, 0.65));
+    }
+    if (appearance.model === 'marcus' || appearance.model === 'terrace') {
+      const q = toWorld(w * 0.15, h * 0.09), z = roof.height(q);
+      // Fixed position relative to the ridge, independent of viewing angle.
+      const axes = this.view.frame(angle, 0.4, 0.42), cc = Math.cos(axes.angle), ss = Math.sin(axes.angle);
+      this.frame = { ox: q.x - axes.w / 2 * cc + axes.h / 2 * ss, oy: q.y - axes.w / 2 * ss - axes.h / 2 * cc, c: cc, s: ss };
+      this.box(0, 0, axes.w, axes.h, z, z + (appearance.model === 'marcus' ? 12 : 7), '#a99477', '#655e52');
+      this.frame = null;
+    }
   }
 
-  private drawGarage(p: Prop): void {
-    const { x, y, w, h } = p;
-    const seed = p.variant || 0;
-    const wall = pick(['#e2ddd0', '#b8603f', '#8f6a4c', '#d3d5d0'], seed);
-    const { left, right } = this.faces(x, y, w, h);
-    this.box(x, y, w, h, 0, 9, wall, '#56565a');
-    this.texture(left, 0, 9, wall, wall === '#8f6a4c' ? 'wood' : 'plaster', seed);
-    const doors = Math.max(1, Math.round(w / 1.6));
-    for (let k = 0; k < doors; k++) {
-      const u = (k + 0.5) * w / doors;
-      this.fquad(left, u - 0.55, u + 0.55, 0, 7, this.faceLit(left, '#efece4'));
-      for (let z = 1.5; z < 7; z += 1.5) this.fquad(left, u - 0.55, u + 0.55, z, z + 0.4, this.faceLit(left, '#c9c5bc'));
-    }
-    this.box(x - 0.1, y - 0.1, w + 0.2, h + 0.2, 9, 10, '#4d4e52', '#5e5f63', false);
-    if (h > 1) this.window(right, h / 2, 3, 0.4, 3, seed + 3);
+  private referenceWindow(f: Face, u: number, z: number, ww: number, wh: number, seed: number, frame = '#efe9dc', cross = false): void {
+    this.window(f, u, z, ww, wh, seed, frame, cross, false, true);
   }
 
-  private drawKiosk(p: Prop): void {
-    // Pålsjö kiosk: a small pavilion with a striped awning, big serving windows and an ice-cream sign.
-    const { x, y, w, h } = p;
-    const wall = '#eef1e8';
-    const { left, right } = this.faces(x, y, w, h);
-    this.box(x, y, w, h, 0, 12, wall, '#6d7072');
-    this.texture(left, 0, 12, wall, 'wood', 5);
-    this.texture(right, 0, 12, wall, 'wood', 6);
-    for (const f of [left, right]) {
-      this.fquad(f, 0.3, f.len - 0.3, 4, 9, '#3d5063');
-      this.fquad(f, 0.3, f.len - 0.3, 7, 9, '#7892a6');
-      this.fquad(f, 0.25, f.len - 0.25, 3, 4, this.faceLit(f, '#c9a36a'), 0.18);
-      for (let u = 0.1; u < f.len - 0.05; u += 0.3) this.fquad(f, u, Math.min(f.len, u + 0.15), 9.5, 11, Math.round(u * 10) % 6 < 3 ? '#d24b3c' : '#f5efe4', 0.3);
+  private terraceFacade(f: Face, front: boolean, H: number, seed: number): void {
+    if (!front) {
+      for (const z of [5, H * 0.56]) for (const u of [f.len * 0.28, f.len * 0.72]) this.referenceWindow(f, u, z, 0.5, 7, seed, '#e9ece5');
+      return;
     }
-    this.box(x - 0.2, y - 0.2, w + 0.4, h + 0.4, 12, 13.5, '#3f7a52', '#56925f', false);
-    const sign = this.pt(x + w / 2, y + h / 2, 22);
-    const c = this.ctx;
-    const label = 'PÅLSJÖ KIOSK', tw = label.length * 4 - 1;
-    c.fillStyle = '#10181f'; c.fillRect(Math.round(sign.x - tw / 2) - 4, sign.y - 1, tw + 8, 11);
-    c.fillStyle = '#f2c14e'; c.fillRect(Math.round(sign.x - tw / 2) - 3, sign.y, tw + 6, 9);
-    this.pixelText(label, Math.round(sign.x - tw / 2), sign.y + 2, '#1d2a33');
-    c.fillStyle = '#3a4046'; c.fillRect(sign.x - 1, sign.y + 10, 1, 6);
-    const cone = this.fp(left, 0.2, 0, 0.6);
-    c.fillStyle = '#5b646b'; c.fillRect(cone.x, cone.y - 16, 1, 16);
-    c.fillStyle = '#f4e6c4'; c.fillRect(cone.x - 3, cone.y - 23, 7, 7);
-    c.fillStyle = '#c98a4a'; c.fillRect(cone.x - 1, cone.y - 19, 3, 3);
-    c.fillStyle = '#e06a8a'; c.fillRect(cone.x - 2, cone.y - 22, 5, 3);
+    this.fquad(f, 0, f.len, 4, H * 0.52, this.faceLit(f, '#e2e5df'));
+    for (let z = 5; z < H * 0.52; z += 1.6) this.fquad(f, 0, f.len, z, z + 0.3, this.faceLit(f, '#bec6c2'));
+    this.door(f, f.len * 0.18, 4, 0.43, 11, '#d7dcd6');
+    this.referenceWindow(f, f.len * 0.67, 8, Math.min(0.85, f.len * 0.32), 6, seed + 4, '#f1f0e5');
+    for (const u of [f.len * 0.24, f.len * 0.74]) this.referenceWindow(f, u, H * 0.62, 0.55, 8, seed + Math.round(u * 9), '#f1eee8');
+    this.fquad(f, f.len * 0.48, f.len * 0.9, 0, 4, '#747b7b');
+    for (let z = 0.7; z < 4; z += 0.8) this.fquad(f, f.len * 0.48, f.len * 0.9, z, z + 0.2, '#a1a8a3');
   }
 
-  /** Irregular footprints extruded wall by wall, far walls first, with a flat roof. */
-  private drawFreeform(p: Prop): void {
-    const pts = p.footprint!.pts;
-    const H = p.height || 22;
-    const seed = p.variant || 0;
-    const wall = pick(['#a65139', '#d8b56a', '#e4d3ae', '#c9c4b8'], seed);
-    const tex = wall === '#a65139' || wall === '#d8b56a' ? 'brick' as const : 'plaster' as const;
-    const signed = pts.reduce((s, a, i) => { const b = pts[(i + 1) % pts.length]; return s + a.x * b.y - b.x * a.y; }, 0);
-    const ring = signed > 0 ? pts : [...pts].reverse();
-    const walls: Face[] = [];
-    for (let i = 0; i < ring.length; i++) {
-      const a = ring[i], b = ring[(i + 1) % ring.length];
-      const len = Math.hypot(b.x - a.x, b.y - a.y);
-      if (len < 0.05) continue;
-      const dx = (b.x - a.x) / len, dy = (b.y - a.y) / len;
-      const face: Face = { ax: a.x, ay: a.y, dx, dy, len, nx: dy, ny: -dx };
-      if (face.nx + face.ny > 0.02) walls.push(face);
+  private marcusFacade(f: Face, front: boolean, H: number, rise: number, seed: number): void {
+    const n = front ? 3 : 2;
+    for (let k = 0; k < n; k++) {
+      const u = f.len * (k + 0.5) / n, width = 0.6;
+      for (const side of [-1, 1]) this.fquad(f, u + side * 0.48 - 0.1, u + side * 0.48 + 0.1, 9, 20, this.faceLit(f, '#353b40'));
+      this.referenceWindow(f, u, 10, width, 8, seed + k, '#d8d8c4', true);
     }
-    walls.sort((f, g) => (f.ax + f.dx * f.len / 2 + f.ay + f.dy * f.len / 2) - (g.ax + g.dx * g.len / 2 + g.ay + g.dy * g.len / 2));
-    const floors = Math.max(1, Math.round((H - 4) / 11)), fh = (H - 4) / floors;
-    for (const f of walls) {
-      this.fquad(f, 0, f.len, 0, 3, this.faceLit(f, '#8d8a84'));
-      this.fquad(f, 0, f.len, 3, H, this.faceLit(f, wall));
-      this.texture(f, 3, H, wall, tex, seed + Math.floor(f.ax * 7));
-      const n = Math.floor(f.len / 0.95);
+    for (const u of [f.len * 0.27, f.len * 0.76]) this.fquad(f, u - 0.2, u + 0.2, 1, 3.5, '#414d50');
+    // Only the gable wall extends into this clipped region.
+    this.fquad(f, 0, f.len, H, H + rise, this.faceLit(f, '#3b4246'));
+    this.texture(f, H, H + rise, '#3b4246', 'wood', seed);
+    this.referenceWindow(f, f.len / 2, H + 5, 0.52, 10, seed + 8, '#d8d7c8');
+  }
+
+  private kioskFacade(f: Face, front: boolean, H: number): void {
+    if (front) {
+      this.fquad(f, 0.12, f.len - 0.12, 5, H - 2, '#afb9b5');
+      for (let z = 5; z < H - 2; z += 0.8) this.fquad(f, 0.13, f.len - 0.13, z, z + 0.3, '#e0e3d9');
+      this.fquad(f, 0.05, f.len - 0.05, 4, 5, this.faceLit(f, '#648e9d'), 0.12);
+      this.fquad(f, 0.05, f.len - 0.05, 1, 4, '#e4e4d5');
+      this.fquad(f, 0.05, f.len - 0.05, H - 2, H, '#6f929e');
+      const label = this.fp(f, f.len / 2, H - 1);
+      // Small readable fascia; the gameplay marker remains separate above the building.
+      const text = 'SANNAS KIOSK';
+      this.pixelText(text, Math.round(label.x - (text.length * 4 - 1) / 2), label.y - 2, '#c87763');
+    } else {
+      const n = Math.max(2, Math.round(f.len / 0.8));
       for (let k = 0; k < n; k++) {
-        for (let fl = 0; fl < floors; fl++) this.window(f, (k + 0.5) * f.len / n, 4 + fl * fh + 3, 0.44, Math.min(6, fh - 4), seed + k * 7 + fl + Math.floor(f.ay * 3));
+        const u = f.len * (k + 0.5) / n;
+        this.poly([this.fp(f, u - 0.17, 2), this.fp(f, u + 0.17, 2), this.fp(f, u + 0.17, H - 2), this.fp(f, u - 0.17, H - 5)], this.faceLit(f, '#5c736b'));
       }
-      this.line(this.fp(f, 0, 0), this.fp(f, 0, H), OUTLINE);
     }
-    const roof = ring.map(q => this.pt(q.x, q.y, H));
-    this.poly(roof, litWorld('#77736d', 0, 0, 1));
-    this.clip(roof, () => {
-      const c = this.ctx;
-      const xs = roof.map(q => q.x), ys = roof.map(q => q.y);
-      const minX = Math.min(...xs), minY = Math.min(...ys), spanX = Math.max(...xs) - minX, spanY = Math.max(...ys) - minY;
-      for (let i = 0; i < 400; i++) {
-        c.fillStyle = rand(seed, i) > 0.5 ? '#8c8880' : '#66625d';
-        c.fillRect(Math.round(minX + rand(i, seed) * spanX), Math.round(minY + rand(seed + 1, i) * spanY), 1, 1);
-      }
-    });
-    for (let i = 0; i < ring.length; i++) this.line(roof[i], roof[(i + 1) % ring.length], '#9d9890');
   }
 
   // ---------------------------------------------------------------- street furniture and plants
@@ -1124,7 +1033,7 @@ export class Renderer {
     for (let py = job.row; py < end; py++) {
       for (let x = 0; x < CHUNK; x++) {
         const sx = ox + x, sy = oy + py;
-        const w = uniso(sx, sy);
+        const w = this.view.unproject(sx, sy);
         groundColour(w.x, w.y, sx, sy);
         const i = (py * CHUNK + x) * 4;
         data[i] = clamp255(px[0]); data[i + 1] = clamp255(px[1]); data[i + 2] = clamp255(px[2]); data[i + 3] = 255;
@@ -1164,7 +1073,7 @@ export class Renderer {
 
   private drawCrossings(ox: number, oy: number): void {
     for (const cr of CROSSINGS) {
-      const q = iso(cr.x, cr.y);
+      const q = this.view.project(cr.x, cr.y);
       if (q.x < ox - 80 || q.x > ox + CHUNK + 80 || q.y < oy - 40 || q.y > oy + CHUNK + 40) continue;
       const road = nearestRoad(cr.x, cr.y);
       if (!road || road.d > 2) continue;
@@ -1181,7 +1090,7 @@ export class Renderer {
     if (this.shadowBoxes) return this.shadowBoxes;
     this.shadowBoxes = PROPS.map(prop => {
       const h = this.shadowHeight(prop);
-      const pts = propCorners(prop).flatMap(q => [iso(q.x, q.y), iso(q.x + SHADOW.x * h, q.y + SHADOW.y * h)]);
+      const pts = propCorners(prop).flatMap(q => [this.view.project(q.x, q.y), this.view.project(q.x + SHADOW.x * h, q.y + SHADOW.y * h)]);
       const pad = prop.kind === 'tree' ? 30 : 4;
       return { prop, x0: Math.min(...pts.map(p => p.x)) - pad, y0: Math.min(...pts.map(p => p.y)) - pad, x1: Math.max(...pts.map(p => p.x)) + pad, y1: Math.max(...pts.map(p => p.y)) + pad };
     });
@@ -1191,8 +1100,7 @@ export class Renderer {
   private shadowHeight(p: Prop): number {
     const H = p.height || 0;
     if (p.kind !== 'building') return H;
-    if (p.style === 'house') return H + Math.max(8, Math.min(15, Math.min(p.w, p.h) * 2.6)) * 0.7;
-    if (p.style === 'apartment') return H + 8;
+    if (p.appearance) return H + p.appearance.rise * 0.8;
     return H;
   }
 
@@ -1214,7 +1122,7 @@ export class Renderer {
       case 'fence': case 'bin': return;
       default: break;
     }
-    const base = p.kind === 'building' && p.footprint && this.isFreeform(p) ? p.footprint.pts : orientedCorners(p.x, p.y, p.w + 0.1, p.h + 0.1, p.angle);
+    const base = p.kind === 'building' && p.footprint ? p.footprint.pts : orientedCorners(p.x, p.y, p.w + 0.1, p.h + 0.1, p.angle);
     const pts: Point[] = [];
     for (const q of base) { pts.push(q); pts.push({ x: q.x + SHADOW.x * H, y: q.y + SHADOW.y * H }); }
     this.poly(hull(pts).map(q => this.pt(q.x, q.y)), '#1f2c55');
@@ -1290,7 +1198,7 @@ export class Renderer {
       const house = MARCUS_HOUSE ?? { x: MARCUS_A.x, y: MARCUS_A.y, height: 20 };
       const p = this.pt(house.x, house.y, (house.height || 20) + 34);
       const y = p.y + (game.healed ? 0 : bob);
-      const look = normalize({ x: (game.player.pos.x - MARCUS_A.x - (game.player.pos.y - MARCUS_A.y)) * TILE_X, y: (game.player.pos.x + game.player.pos.y - MARCUS_A.x - MARCUS_A.y) * TILE_Y });
+      const look = normalize(this.view.project(game.player.pos.x - MARCUS_A.x, game.player.pos.y - MARCUS_A.y));
       for (const ex of [-5, 5]) {
         c.fillStyle = '#10181f'; c.beginPath(); c.arc(p.x + ex, y, 6, 0, Math.PI * 2); c.fill();
         c.fillStyle = game.healed ? '#d8d4ca' : '#f6f4ee'; c.beginPath(); c.arc(p.x + ex, y, 5, 0, Math.PI * 2); c.fill();
@@ -1324,7 +1232,7 @@ export class Renderer {
     this.drawShadow(pos.x, pos.y, kind === 'boss' ? 9 : 7);
     const step = Math.round(Math.sin(walk) * 2);
     const broad = kind === 'boss' ? 5 : kind === 'bruiser' ? 4 : 3;
-    const right = facing.x - facing.y >= 0;
+    const right = this.view.project(facing.x, facing.y).x >= 0;
     const body = flash > 0 ? '#fff3ca' : color;
     const sleeve = kind === 'player' ? '#edbd59' : shade(color, 0.72);
     const trousers = kind === 'player' ? '#26343f' : '#262a33';
@@ -1361,7 +1269,7 @@ export class Renderer {
     if (player.attackTimer > 0) {
       const p = this.pt(player.pos.x + player.facing.x * 0.9, player.pos.y + player.facing.y * 0.9, 9);
       const size = player.combo === 3 ? 15 : 11;
-      const screenDirection = normalize({ x: (player.facing.x - player.facing.y) * TILE_X, y: (player.facing.x + player.facing.y) * TILE_Y });
+      const screenDirection = normalize(this.view.project(player.facing.x, player.facing.y));
       const angle = Math.atan2(screenDirection.y, screenDirection.x);
       this.ctx.strokeStyle = player.combo === 3 ? '#fff1a4' : '#f6cf72';
       this.ctx.lineWidth = player.combo === 3 ? 4 : 3;
@@ -1433,7 +1341,7 @@ export class Renderer {
     const d = distance(game.player.pos, target);
     if (d < 2 && game.hasPackage) return;
     const direction = normalize({ x: target.x - game.player.pos.x, y: target.y - game.player.pos.y });
-    const screenDir = normalize({ x: (direction.x - direction.y) * TILE_X, y: (direction.x + direction.y) * TILE_Y });
+    const screenDir = normalize(this.view.project(direction.x, direction.y));
     const c = this.ctx;
     const x = WIDTH - 27, y = 72;
     c.fillStyle = '#102a35ce'; c.fillRect(x - 17, y - 16, 34, 34);

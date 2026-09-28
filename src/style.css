@@ -22,6 +22,15 @@ main { flex: 1; display: flex; flex-direction: column; justify-content: center; 
 .live-dot { display: inline-block; width: 7px; height: 7px; margin-right: 8px; border-radius: 50%; background: #f4c464; box-shadow: 0 0 10px #f4c464; }
 .game-frame { position: relative; width: 100%; max-width: var(--frame-width); margin-inline: auto; aspect-ratio: 16 / 9; overflow: hidden; background: #4c7472; border: 2px solid #c7aa77; box-shadow: 0 0 0 6px #152d35, 0 22px 65px #0009; }
 canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+#game { cursor: grab; touch-action: none; }
+#game.rotating { cursor: grabbing; }
+.view-controls { position: absolute; bottom: 12px; right: 12px; z-index: 2; display: flex; gap: 3px; padding: 4px; background: #102b35ed; border: 1px solid #c9ab74a8; box-shadow: 3px 4px 0 #07171e8c; }
+.view-controls button { min-height: 32px; min-width: 44px; padding: 5px 9px; border: 1px solid transparent; background: transparent; color: #f1d49f; font-size: 18px; }
+.view-controls button:hover { background: #2b5560; }
+button:focus-visible { outline: 2px solid #ffe1a0; outline-offset: 2px; }
+#reset-view { display: flex; flex-direction: column; align-items: center; min-width: 62px; font-size: 12px; }
+.view-reset { margin-top: 2px; color: #9ab1b0; font-size: 8px; letter-spacing: 1px; }
+.view-controls kbd { border: 0; background: transparent; color: #9ab1b0; min-width: 0; padding: 0 2px; }
 .game-hud { position: absolute; inset: 17px 18px auto; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; pointer-events: none; }
 .game-hud[hidden], .overlay[hidden] { display: none; }
 .hud-card { padding: 10px 12px; min-height: 50px; background: #102b35de; border: 1px solid #c9ab74a8; box-shadow: 3px 4px 0 #07171e8c; }
@@ -70,7 +79,7 @@ h2 .gold, h2 .blink { color: #f1be6c; } h2 .red { color: #e97660; }
 .result-grid div { border-top: 1px solid #7c9691; padding-top: 9px; }
 .result-grid span { display: block; margin-bottom: 5px; color: #d6b379; font-size: 9px; letter-spacing: 1px; }
 .result-grid b { color: #f0e2c8; font-size: 22px; }
-.bottomline { justify-content: flex-start; gap: 32px; padding: 14px 2px 4px; }
+.bottomline { justify-content: flex-start; flex-wrap: wrap; gap: 12px 24px; padding: 14px 2px 4px; }
 .bottomline b { color: #e8d4ac; }
 footer { display: flex; align-items: center; justify-content: space-between; min-height: 49px; border-top: 1px solid #59706d66; color: #7f9999; font-size: 10px; letter-spacing: 1.2px; }
 footer b { color: #e1bd80; font-size: 14px; }
