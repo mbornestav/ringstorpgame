@@ -1,4 +1,5 @@
-import { Game, type Mode } from './game';
+import { Game, ROUTE_NAMES, type Mode, type Route } from './game';
+import { MAP_ATTRIBUTION } from './map';
 import { Renderer } from './render';
 import './style.css';
 
@@ -12,7 +13,7 @@ app.innerHTML = `
       <div class="masthead-right"><span class="edition">ISOMETRIC ACTION / 1994 EDITION</span><button id="sound-button" class="icon-button" type="button" aria-label="Mute sound">♪ ON</button></div>
     </header>
     <main>
-      <div class="topline"><span><i class="live-dot"></i> STREET LEVEL <b>RINGSTORP → TÅGABORG</b></span><span>01 / 01 <em>MISSION</em></span></div>
+      <div class="topline"><span><i class="live-dot"></i> STREET LEVEL <b>PÅLSJÖ KIOSK → RINGSTORPSVÄGEN 55B</b></span><span>01 / 01 <em>MISSION</em></span></div>
       <section class="game-frame" aria-label="Ringstorp Run game">
         <canvas id="game" aria-label="Isometric game view"></canvas>
         <div class="game-hud" id="game-hud" hidden>
@@ -22,9 +23,9 @@ app.innerHTML = `
         </div>
         <div class="overlay" id="overlay"></div>
       </section>
-      <div class="bottomline"><span>WASD / ARROWS <b>MOVE</b></span><span>J <b>PUNCH</b></span><span>K <b>DODGE</b></span><span>ESC <b>PAUSE</b></span><span>M <b>SOUND</b></span></div>
+      <div class="bottomline"><span>WASD / ARROWS <b>MOVE</b></span><span>J <b>PUNCH</b></span><span>K <b>DODGE</b></span><span>R <b>SWITCH ROUTE</b></span><span>ESC <b>PAUSE</b></span><span>M <b>SOUND</b></span></div>
     </main>
-    <footer><span>ORIGINAL PIXEL ART · FICTIONAL ARCADE STORY</span><span>BEST RUN <b id="best-score">00000</b></span></footer>
+    <footer><span>ORIGINAL PIXEL ART · MAP DATA ${MAP_ATTRIBUTION.toUpperCase()}</span><span>BEST RUN <b id="best-score">00000</b></span></footer>
   </div>`;
 
 const canvas = document.querySelector<HTMLCanvasElement>('#game')!;
@@ -101,14 +102,21 @@ function panelFor(mode: Mode): string {
     <div class="panel title-panel">
       <div class="eyebrow"><span class="chip">01</span> HELSINGBORG / SWEDEN <span class="gold-line"></span> 1994</div>
       <h1>RINGSTORP<br><span>RUN</span><i>▸</i></h1>
-      <p class="subtitle">THREE PARCELS. TWO DISTRICTS. ONE WAY HOME.</p>
-      <p class="story">A local courier's delivery has been taken. Follow the trail past the water tower and through Tågaborg. Clear the crews, recover every parcel, and make the drop-off.</p>
-      <div class="action-row"><button class="primary-button" data-action="start">▶ &nbsp; START MISSION</button><span>PRESS ENTER TO START</span></div>
-      <div class="controls-grid"><div><kbd>WASD</kbd> / <kbd>↑↓←→</kbd><span>MOVE</span></div><div><kbd>J</kbd><span>PUNCH · COMBO</span></div><div><kbd>K</kbd><span>DODGE</span></div><div><kbd>ESC</kbd><span>PAUSE</span></div></div>
+      <p class="subtitle">ONE PACKAGE. TWO ROUTES. ONE WAY HOME.</p>
+      <p class="story">A valuable package is waiting for you at Pålsjö kiosk. Get it home to Ringstorpsvägen 55B, either straight up Johan Banérs gata or the long way past Marcus A on Långåkersgatan, where you can patch up.</p>
+      <div class="action-row route-row">
+        <button class="primary-button" data-action="start" data-route="direct">▶ &nbsp; DIRECT ROUTE</button>
+        <button class="secondary-button" data-action="start" data-route="marcus">✚ &nbsp; VIA MARCUS A</button>
+        <span>ENTER · DIRECT</span>
+      </div>
+      <div class="controls-grid"><div><kbd>WASD</kbd> / <kbd>↑↓←→</kbd><span>MOVE</span></div><div><kbd>J</kbd><span>PUNCH · COMBO</span></div><div><kbd>K</kbd><span>DODGE</span></div><div><kbd>R</kbd><span>SWITCH ROUTE</span></div></div>
     </div>`;
   if (mode === 'paused') return `<div class="panel compact-panel"><div class="eyebrow">MISSION ON HOLD</div><h2>PAUSED<span class="blink">_</span></h2><p>Take a breath. The streets can wait.</p><div class="action-row"><button class="primary-button" data-action="resume">▶ &nbsp; RESUME</button><button class="secondary-button" data-action="restart">↻ &nbsp; RESTART</button></div><small>ESC TO RESUME</small></div>`;
-  if (mode === 'victory') return `<div class="panel compact-panel outcome-panel"><div class="eyebrow">MISSION COMPLETE / TÅGABORG</div><h2>DELIVERED<span class="gold">.</span></h2><p>All three parcels made it home.</p><div class="result-grid"><div><span>RUN TIME</span><b>${formatTime(game.elapsed)}</b></div><div><span>CREWS DOWN</span><b>${game.koCount}</b></div><div><span>FINAL SCORE</span><b>${game.score.toString().padStart(5, '0')}</b></div></div><div class="action-row"><button class="primary-button" data-action="restart">↻ &nbsp; PLAY AGAIN</button><span>PRESS ENTER TO REPLAY</span></div></div>`;
-  return `<div class="panel compact-panel outcome-panel"><div class="eyebrow">MISSION FAILED / COURIER DOWN</div><h2>GAME OVER<span class="red">.</span></h2><p>The parcels are still out there. Give it another run.</p><div class="result-grid"><div><span>RUN TIME</span><b>${formatTime(game.elapsed)}</b></div><div><span>PARCELS</span><b>${game.recoveredCount} / 3</b></div><div><span>CREWS DOWN</span><b>${game.koCount}</b></div></div><div class="action-row"><button class="primary-button" data-action="restart">↻ &nbsp; TRY AGAIN</button><span>PRESS ENTER TO RETRY</span></div></div>`;
+  if (mode === 'victory') return `<div class="panel compact-panel outcome-panel"><div class="eyebrow">MISSION COMPLETE / RINGSTORPSVÄGEN 55B</div><h2>DELIVERED<span class="gold">.</span></h2><p>The package made it home${game.healed ? ', with a patch-up at Marcus A on the way' : ''}.</p><div class="result-grid"><div><span>RUN TIME</span><b>${formatTime(game.elapsed)}</b></div><div><span>CREWS DOWN</span><b>${game.koCount}</b></div><div><span>FINAL SCORE</span><b>${game.score.toString().padStart(5, '0')}</b></div></div><div class="action-row"><button class="primary-button" data-action="restart">↻ &nbsp; PLAY AGAIN</button><span>PRESS ENTER TO REPLAY</span></div></div>`;
+  const resume = game.checkpoint
+    ? `<button class="primary-button" data-action="continue">✚ &nbsp; CONTINUE FROM MARCUS A</button><button class="secondary-button" data-action="restart">↻ &nbsp; START OVER</button>`
+    : `<button class="primary-button" data-action="restart">↻ &nbsp; TRY AGAIN</button><span>PRESS ENTER TO RETRY</span>`;
+  return `<div class="panel compact-panel outcome-panel"><div class="eyebrow">MISSION FAILED / COURIER DOWN</div><h2>GAME OVER<span class="red">.</span></h2><p>${game.checkpoint ? 'Marcus A can patch you up again, for a score penalty.' : 'The package is still out there. Give it another run.'}</p><div class="result-grid"><div><span>RUN TIME</span><b>${formatTime(game.elapsed)}</b></div><div><span>PACKAGE</span><b>${game.hasPackage ? 'CARRIED' : 'AT KIOSK'}</b></div><div><span>CREWS DOWN</span><b>${game.koCount}</b></div></div><div class="action-row">${resume}</div></div>`;
 }
 
 function syncUI(): void {
@@ -121,20 +129,28 @@ function syncUI(): void {
   if (game.mode !== 'title') {
     hearts.innerHTML = Array.from({ length: game.player.maxHp }, (_, i) => `<span class="heart ${i >= game.player.hp ? 'empty' : ''}">♥</span>`).join('');
     objective.textContent = game.objective;
-    progress.innerHTML = game.parcels.map((p, i) => `<span class="progress-step ${p.recovered ? 'done' : i === game.recoveredCount ? 'active' : ''}">${p.recovered ? '✓' : i + 1}</span>`).join('<i></i>');
+    const marcusState = game.healed ? 'done' : game.hasPackage && game.route === 'marcus' ? 'active' : game.route === 'direct' ? 'optional' : '';
+    const steps: Array<[string, string, string]> = [
+      [game.hasPackage ? 'done' : 'active', game.hasPackage ? '✓' : '?', 'Package · Pålsjö kiosk'],
+      [marcusState, game.healed ? '✓' : '✚', 'Marcus A · Långåkersgatan 4'],
+      [game.mode === 'victory' ? 'done' : game.hasPackage && marcusState !== 'active' ? 'active' : '', '★', 'Home · Ringstorpsvägen 55B'],
+    ];
+    progress.innerHTML = steps.map(([state, icon, title]) => `<span class="progress-step ${state}" title="${title}">${icon}</span>`).join('<i></i>') + `<em class="route-name">${ROUTE_NAMES[game.route]}</em>`;
     timeDisplay.textContent = formatTime(game.elapsed);
-    scoreDisplay.textContent = (game.koCount * 85 + game.recoveredCount * 500).toString().padStart(5, '0');
+    scoreDisplay.textContent = (game.koCount * 85 + (game.hasPackage ? 500 : 0) + (game.healed ? 250 : 0)).toString().padStart(5, '0');
   }
   bestDisplay.textContent = game.bestScore.toString().padStart(5, '0');
   soundButton.textContent = soundOn ? '♪ ON' : '♪ OFF';
   soundButton.setAttribute('aria-label', soundOn ? 'Mute sound' : 'Unmute sound');
 }
 
-function restart(): void { held.clear(); game.start(); renderer.resetCamera(); syncUI(); }
+function restart(route?: Route): void { held.clear(); game.start(route); renderer.resetCamera(); syncUI(); }
 overlay.addEventListener('click', event => {
-  const action = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-action]')?.dataset.action;
-  if (action === 'start' || action === 'restart') restart();
+  const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-action]');
+  const action = button?.dataset.action;
+  if (action === 'start' || action === 'restart') restart(button?.dataset.route as Route | undefined);
   if (action === 'resume') game.togglePause();
+  if (action === 'continue') { held.clear(); game.continueFromCheckpoint(); }
   syncUI();
 });
 
@@ -148,10 +164,12 @@ soundButton.addEventListener('click', toggleSound);
 const movementKeys = new Set(['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright']);
 window.addEventListener('keydown', event => {
   const key = event.key.toLowerCase();
-  if (movementKeys.has(key) || ['j', 'k', 'escape', 'enter', 'm', ' '].includes(key)) event.preventDefault();
+  if (movementKeys.has(key) || ['j', 'k', 'r', 'escape', 'enter', 'm', ' '].includes(key)) event.preventDefault();
+  if (key === 'r' && !event.repeat && game.mode === 'playing') game.toggleRoute();
   if (key === 'm' && !event.repeat) toggleSound();
   if (key === 'escape' && !event.repeat) { game.togglePause(); syncUI(); }
-  if (key === 'enter' && !event.repeat && ['title', 'victory', 'defeat'].includes(game.mode)) restart();
+  if (key === 'enter' && !event.repeat && game.mode === 'defeat' && game.checkpoint) { held.clear(); game.continueFromCheckpoint(); syncUI(); }
+  else if (key === 'enter' && !event.repeat && ['title', 'victory', 'defeat'].includes(game.mode)) restart(game.mode === 'title' ? 'direct' : undefined);
   if (key === 'j' && !event.repeat && game.mode === 'playing') game.queueAttack();
   if (key === 'k' && !event.repeat && game.mode === 'playing') game.queueDodge();
   held.add(key);

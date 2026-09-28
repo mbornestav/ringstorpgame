@@ -1,7 +1,9 @@
-import { distance, moveWithCollision, normalize, segmentHitsRect, type Vec2 } from './geometry';
-import { BOUNDS, DROPOFF, OBSTACLES, PARCELS, START, type Parcel } from './world';
+import { distance, moveWithCollision, normalize, segmentBlocked, type Vec2 } from './geometry';
+import { METRES_PER_UNIT } from './map';
+import { BOUNDS, HOME, HOME_CREW, HOME_CREW_RANGE, HOME_GROUP, MARCUS_A, OBSTACLES, PACKAGE, ROUTES, SPAWNS, START, type EnemySpawn } from './world';
 
 export type Mode = 'title' | 'playing' | 'paused' | 'victory' | 'defeat';
+export type Route = 'direct' | 'marcus';
 export type EnemyKind = 'runner' | 'bruiser' | 'boss';
 export type EnemyState = 'idle' | 'chase' | 'windup' | 'recover' | 'ko';
 export interface Enemy {
@@ -34,25 +36,21 @@ export interface Player {
   walk: number;
   flash: number;
 }
-export interface Pickup { x: number; y: number; taken: boolean }
 
-const initialEnemies: Array<[EnemyKind, number, number, number]> = [
-  ['runner', 0, 26, 9.8], ['runner', 0, 30.5, 13.5], ['bruiser', 0, 28.7, 15.7],
-  ['runner', 1, 60.5, 8.5], ['runner', 1, 65.5, 11], ['bruiser', 1, 64, 14.4], ['runner', 1, 68, 8.4],
-  ['runner', 2, 92, 10], ['bruiser', 2, 97, 14], ['runner', 2, 99, 9.4], ['bruiser', 2, 94, 15.8],
-  ['runner', -1, 13, 11.5], ['runner', -1, 43, 12.3], ['runner', -1, 83, 11.8],
-];
+export const ROUTE_NAMES: Record<Route, string> = { direct: 'Direct · Johan Banérs gata', marcus: 'Via Marcus A · Långåkersgatan' };
+const CONTINUE_PENALTY = 400;
 
-function makeEnemy(kind: EnemyKind, group: number, x: number, y: number, id: number): Enemy {
+function makeEnemy(spawn: EnemySpawn, id: number): Enemy {
+  const { kind, group, pos } = spawn;
   return {
-    id, kind, group, pos: { x, y }, home: { x, y }, facing: { x: -1, y: 0 },
+    id, kind, group, pos: { ...pos }, home: { ...pos }, facing: { x: -1, y: 0 },
     hp: kind === 'boss' ? 9 : kind === 'bruiser' ? 4 : 2,
     state: 'idle', timer: 0, flash: 0, knock: { x: 0, y: 0 }, walk: 0,
   };
 }
 
-export function computeScore(seconds: number, hp: number, koCount: number, recovered: number): number {
-  return Math.max(0, Math.floor(7000 - seconds * 12)) + hp * 160 + koCount * 85 + recovered * 500;
+export function computeScore(seconds: number, hp: number, koCount: number, continues: number): number {
+  return Math.max(0, Math.floor(7000 - seconds * 12)) + hp * 160 + koCount * 85 + 1500 - continues * CONTINUE_PENALTY;
 }
 
 export function hasClearStrike(a: Vec2, b: Vec2, facing: Vec2, reach: number): boolean {
@@ -60,18 +58,22 @@ export function hasClearStrike(a: Vec2, b: Vec2, facing: Vec2, reach: number): b
   if (d > reach || d < 0.01) return false;
   const direction = normalize({ x: b.x - a.x, y: b.y - a.y });
   if (direction.x * facing.x + direction.y * facing.y < 0.12) return false;
-  return !OBSTACLES.some(rect => segmentHitsRect(a, b, rect));
+  return !segmentBlocked(a, b, OBSTACLES);
 }
 
 export class Game {
   mode: Mode = 'title';
+  route: Route = 'direct';
   player!: Player;
   enemies: Enemy[] = [];
-  parcels: Parcel[] = [];
-  pickups: Pickup[] = [];
   elapsed = 0;
   koCount = 0;
-  bossSpawned = false;
+  hasPackage = false;
+  healed = false;
+  checkpoint: Vec2 | null = null;
+  continues = 0;
+  crewSprung = false;
+  waypoint = 0;
   score = 0;
   bestScore = 0;
   message = '';
@@ -88,16 +90,19 @@ export class Game {
 
   reset(): void {
     this.player = {
-      pos: { ...START }, facing: { x: 1, y: 0 }, hp: 5, maxHp: 5,
+      pos: { ...START }, facing: { x: 0, y: -1 }, hp: 5, maxHp: 5,
       invulnerable: 0, attackTimer: 0, attackCooldown: 0, attackHit: false,
       combo: 0, comboWindow: 0, dodgeTimer: 0, dodgeCooldown: 0, walk: 0, flash: 0,
     };
-    this.enemies = initialEnemies.map(([kind, group, x, y], id) => makeEnemy(kind, group, x, y, id));
-    this.parcels = PARCELS.map(parcel => ({ ...parcel }));
-    this.pickups = [{ x: 37, y: 11.3, taken: false }, { x: 73, y: 12.7, taken: false }, { x: 103, y: 8.5, taken: false }];
+    this.enemies = SPAWNS.map((spawn, id) => makeEnemy(spawn, id));
     this.elapsed = 0;
     this.koCount = 0;
-    this.bossSpawned = false;
+    this.hasPackage = false;
+    this.healed = false;
+    this.checkpoint = null;
+    this.continues = 0;
+    this.crewSprung = false;
+    this.waypoint = 0;
     this.score = 0;
     this.message = '';
     this.messageTimer = 0;
@@ -106,11 +111,22 @@ export class Game {
     this.dodgeQueued = false;
   }
 
-  start(): void {
+  start(route: Route = this.route): void {
     this.reset();
+    this.route = route;
     this.mode = 'playing';
-    this.say('Recover the three stolen parcels');
+    this.say('Pick up the package at Pålsjö kiosk');
     this.events.push('start');
+  }
+
+  /** Switches the planned route; the guide arrow picks up from the nearest point on it. */
+  toggleRoute(): void {
+    this.route = this.route === 'direct' ? 'marcus' : 'direct';
+    const path = ROUTES[this.route];
+    let best = 0;
+    path.forEach((p, i) => { if (distance(p, this.player.pos) < distance(path[best], this.player.pos)) best = i; });
+    this.waypoint = best;
+    this.say(this.route === 'marcus' ? 'ROUTE · VIA MARCUS A' : 'ROUTE · DIRECT HOME');
   }
 
   togglePause(): void {
@@ -118,27 +134,47 @@ export class Game {
     else if (this.mode === 'paused') this.mode = 'playing';
   }
 
+  /** After a knockout, carry on from Marcus A with full health at a score penalty. */
+  continueFromCheckpoint(): void {
+    if (this.mode !== 'defeat' || !this.checkpoint) return;
+    const p = this.player;
+    p.pos = { ...this.checkpoint };
+    p.hp = p.maxHp;
+    p.invulnerable = 2;
+    this.continues++;
+    for (const e of this.enemies) {
+      if (e.state !== 'ko' && distance(e.pos, p.pos) < 10) { e.pos = { ...e.home }; e.state = 'idle'; }
+    }
+    const path = ROUTES.marcus;
+    this.route = 'marcus';
+    this.waypoint = path.indexOf(MARCUS_A) + 1;
+    this.mode = 'playing';
+    this.say('BACK ON YOUR FEET AT MARCUS A');
+    this.events.push('pickup');
+  }
+
   setMovement(x: number, y: number): void { this.moveInput = normalize({ x, y }); }
   queueAttack(): void { this.attackQueued = true; }
   queueDodge(): void { this.dodgeQueued = true; }
 
-  get recoveredCount(): number { return this.parcels.filter(p => p.recovered).length; }
-  get bossDefeated(): boolean { return this.bossSpawned && this.enemies.filter(e => e.group === 3).every(e => e.state === 'ko'); }
+  get homeCrewDown(): boolean { return this.crewSprung && this.enemies.filter(e => e.group === HOME_GROUP).every(e => e.state === 'ko'); }
 
   get objective(): string {
-    const parcel = this.parcels.find(p => !p.recovered);
-    if (parcel) {
-      const clear = this.enemies.filter(e => e.group === this.parcels.indexOf(parcel)).every(e => e.state === 'ko');
-      return clear ? `Recover parcel · ${parcel.name}` : `Clear the crew · ${parcel.name}`;
-    }
-    return this.bossDefeated ? 'Reach the Tågaborg drop-off' : 'Face the final crew · Tågaborg';
+    if (!this.hasPackage) return 'Pick up the package · Pålsjö kiosk';
+    if (this.route === 'marcus' && !this.healed) return 'Patch up at Marcus A · Långåkersgatan 4';
+    if (this.crewSprung && !this.homeCrewDown) return 'Shake off the crew · Ringstorpsvägen';
+    return 'Take the package home · Ringstorpsvägen 55B';
   }
 
+  /** Where the guide arrow points: the package, then the next waypoint on the chosen route. */
   get target(): Vec2 {
-    const parcel = this.parcels.find(p => !p.recovered);
-    if (parcel) return parcel;
-    return this.bossDefeated ? DROPOFF : { x: 107, y: 12 };
+    if (!this.hasPackage) return PACKAGE;
+    const path = ROUTES[this.route];
+    return path[Math.min(this.waypoint, path.length - 1)];
   }
+
+  /** Metres to the goal of the current objective. */
+  get targetMetres(): number { return distance(this.player.pos, this.target) * METRES_PER_UNIT; }
 
   update(rawDt: number): void {
     if (this.mode !== 'playing') return;
@@ -178,7 +214,7 @@ export class Game {
       p.walk += dt * (p.dodgeTimer > 0 ? 18 : 9);
     }
     const moveDirection = p.dodgeTimer > 0 ? p.facing : direction;
-    const speed = p.dodgeTimer > 0 ? 8.7 : p.attackTimer > 0 ? 2.1 : 3.65;
+    const speed = p.dodgeTimer > 0 ? 8.7 : p.attackTimer > 0 ? 2.1 : 3.9;
     p.pos = moveWithCollision(p.pos, { x: moveDirection.x * speed * dt, y: moveDirection.y * speed * dt }, 0.35, OBSTACLES, BOUNDS);
 
     if (p.attackTimer > 0 && p.attackTimer <= 0.18 && !p.attackHit) {
@@ -204,8 +240,9 @@ export class Game {
   private updateEnemy(e: Enemy, dt: number): void {
     e.flash = Math.max(0, e.flash - dt);
     if (e.state === 'ko') return;
+    const radius = e.kind === 'boss' ? 0.5 : 0.36;
     if (Math.abs(e.knock.x) + Math.abs(e.knock.y) > 0.01) {
-      e.pos = moveWithCollision(e.pos, { x: e.knock.x * dt, y: e.knock.y * dt }, 0.36, OBSTACLES, BOUNDS);
+      e.pos = moveWithCollision(e.pos, { x: e.knock.x * dt, y: e.knock.y * dt }, radius, OBSTACLES, BOUNDS);
       e.knock.x *= Math.max(0, 1 - dt * 9);
       e.knock.y *= Math.max(0, 1 - dt * 9);
     }
@@ -225,7 +262,7 @@ export class Game {
     if (range < (e.kind === 'boss' ? 10 : 6.2)) e.state = 'chase';
     else if (range > 9 && distance(e.pos, e.home) < 0.6) e.state = 'idle';
     if (e.state === 'idle') return;
-    if (range < (e.kind === 'boss' ? 1.9 : 1.4) && !OBSTACLES.some(r => segmentHitsRect(e.pos, this.player.pos, r))) {
+    if (range < (e.kind === 'boss' ? 1.9 : 1.4) && !segmentBlocked(e.pos, this.player.pos, OBSTACLES)) {
       e.state = 'windup';
       e.timer = e.kind === 'runner' ? 0.48 : e.kind === 'boss' ? 0.64 : 0.68;
       e.facing = normalize(toPlayer);
@@ -234,8 +271,8 @@ export class Game {
     const goal = range > 9 ? e.home : this.player.pos;
     const direction = normalize({ x: goal.x - e.pos.x, y: goal.y - e.pos.y });
     if (direction.x || direction.y) e.facing = direction;
-    const speed = e.kind === 'runner' ? 1.65 : e.kind === 'boss' ? 1.55 : 1.22;
-    e.pos = moveWithCollision(e.pos, { x: direction.x * speed * dt, y: direction.y * speed * dt }, e.kind === 'boss' ? 0.55 : 0.36, OBSTACLES, BOUNDS);
+    const speed = e.kind === 'runner' ? 1.75 : e.kind === 'boss' ? 1.6 : 1.3;
+    e.pos = moveWithCollision(e.pos, { x: direction.x * speed * dt, y: direction.y * speed * dt }, radius, OBSTACLES, BOUNDS);
     e.walk += dt * 7;
   }
 
@@ -255,41 +292,37 @@ export class Game {
 
   private checkObjectives(): void {
     const p = this.player;
-    for (const pickup of this.pickups) {
-      if (!pickup.taken && p.hp < p.maxHp && distance(p.pos, pickup) < 0.85) {
-        pickup.taken = true;
-        p.hp = Math.min(p.maxHp, p.hp + 2);
-        this.say('+2 HEALTH');
-        this.events.push('pickup');
-      }
-    }
-    const nextIndex = this.parcels.findIndex(parcel => !parcel.recovered);
-    if (nextIndex >= 0) {
-      const parcel = this.parcels[nextIndex];
-      const guardsGone = this.enemies.filter(e => e.group === nextIndex).every(e => e.state === 'ko');
-      if (guardsGone && distance(p.pos, parcel) < 1.05) {
-        parcel.recovered = true;
-        this.say(`PARCEL ${nextIndex + 1}/3 RECOVERED`);
+    if (!this.hasPackage) {
+      if (distance(p.pos, PACKAGE) < 1.1) {
+        this.hasPackage = true;
+        this.say('GOT THE PACKAGE · GET IT HOME');
         this.events.push('parcel');
-        if (this.recoveredCount === 3) this.spawnBoss();
       }
       return;
     }
-    if (this.bossDefeated && distance(p.pos, DROPOFF) < 1.8) {
-      this.score = computeScore(this.elapsed, p.hp, this.koCount, this.recoveredCount);
+    const path = ROUTES[this.route];
+    for (let i = path.length - 1; i >= this.waypoint; i--) {
+      if (distance(p.pos, path[i]) < 4.5) { this.waypoint = i + 1; break; }
+    }
+    if (!this.healed && distance(p.pos, MARCUS_A) < 1.6) {
+      this.healed = true;
+      this.checkpoint = { ...MARCUS_A };
+      p.hp = p.maxHp;
+      this.say('MARCUS A PATCHED YOU UP · CHECKPOINT');
+      this.events.push('pickup');
+    }
+    if (!this.crewSprung && distance(p.pos, HOME) < HOME_CREW_RANGE) {
+      this.crewSprung = true;
+      HOME_CREW.forEach((spawn, i) => this.enemies.push(makeEnemy(spawn, 100 + i)));
+      this.say('A CREW IS WAITING ON RINGSTORPSVÄGEN');
+    }
+    if (this.homeCrewDown && distance(p.pos, HOME) < 1.8) {
+      this.score = computeScore(this.elapsed, p.hp, this.koCount, this.continues);
       this.bestScore = Math.max(this.bestScore, this.score);
       try { localStorage.setItem('ringstorp-best', String(this.bestScore)); } catch { /* private mode */ }
       this.mode = 'victory';
       this.events.push('victory');
     }
-  }
-
-  private spawnBoss(): void {
-    this.enemies.push(makeEnemy('boss', 3, 106.5, 11, 100));
-    this.enemies.push(makeEnemy('runner', 3, 104.5, 14, 101));
-    this.enemies.push(makeEnemy('runner', 3, 108, 9.4, 102));
-    this.bossSpawned = true;
-    this.say('FINAL CREW AT TÅGABORG');
   }
 
   private say(message: string): void { this.message = message; this.messageTimer = 3.1; }
