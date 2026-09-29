@@ -96,7 +96,7 @@ export function drawCar(c: CanvasRenderingContext2D, car: Car, sx: number, elaps
     }
   }
   for (const wx of [-31, 31]) wheel(c, cx + wx * dir, gy - 7, car.wheel, police);
-  if (car.kind === 'bmw' && car.state === 'stopped') driver(c, P(7, -26), dir, car.timer);
+  if (car.kind === 'bmw' && car.state === 'stopped') driver(c, P(7, -26), dir, car.timer, car.delivery);
 }
 
 function wheel(c: CanvasRenderingContext2D, x: number, y: number, turn: number, police: boolean): void {
@@ -112,7 +112,7 @@ function wheel(c: CanvasRenderingContext2D, x: number, y: number, turn: number, 
 const DD = { skin: '#c99474', shade: '#a67558', hair: '#231d1b', brow: '#1c1614', collar: '#e9e6df' };
 
 /** D.D leaning out of the lowered window, with a word for the courier. */
-function driver(c: CanvasRenderingContext2D, [x, y]: [number, number], dir: 1 | -1, t: number): void {
+function driver(c: CanvasRenderingContext2D, [x, y]: [number, number], dir: 1 | -1, t: number, delivery = false): void {
   const X = Math.round(x), Y = Math.round(y);
   rect(c, X - 6, Y - 5, 13, 11, '#39434d');
   rect(c, X - 4, Y + 3, 9, 3, DD.collar);
@@ -133,7 +133,7 @@ function driver(c: CanvasRenderingContext2D, [x, y]: [number, number], dir: 1 | 
     seg(c, X + 3 * dir, Y + 4, X + 9 * dir, Y + 9, 2, DD.skin);
   }
   if (t > 0.15) {
-    const label = t < 1.1 ? 'D.D!' : 'LYCKA TILL';
+    const label = delivery ? 'D.D · 100 KR' : t < 1.1 ? 'D.D!' : 'LYCKA TILL';
     const w = textWidth(label) + 8, bx = X - Math.round(w / 2), by = Y - 22;
     rect(c, bx - 1, by - 1, w + 2, 11, '#141820');
     rect(c, bx, by, w, 9, '#fbf7ea');

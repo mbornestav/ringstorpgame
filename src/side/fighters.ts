@@ -42,6 +42,7 @@ export interface Pose {
 }
 
 export const LOOKS = {
+  dd: { skin: '#c99474', hair: '#231d1b', jacket: '#e9e6df', arms: '#e9e6df', trousers: '#28313a', shoes: '#171e22', height: 44, build: 10, limb: 4 },
   // The courier, after the player's photo: straight blond hair swept over the forehead, a royal-blue T-shirt and jeans.
   player: { skin: '#eec2a2', hair: '#c3a063', fringe: '#e6cd92', jacket: '#2459b8', arms: '#2459b8', shortSleeves: true, trousers: '#34435e', shoes: '#ece7da', height: 44, build: 9, limb: 4 },
   runner: { skin: '#d9a985', hair: '#3a2f2c', jacket: '#985c57', arms: '#7e4a46', trousers: '#2c2f3a', shoes: '#e9e4d8', height: 43, build: 9, limb: 4, stripe: '#e9e4d8' },

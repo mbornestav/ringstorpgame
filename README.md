@@ -23,6 +23,16 @@ npm run dev
 
 Open the local URL printed by Vite. `npm run build` creates a static production build in `dist/`.
 
+## Deploy
+
+From PowerShell, deploy the production build to the existing server with:
+
+```powershell
+.\deploy.ps1
+```
+
+The script uses `ssh/dproxy_key.pem` to deploy as `azureuser`, installs an atomic release under `/opt/ringstorp-run`, and serves it at [https://dproxy.okab.tech:1998/](https://dproxy.okab.tech:1998/) using the server's existing Let's Encrypt certificate. It requires `npm`, `ssh`, `scp`, and `tar` locally. Host, SSH user, key path, and port can be overridden with script parameters.
+
 ## Controls
 
 | Key | Action |
@@ -33,6 +43,7 @@ Open the local URL printed by Vite. `npm run build` creates a static production 
 | J | Punch. Time repeated presses for a jab, a cross and a hook that knocks down. In the air, J is a flying kick |
 | K | Dodge, with brief invulnerability |
 | I | Fire D.D's handgun, once he has given it to you |
+| F | Pull up / put away the Ericsson GH337; call D.D or buy ammunition |
 | E | Wave down D.D's BMW as it passes, take the optional turn at a junction, or refill health at Kurir Livs' entrance |
 | Esc | Pause or resume |
 | M | Toggle sound |
@@ -42,7 +53,11 @@ Blows only land on someone in the same lane, so line up before you swing. A **!*
 
 ## D.D, the handgun and the police
 
-Now and then, on an open stretch of road, a blue 90s BMW comes by. It's **D.D**. Wave it down with **E** while it's close and he pulls over, leans out of the window and tosses you his handgun with 8 rounds. If you miss him, he comes round again later, and once you're out of ammo he'll bring you more. The prompt at the top of the screen tells you when he's in reach.
+Press **F**, or click the **GH337** button, to pull up your Ericsson GH337 at any point during a live run, including fights and before package pickup. Its handset follows the supplied reference: long antenna, round earpiece, green LCD, blue display surround and oval keys. Press **YES** to auto-dial **D.D**, with **042218626** visible throughout dialing, ringing and the call. Calls are free. D.D comes to your position in his BMW on roads, or on foot at the kiosk and on paths. He follows you around street corners. You can pocket the phone while he travels; the fight pauses while the handset is open. **NO**, **F** or **Esc** puts it away; **Cancel call / visit** cancels the request.
+
+When he arrives, use **F** (or **E** nearby) to review his offer: **100 kr to refill to 8 rounds**, including the handgun if needed. Press YES or the purchase button to confirm; nothing is charged automatically. A full load or insufficient cash disables the purchase, and you can send him away without paying. You start with **200 kr** and earn **50 kr per cleared crew**. Your cash is shown beside the phone button and on the offer. New runs reset your wallet; turns and checkpoint continues preserve it.
+
+Now and then, on an open stretch of road, D.D's blue 90s BMW also passes by. Wave it down with **E** while it's close and he pulls over. The first chance encounter still provides his free handgun with 8 rounds; subsequent refills cost the same 100 kr. If you miss him, he comes round again later. The prompt at the top of the screen tells you when he's in reach.
 
 **I** fires along your lane at the nearest crew member in front of you. A hit does 2 damage and staggers anyone, even a bruiser or the boss mid-windup; runners go down. The courier won't shoot at the police: with an officer in the line of fire, he holds fire.
 

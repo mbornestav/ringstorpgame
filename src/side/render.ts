@@ -182,6 +182,16 @@ export class SideRenderer {
     if (p.dodgeTimer > 0 && game.mode === 'playing') this.trail.push({ x: p.x, y: p.y, z: p.z, facing: p.facing, t: 0 });
 
     const actors: Array<{ y: number; x: number; draw: () => void }> = [];
+    const dd = game.delivery;
+    if (dd && dd.carId === null && dd.timer <= 0) {
+      this.shadow(dd.x - cam, dd.y, 0, 9);
+      actors.push({ y: dd.y, x: dd.x, draw: () => {
+        drawFighter(c, dd.x - cam, dd.y, 0, dd.state === 'leaving' || dd.x > p.x ? -1 : 1, LOOKS.dd, dd.state === 'ready' ? POSES.loiter(this.elapsed) : POSES.walk(dd.walk));
+        const label = 'D.D', x = Math.round(dd.x - cam) - 9;
+        rect(c, x - 3, dd.y - 60, 25, 11, '#152b2b');
+        text(c, label, x, dd.y - 57, '#d1df9a');
+      } });
+    }
     for (const e of enemies) actors.push({ y: e.y, x: e.x, draw: () => this.drawEnemy(e, cam) });
     for (const o of officers) actors.push({ y: o.y, x: o.x, draw: () => this.drawOfficer(o, cam) });
     // A car covers anyone standing behind its tyre line.

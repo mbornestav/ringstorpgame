@@ -3,3 +3,11 @@ dist/
 test-results/
 playwright-report/
 .vite/
+coverage/
+
+# Local-only files
+*.log
+.env
+.env.*
+!.env.example
+ssh/

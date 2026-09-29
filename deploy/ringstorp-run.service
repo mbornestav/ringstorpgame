@@ -1,0 +1,36 @@
+[Unit]
+Description=Ringstorp Run web game
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+DynamicUser=yes
+WorkingDirectory=/opt/ringstorp-run/current/public
+ExecStart=/usr/bin/python3 -I /opt/ringstorp-run/current/server.py --directory /opt/ringstorp-run/current/public --port __PORT__ --certfile %d/fullchain.pem --keyfile %d/privkey.pem
+LoadCredential=fullchain.pem:/etc/letsencrypt/live/dproxy.okab.tech/fullchain.pem
+LoadCredential=privkey.pem:/etc/letsencrypt/live/dproxy.okab.tech/privkey.pem
+Environment=PYTHONDONTWRITEBYTECODE=1
+Restart=on-failure
+RestartSec=3
+UMask=0077
+
+NoNewPrivileges=yes
+PrivateDevices=yes
+PrivateTmp=yes
+ProtectClock=yes
+ProtectControlGroups=yes
+ProtectHome=yes
+ProtectKernelLogs=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+ProtectSystem=strict
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+
+[Install]
+WantedBy=multi-user.target

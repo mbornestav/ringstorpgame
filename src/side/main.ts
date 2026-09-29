@@ -4,6 +4,7 @@ import { MAP_ATTRIBUTION } from '../map';
 import '../style.css';
 import { CLIP, FINE, SideGame } from './game';
 import { SideRenderer } from './render';
+import { PhoneUI } from './phone';
 
 // Entry point for the side-scrolling edition. The isometric edition's entry, src/main.ts, is kept
 // but no longer loaded; point index.html back at it to play that version.
@@ -28,8 +29,9 @@ app.innerHTML = `
         </div>
         <div class="street-choice" id="street-choice" hidden aria-live="polite"></div>
         <div class="overlay" id="overlay"></div>
+        <button class="phone-launcher" id="phone-button" type="button" aria-label="Open Ericsson GH337 phone" hidden><kbd>F</kbd> GH337 <span id="cash"></span></button>
       </section>
-      <div class="bottomline"><span>A D / ← → <b>WALK</b></span><span>W S / ↑ ↓ <b>STEP</b></span><span>SPACE / L <b>JUMP</b></span><span>J <b>PUNCH</b></span><span>K <b>DODGE</b></span><span>I <b>SHOOT</b></span><span>E <b>TURN / USE / WAVE</b></span><span>ESC <b>PAUSE</b></span><span>M <b>SOUND</b></span></div>
+      <div class="bottomline"><span>A D / ← → <b>WALK</b></span><span>W S / ↑ ↓ <b>STEP</b></span><span>SPACE / L <b>JUMP</b></span><span>J <b>PUNCH</b></span><span>K <b>DODGE</b></span><span>I <b>SHOOT</b></span><span>E <b>TURN / USE / WAVE</b></span><span id="phone-hint" hidden>F <b>PHONE</b></span><span>ESC <b>PAUSE</b></span><span>M <b>SOUND</b></span></div>
     </main>
     <footer><span>ORIGINAL PIXEL ART · MAP DATA ${MAP_ATTRIBUTION.toUpperCase()}</span><span>BEST RUN <b id="best-score">00000</b></span></footer>
   </div>`;
@@ -47,6 +49,9 @@ const scoreDisplay = document.querySelector<HTMLElement>('#score')!;
 const bestDisplay = document.querySelector<HTMLElement>('#best-score')!;
 const streetLine = document.querySelector<HTMLElement>('#street-line')!;
 const soundButton = document.querySelector<HTMLButtonElement>('#sound-button')!;
+const phoneButton = document.querySelector<HTMLButtonElement>('#phone-button')!;
+const phoneHint = document.querySelector<HTMLElement>('#phone-hint')!;
+const cashDisplay = document.querySelector<HTMLElement>('#cash')!;
 const main = document.querySelector<HTMLElement>('main')!;
 
 function sizeFrame(): void {
@@ -63,6 +68,8 @@ if (import.meta.env.DEV) Object.defineProperty(window, '__ringstorpGame', { valu
 if (import.meta.env.DEV) Object.defineProperty(window, '__ringstorpRenderer', { value: renderer });
 
 const held = new Set<string>();
+const phone = new PhoneUI(game, () => held.clear());
+phoneButton.addEventListener('click', () => phone.toggle());
 let lastMode: Mode | '' = '';
 let lastChoice = '';
 let soundOn = true;
@@ -89,6 +96,9 @@ class Sound {
         honk: [[392, 0.12, 0], [494, 0.12, 0], [392, 0.16, 0.18], [494, 0.16, 0.18]], brake: [[1300, 0.35, 0]],
         shot: [[1100, 0.03, 0], [170, 0.12, 0.01], [85, 0.16, 0.02]], empty: [[1800, 0.02, 0]],
         gun: [[330, 0.08, 0], [494, 0.08, 0.08], [659, 0.18, 0.16]], cuff: [[2100, 0.03, 0], [2500, 0.03, 0.08], [1400, 0.05, 0.16]],
+        dial: [[941, 0.1, 0], [1336, 0.1, 0], [770, 0.1, 0.15], [1209, 0.1, 0.15], [697, 0.1, 0.3], [1336, 0.1, 0.3]],
+        ring: [[425, 0.35, 0], [425, 0.35, 0.65]], connect: [[660, 0.07, 0], [880, 0.1, 0.09]],
+        cash: [[1568, 0.06, 0], [2093, 0.11, 0.1]],
         // The two-tone siren of a Swedish patrol car.
         siren: [[650, 0.42, 0], [980, 0.42, 0.44], [650, 0.42, 0.88], [980, 0.42, 1.32]],
         victory: [[392, 0.12, 0], [523, 0.12, 0.12], [659, 0.12, 0.24], [784, 0.45, 0.36]],
@@ -123,7 +133,7 @@ function panelFor(mode: Mode): string {
       <div class="eyebrow"><span class="chip">01</span> HELSINGBORG / SWEDEN <span class="gold-line"></span> 1994</div>
       <h1>RINGSTORP<br><span>RUN</span><i>▸</i></h1>
       <p class="subtitle">ONE PACKAGE. YOUR STREETS. FIND YOUR WAY HOME.</p>
-      <p class="story">Pick up the package at Pålsjö kiosk and carry it home to Ringstorpsvägen 55B. Choose your turns as you play: visit Marcus A for a checkpoint, stop at Kurir Livs for health, or keep heading home. Follow the street signs and press E at a junction to turn. Crews stand in your way, and if a blue BMW comes by, wave at it: it might be a friend.</p>
+      <p class="story">Pick up the package at Pålsjö kiosk and carry it home to Ringstorpsvägen 55B. Choose your turns as you play: visit Marcus A for a checkpoint, stop at Kurir Livs for health, or keep heading home. Press E at a junction to turn. Wave at the blue BMW for a little help. Once you’ve met D.D, press F to call him on your Ericsson GH337: he’ll bring ammunition for 100 kr a refill.</p>
       <div class="action-row route-row">
         <button class="primary-button" data-action="start">▶ &nbsp; START RUN</button>
         <span>ENTER TO PLAY · CHOOSE TURNS ON THE STREET</span>
@@ -139,6 +149,10 @@ function panelFor(mode: Mode): string {
 }
 
 function syncUI(): void {
+  phone.sync();
+  phoneButton.hidden = game.mode !== 'playing' || !game.hasPhone;
+  phoneHint.hidden = !game.hasPhone;
+  cashDisplay.textContent = `${game.cash} KR`;
   if (lastMode !== game.mode) {
     lastMode = game.mode;
     overlay.innerHTML = panelFor(game.mode);
@@ -149,8 +163,9 @@ function syncUI(): void {
   }
   if (game.mode !== 'title') {
     hearts.innerHTML = Array.from({ length: game.player.maxHp }, (_, i) => `<span class="heart ${i >= game.player.hp ? 'empty' : ''}">♥</span>`).join('');
-    ammo.hidden = game.ammo <= 0;
-    if (game.ammo > 0) ammo.innerHTML = `<b>I</b> ${Array.from({ length: CLIP }, (_, i) => `<i class="${i < game.ammo ? '' : 'spent'}"></i>`).join('')}`;
+    ammo.hidden = !game.metDD && game.ammo <= 0;
+    ammo.setAttribute('aria-label', `${game.ammo} rounds remaining`);
+    ammo.innerHTML = `<b>I</b> ${Array.from({ length: CLIP }, (_, i) => `<i class="${i < game.ammo ? '' : 'spent'}"></i>`).join('')} ${game.ammo === 0 ? ' F · CALL D.D' : ''}`;
     objective.textContent = game.objective;
     const marcusState = game.healed ? 'done' : game.hasPackage && game.marcusAhead ? 'active' : 'optional';
     const shopState = game.shopHealed ? 'done' : game.stage.shopX !== null && game.player.x < game.stage.shopX + 90 ? 'active' : 'optional';
@@ -170,9 +185,11 @@ function syncUI(): void {
   soundButton.textContent = soundOn ? '♪ ON' : '♪ OFF';
   soundButton.setAttribute('aria-label', soundOn ? 'Mute sound' : 'Unmute sound');
   const junction = game.junctionAhead, action = game.interaction;
-  const bmw = game.cars.find(c => c.kind === 'bmw' && c.state === 'driving' && !c.handed && c.x > game.camera - 60 && c.x < game.camera + 540);
+  const bmw = game.cars.find(c => c.kind === 'bmw' && c.state === 'driving' && !c.handed && !c.delivery && c.x > game.camera - 60 && c.x < game.camera + 540);
   let choice = '';
-  if (game.mode === 'playing' && bmw) {
+  if (game.mode === 'playing' && game.dealerNearby) {
+    choice = `<div><small>D.D · AMMUNITION</small><strong>Refill to 8 rounds · 100 kr</strong><span>${game.cash} kr in your pocket · F to open your phone</span></div><button type="button" ${action?.kind === 'ammo' ? '' : 'disabled'} aria-label="Talk to D.D about ammunition"><kbd>E</kbd> TALK</button>`;
+  } else if (game.mode === 'playing' && bmw) {
     choice = `<div><small>A BLUE BMW · COMING ${bmw.dir > 0 ? 'FROM BEHIND' : 'TOWARDS YOU'}</small><strong>Is that D.D?</strong><span>${action?.kind === 'hail' ? 'Wave it down before it’s gone' : 'Get closer to the car to wave'}</span></div><button type="button" ${action?.kind === 'hail' ? '' : 'disabled'} aria-label="Wave down the BMW"><kbd>E</kbd> WAVE</button>`;
   } else if (game.mode === 'playing' && junction) {
     const distance = Math.max(0, Math.ceil((junction.x - game.player.x) / 60) * 5);
@@ -214,6 +231,16 @@ const movementKeys = new Set(['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrow
 window.addEventListener('keydown', event => {
   const key = event.key.toLowerCase();
   if (event.ctrlKey || event.metaKey || event.altKey) return;
+  if ((key === 'f' && game.hasPhone) || (key === 'escape' && game.phoneOpen)) {
+    event.preventDefault();
+    if (!event.repeat) phone.toggle();
+    return;
+  }
+  if (game.phoneOpen) {
+    if (key === 'm' && !event.repeat) toggleSound();
+    if (movementKeys.has(key) || ['j', 'k', 'l', 'i', 'e'].includes(key)) event.preventDefault();
+    return;
+  }
   // Let keyboard users activate the focused UI button normally.
   if ((key === 'enter' || key === ' ') && event.target instanceof HTMLButtonElement) return;
   if (movementKeys.has(key) || ['j', 'k', 'l', 'i', 'e', 'escape', 'enter', 'm', ' '].includes(key)) event.preventDefault();

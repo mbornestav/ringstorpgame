@@ -83,6 +83,16 @@ export interface Car {
   wheel: number;
   /** D.D has handed over the gun. */
   handed: boolean;
+  /** A phone order keeps D.D parked until the player accepts or dismisses him. */
+  delivery?: boolean;
+}
+export interface Delivery {
+  state: 'coming' | 'ready' | 'leaving';
+  timer: number;
+  carId: number | null;
+  x: number;
+  y: number;
+  walk: number;
 }
 export type OfficerState = 'exit' | 'run' | 'grab' | 'cuff' | 'hurt' | 'down' | 'rise' | 'leave';
 /** Police officers try to arrest the courier. They can be shoved over but never knocked out. */
@@ -127,6 +137,11 @@ const CAR_SPEED = 170, BRAKING = 520;
 const HAIL_REACH = 150;
 /** Rounds in the handgun D.D hands over. */
 export const CLIP = 8;
+export const DD_CONTACT = 'D.D';
+export const DD_NUMBER = '042218626';
+export const REFILL_PRICE = 100;
+export const STARTING_CASH = 200;
+export const CREW_CASH = 50;
 const SHOT_DAMAGE = 2, SHOT_COOLDOWN = 0.3;
 const POLICE_SPEED = 82;
 /** The police give up this many seconds after the last offence. */
@@ -175,6 +190,11 @@ export class SideGame {
   /** Rounds left in D.D's handgun; none means no gun. */
   ammo = 0;
   metDD = false;
+  cash = STARTING_CASH;
+  phoneOpen = false;
+  phoneCall: 'idle' | 'dialing' | 'ringing' | 'connected' = 'idle';
+  delivery: Delivery | null = null;
+  private callTimer = 0;
   /** Seconds until the BMW next comes by. It waits for an open stretch of road, and for you to be unarmed. */
   bmwTimer = 0;
   /** Shots fired and officers shoved since the police were last shaken off. */
@@ -242,6 +262,12 @@ export class SideGame {
     this.police = [];
     this.ammo = 0;
     this.metDD = false;
+    this.cash = STARTING_CASH;
+    this.phoneOpen = false;
+    this.phoneCall = 'idle';
+    this.callTimer = 0;
+    this.delivery = null;
+    this.moveInput = { x: 0, y: 0 };
     this.bmwTimer = 14 + this.random() * 12;
     this.heat = 0;
     this.sinceOffence = 0;
@@ -257,6 +283,7 @@ export class SideGame {
   }
 
   togglePause(): void {
+    this.closePhone();
     if (this.mode === 'playing') this.mode = 'paused';
     else if (this.mode === 'paused') this.mode = 'playing';
   }
@@ -266,10 +293,12 @@ export class SideGame {
     return this.stage.junctions.find(j => !this.decisions.has(j.id) && j.x >= this.player.x - TURN_REACH && j.x <= this.player.x + 280);
   }
 
-  get interaction(): { kind: 'turn' | 'shop' | 'hail'; label: string } | null {
-    if (!this.hasPackage || this.mode !== 'playing' || this.transition > 0) return null;
+  get interaction(): { kind: 'turn' | 'shop' | 'hail' | 'ammo'; label: string } | null {
+    if (this.phoneOpen || this.mode !== 'playing' || this.transition > 0) return null;
     const p = this.player;
     if (p.hp <= 0 || p.z > 0 || p.downTimer > 0 || p.hurtTimer > 0 || p.riseTimer > 0 || p.dodgeTimer > 0 || p.attackTimer > 0 || p.cuffTimer > 0) return null;
+    if (this.dealerNearby) return { kind: 'ammo', label: `D.D · refill to ${CLIP} rounds · ${REFILL_PRICE} kr` };
+    if (!this.hasPackage) return null;
     // Waving down D.D works mid-fight; changing streets or shopping does not.
     if (this.bmwInReach) return { kind: 'hail', label: 'Wave down the BMW' };
     if (this.active) return null;
@@ -285,6 +314,7 @@ export class SideGame {
   interact(): void {
     const action = this.interaction;
     if (!action) return;
+    if (action.kind === 'ammo') { this.openPhone(); return; }
     if (action.kind === 'hail') { this.hail(); return; }
     if (action.kind === 'shop') {
       if (this.shopHealed) { this.say('KURIR LIVS · SUPPLIES ALREADY COLLECTED'); return; }
@@ -309,6 +339,7 @@ export class SideGame {
     this.effects = [];
     // Round the corner, passing traffic and the police lose track of you.
     this.cars = [];
+    this.relocateDelivery();
     this.police = [];
     this.heat = 0;
     this.dispatch = null;
@@ -329,6 +360,8 @@ export class SideGame {
     });
     this.continues++;
     this.cars = [];
+    this.phoneOpen = false;
+    this.relocateDelivery();
     this.police = [];
     this.heat = 0;
     this.dispatch = null;
@@ -346,7 +379,7 @@ export class SideGame {
     this.camera = clamp(this.checkpoint - WIDTH * 0.4, 0, this.stage.length - WIDTH);
     this.defeatTimer = 0;
     this.mode = 'playing';
-    this.attackBuffer = this.jumpBuffer = this.dodgeBuffer = 0;
+    this.attackBuffer = this.jumpBuffer = this.dodgeBuffer = this.shotBuffer = 0;
     this.say('BACK ON YOUR FEET AT MARCUS A');
     this.events.push('pickup');
   }
@@ -360,7 +393,7 @@ export class SideGame {
   /** The BMW, while it is passing close enough to notice a wave. */
   get bmwInReach(): Car | undefined {
     const p = this.player;
-    return this.cars.find(c => c.kind === 'bmw' && c.state === 'driving' && !c.handed
+    return this.cars.find(c => c.kind === 'bmw' && c.state === 'driving' && !c.handed && !c.delivery
       && Math.abs(c.x - p.x) < HAIL_REACH && c.x > this.camera - 40 && c.x < this.camera + WIDTH + 40);
   }
 
@@ -392,6 +425,10 @@ export class SideGame {
   update(rawDt: number): void {
     if (this.mode !== 'playing') return;
     const dt = Math.min(rawDt, 0.05);
+    this.updatePhone(dt);
+    this.updateDelivery(dt);
+    // The phone pauses the fight, but D.D can still answer and arrive.
+    if (this.phoneOpen) { this.updateCars(dt, true); return; }
     this.elapsed += dt;
     this.messageTimer = Math.max(0, this.messageTimer - dt);
     this.goTimer = Math.max(0, this.goTimer - dt);
@@ -401,7 +438,7 @@ export class SideGame {
     if (this.freeze > 0) { this.freeze -= dt; return; }
     if (this.defeatTimer > 0) {
       this.defeatTimer -= dt;
-      if (this.defeatTimer <= 0) { this.mode = 'defeat'; this.events.push('defeat'); return; }
+      if (this.defeatTimer <= 0) { this.mode = 'defeat'; this.phoneOpen = false; this.events.push('defeat'); return; }
     }
     this.updatePlayer(dt);
     this.updateEncounters(dt);
@@ -639,6 +676,7 @@ export class SideGame {
       }
     }
     if (!this.backup.length && crew.every(x => x.hp <= 0)) {
+      if (this.encounters.get(e.id) !== 'cleared') this.cash += CREW_CASH;
       this.encounters.set(e.id, 'cleared');
       this.active = null;
       if (e.home) this.say('HOME FREE · STEP UP TO THE DOOR');
@@ -784,6 +822,141 @@ export class SideGame {
 
   // ---------------------------------------------------------------- D.D and the handgun
 
+  /** The handset has D.D's number only after he has pulled over once. */
+  get hasPhone(): boolean { return this.metDD; }
+
+  openPhone(): void {
+    if (!this.hasPhone || this.mode !== 'playing' || this.player.hp <= 0) return;
+    this.phoneOpen = true;
+    this.moveInput = { x: 0, y: 0 };
+    this.attackBuffer = this.jumpBuffer = this.dodgeBuffer = this.shotBuffer = 0;
+  }
+
+  closePhone(): void { this.phoneOpen = false; }
+
+  /** Calling is free. Money changes hands only after the separate refill confirmation. */
+  callDD(): void {
+    if (!this.phoneOpen || this.mode !== 'playing' || this.phoneCall !== 'idle' || this.delivery) return;
+    this.phoneCall = 'dialing';
+    this.callTimer = 0.75;
+    this.events.push('dial');
+  }
+
+  private updatePhone(dt: number): void {
+    if (this.phoneCall === 'idle') return;
+    this.callTimer -= dt;
+    if (this.callTimer > 0) return;
+    if (this.phoneCall === 'dialing') {
+      this.phoneCall = 'ringing'; this.callTimer = 1.25; this.events.push('ring');
+    } else if (this.phoneCall === 'ringing') {
+      this.phoneCall = 'connected'; this.callTimer = 1.5;
+      this.delivery = { state: 'coming', timer: 1, carId: null, x: this.camera - 35, y: this.player.y, walk: 0 };
+      this.events.push('connect');
+      this.say(`D.D: ON MY WAY · REFILL ${REFILL_PRICE} KR`);
+    } else this.phoneCall = 'idle';
+  }
+
+  get dealerNearby(): boolean {
+    return this.delivery?.state === 'ready' && Math.abs(this.delivery.x - this.player.x) < 150;
+  }
+
+  get canBuyAmmo(): boolean {
+    return this.mode === 'playing' && this.player.hp > 0 && this.dealerNearby && this.ammo < CLIP && this.cash >= REFILL_PRICE;
+  }
+
+  buyAmmo(): boolean {
+    if (!this.phoneOpen || !this.canBuyAmmo) return false;
+    const d = this.delivery!;
+    this.cash -= REFILL_PRICE;
+    this.ammo = CLIP;
+    this.metDD = true;
+    this.effects.push({ kind: 'toss', x: d.x, y: d.y, z: 24, x1: this.player.x, y1: this.player.y });
+    this.events.push('cash', 'gun');
+    this.say(`D.D: ALL SET · ${CLIP} ROUNDS · PRESS I TO SHOOT`);
+    this.dismissDD();
+    return true;
+  }
+
+  /** Send him away without charging, including cancelling a call before he answers. */
+  dismissDD(): void {
+    this.phoneCall = 'idle';
+    this.callTimer = 0;
+    const d = this.delivery;
+    if (d && d.carId !== null) {
+      const car = this.cars.find(c => c.id === d.carId);
+      if (car) { car.delivery = false; car.handed = true; car.state = 'leaving'; }
+      this.delivery = null;
+    } else if (d) {
+      if (d.timer > 0) this.delivery = null;
+      else d.state = 'leaving';
+    }
+    this.bmwTimer = 40 + this.random() * 20;
+  }
+
+  /** A requested visit follows you around a corner or back to the checkpoint. */
+  private relocateDelivery(): void {
+    if (!this.delivery) return;
+    if (this.delivery.state === 'leaving') { this.delivery = null; return; }
+    this.delivery = { state: 'coming', timer: 1, carId: null, x: this.player.x - 260, y: this.player.y, walk: 0 };
+  }
+
+  private updateDelivery(dt: number): void {
+    const d = this.delivery;
+    if (!d) return;
+    if (d.state === 'leaving') {
+      d.x -= dt * 140; d.walk += dt * 12;
+      if (d.x < this.camera - 35) this.delivery = null;
+      return;
+    }
+    if (d.timer > 0) {
+      d.timer = Math.max(0, d.timer - dt);
+      if (d.timer > 0) return;
+      if (this.roadInView()) {
+        const car = this.cars.find(c => c.kind === 'bmw') ?? this.makeCar('bmw', 1, CAR_SPEED);
+        car.delivery = true; car.handed = false;
+        car.dir = car.x < this.player.x ? 1 : -1;
+        car.stopAt = this.player.x - car.dir * 37;
+        car.state = 'driving'; car.speed = CAR_SPEED;
+        d.carId = car.id;
+        this.events.push('honk');
+      } else {
+        // He parks off-screen and walks over, including at the kiosk before pickup.
+        d.x = this.camera - 30; d.y = this.player.y;
+      }
+    }
+    if (d.carId !== null) {
+      const car = this.cars.find(c => c.id === d.carId);
+      if (!car || !this.roadInView()) {
+        if (car) { car.delivery = false; car.handed = true; car.state = 'leaving'; }
+        this.relocateDelivery(); return;
+      }
+      d.x = car.x; d.y = car.y;
+      if (car.state === 'driving') car.stopAt = this.player.x - car.dir * 37;
+      if (car.state === 'stopped' && Math.abs(car.x - this.player.x) >= 150) {
+        car.dir = car.x < this.player.x ? 1 : -1;
+        car.stopAt = this.player.x - car.dir * 37;
+        car.state = 'driving'; car.speed = CAR_SPEED;
+        d.state = 'coming';
+      } else if (car.state === 'stopped' && car.timer > 0.55) this.dealerArrived(d);
+    } else {
+      const target = this.player.x - 38;
+      const dx = target - d.x, dy = clamp(this.player.y - 8, BAND_TOP, BAND_BOTTOM) - d.y;
+      d.x += Math.sign(dx) * Math.min(Math.abs(dx), 145 * dt);
+      d.y += Math.sign(dy) * Math.min(Math.abs(dy), 80 * dt);
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) d.walk += dt * 12;
+      if (Math.abs(d.x - target) < 4) this.dealerArrived(d);
+      else d.state = 'coming';
+    }
+  }
+
+  private dealerArrived(d: Delivery): void {
+    if (d.state !== 'ready') {
+      this.events.push('connect');
+      this.say(`D.D: NEED BULLETS? · F TO REFILL · ${REFILL_PRICE} KR`);
+    }
+    d.state = 'ready';
+  }
+
   /** The view is on carriageway from edge to edge, so a car can drive through. */
   private roadInView(): boolean {
     const x0 = this.camera - 120, x1 = this.camera + WIDTH + 120;
@@ -802,7 +975,7 @@ export class SideGame {
 
   /** Every so often D.D drives by in his BMW, but only while the courier is empty-handed. */
   private updateBmw(dt: number): void {
-    if (!this.hasPackage || this.ammo > 0 || this.cars.some(c => c.kind === 'bmw')) return;
+    if (this.delivery || this.phoneCall !== 'idle' || !this.hasPackage || this.ammo > 0 || this.cars.some(c => c.kind === 'bmw')) return;
     this.bmwTimer -= dt;
     if (this.bmwTimer > 0 || !this.roadInView()) return;
     this.makeCar('bmw', this.random() < 0.5 ? 1 : -1, CAR_SPEED);
@@ -823,17 +996,24 @@ export class SideGame {
   }
 
   private handOver(car: Car): void {
+    if (this.metDD) {
+      car.delivery = true;
+      this.delivery = { state: 'ready', timer: 0, carId: car.id, x: car.x, y: car.y, walk: 0 };
+      this.say(`D.D: REFILLS ARE ${REFILL_PRICE} KR · PRESS F`);
+      return;
+    }
     car.handed = true;
     this.ammo = CLIP;
     this.metDD = true;
     this.bmwTimer = 40 + this.random() * 20;
     this.effects.push({ kind: 'toss', x: car.x + car.dir * 6, y: car.y, z: 24, x1: this.player.x, y1: this.player.y });
     this.events.push('gun');
-    this.say('D.D: TAKE THIS, AND PRESS I TO SHOOT');
+    this.say('D.D: TAKE THIS · I TO SHOOT · F TO CALL ME');
   }
 
-  private updateCars(dt: number): void {
+  private updateCars(dt: number, phoneOnly = false): void {
     for (const car of this.cars) {
+      if (phoneOnly && !(car.kind === 'bmw' && (car.delivery || car.handed))) continue;
       car.timer += dt;
       if (car.state === 'driving') {
         const left = car.stopAt === null ? Infinity : (car.stopAt - car.x) * car.dir;
@@ -856,8 +1036,8 @@ export class SideGame {
         }
       } else if (car.state === 'stopped') {
         if (car.kind === 'bmw') {
-          if (!car.handed && car.timer >= 0.55) this.handOver(car);
-          if (car.timer >= 1.7) { car.state = 'leaving'; this.events.push('honk'); }
+          if (!car.delivery && !car.handed && car.timer >= 0.55) this.handOver(car);
+          if (!car.delivery && car.timer >= 1.7) { car.state = 'leaving'; this.events.push('honk'); }
         } else if (car.timer > 1 && !this.police.some(o => o.unit === car.id)) car.state = 'leaving';
       } else if (car.state === 'leaving') {
         car.speed = Math.min(CAR_SPEED * 1.2, car.speed + 260 * dt);

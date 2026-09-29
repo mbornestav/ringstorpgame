@@ -153,6 +153,88 @@ test('takes both turns during play, refills at Kurir Livs, delivers and replays'
   expect(errors).toEqual([]);
 });
 
+test('GH337 auto-dials D.D, summons him and confirms paid refills', async ({ page }) => {
+  test.setTimeout(45000);
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/');
+  await page.getByRole('button', { name: /start run/i }).click();
+  // No phone until D.D has been met.
+  await page.keyboard.press('f');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Open Ericsson GH337 phone' })).toBeHidden();
+  await page.evaluate(() => { (window as unknown as Exposed).__ringstorpGame.metDD = true; });
+  await page.keyboard.press('f');
+  const phone = page.getByRole('dialog');
+  await expect(phone).toBeVisible();
+  await expect(phone.locator('.lcd-contact')).toHaveText('D.D');
+  await expect(phone.locator('.lcd-number')).toHaveText('042218626');
+  await expect(phone.getByRole('button', { name: 'Call D.D', exact: true }).first()).toBeFocused();
+  await page.screenshot({ path: 'test-results/gh337-phone.png', fullPage: true });
+  const before = await state(page);
+  await page.keyboard.press('d'); await page.keyboard.press('i'); await page.keyboard.press('j');
+  expect((await state(page)).x).toBe(before.x);
+  expect((await state(page)).elapsed).toBe(before.elapsed);
+  // YES starts the automatic call, with no need to enter digits.
+  await phone.locator('.phone-yes').click();
+  await expect(phone.locator('.lcd-status')).toHaveText('DIALING...');
+  await expect(phone.locator('.lcd-number')).toHaveText('042218626');
+  await expect(phone.locator('.phone-action')).toBeDisabled();
+  await expect(phone.locator('.lcd-status')).toHaveText('RINGING...');
+  await expect(phone.locator('.phone-action')).toHaveText('BUY REFILL · 100 KR', { timeout: 10000 });
+  await expect(phone.locator('.phone-wallet')).toHaveText('YOUR CASH  200 KR');
+  await page.setViewportSize({ width: 960, height: 600 });
+  await expect(phone.locator('.phone-yes')).toBeInViewport();
+  await expect(phone.locator('.phone-pocket')).toBeInViewport();
+  const fits = await phone.evaluate(el => el.scrollHeight <= el.clientHeight + 1);
+  expect(fits).toBe(true);
+  await page.screenshot({ path: 'test-results/gh337-compact.png', fullPage: true });
+  await phone.locator('.phone-action').click();
+  await expect(phone.locator('.phone-wallet')).toHaveText('YOUR CASH  100 KR');
+  await expect(phone.locator('.lcd-status')).toHaveText('REFILLED');
+  const inventory = () => page.evaluate(() => {
+    const g = (window as unknown as Exposed).__ringstorpGame;
+    return { ammo: g.ammo, cash: g.cash };
+  });
+  expect(await inventory()).toEqual({ ammo: 8, cash: 100 });
+  await page.keyboard.press('Escape');
+  await expect(phone).not.toBeVisible();
+  expect((await state(page)).mode).toBe('playing');
+  await expect(page.locator('#ammo')).toHaveAttribute('aria-label', '8 rounds remaining');
+  await page.keyboard.press('i');
+  await expect.poll(inventory).toEqual({ ammo: 7, cash: 100 });
+  await page.keyboard.press('Escape');
+  expect((await state(page)).mode).toBe('paused');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Open Ericsson GH337 phone' }).click();
+  await expect(phone).toBeVisible();
+  await page.keyboard.press('Tab');
+  expect(await phone.evaluate(el => el.contains(document.activeElement))).toBe(true);
+  await page.keyboard.press('f');
+  await expect(phone).not.toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('GH337 shows insufficient funds and full ammo without charging', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: /start run/i }).click();
+  await page.evaluate(() => { (window as unknown as Exposed).__ringstorpGame.metDD = true; });
+  await page.keyboard.press('f');
+  const phone = page.getByRole('dialog');
+  await phone.locator('.phone-yes').click();
+  await expect(phone.locator('.phone-action')).toHaveText('BUY REFILL · 100 KR', { timeout: 10000 });
+  await page.evaluate(() => { (window as unknown as Exposed).__ringstorpGame.cash = 50; });
+  await expect(phone.locator('.phone-action')).toBeDisabled();
+  await expect(phone.locator('.phone-hint')).toContainText('50 more kr');
+  await page.evaluate(() => { const g = (window as unknown as Exposed).__ringstorpGame; g.cash = 200; g.ammo = 8; });
+  await expect(phone.locator('.phone-action')).toBeDisabled();
+  await expect(phone.locator('.phone-hint')).toContainText('Already fully loaded');
+  await phone.getByRole('button', { name: /No thanks/ }).click();
+  await expect(phone.locator('.phone-wallet')).toHaveText('YOUR CASH  200 KR');
+  await phone.getByRole('button', { name: 'Put phone away', exact: true }).click();
+  await expect(phone).not.toBeVisible();
+});
+
 test('D.D pulls over for a wave, and firing his gun brings the police', async ({ page }) => {
   test.setTimeout(60000);
   const errors: string[] = [];
