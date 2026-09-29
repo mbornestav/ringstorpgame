@@ -48,6 +48,12 @@ npm run dev
 
 Open the local URL printed by Vite. `npm run build` creates a static production build in `dist/`.
 
+### Phaser 4 corridor pilot
+
+Open **`/phaser.html`** for the isolated eighth-floor corridor of Kurirgatan 28D. The original game still runs at `/`. This pilot preserves the adventure's ground-plane walking, dialogue, neighbours and D.D's handoff; the lift records an exit request instead of entering another environment. Progress stays in memory. Use the controls below the game to restart or re-enter.
+
+See [the pilot architecture, content guide and verification notes](docs/phaser-pilot.md). No other environment has been migrated.
+
 ## Deploy
 
 From PowerShell, deploy the production build to the existing server with:

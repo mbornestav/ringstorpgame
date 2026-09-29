@@ -1,6 +1,6 @@
 import { HEIGHT, WIDTH } from './layout';
 import { disc, ellipse, mix, poly, rand, rect, shade, text, textWidth } from './pixel';
-import { FLOOR_LIFT_X, LOBBY_EXIT_X, LOBBY_LIFT_X, TOP_FLOOR, type GodsRun } from './gods-run';
+import { FLOOR_LIFT_X, LOBBY_EXIT_X, LOBBY_LIFT_X, TOP_FLOOR, type RoomView } from './interior-layout';
 import type { Prop } from './gods-cast';
 
 // The inside of Kurirgatan 28: entrance hall, the lift with its button panel, and one corridor per floor.
@@ -23,7 +23,7 @@ export function panelHit(x: number, y: number): number | null {
 
 const CORRIDOR_WALLS = ['#d9cfb8', '#cfd6c8', '#d8c8c0', '#c9d2d6', '#dcd3a8', '#cbc2d3', '#d5d0c8', '#c8d7cb', '#ddd0bd'];
 
-function ceiling(c: CanvasRenderingContext2D, t: number): void {
+export function ceiling(c: CanvasRenderingContext2D, t: number): void {
   rect(c, 0, 0, WIDTH, WALL_TOP, '#3b3a3f');
   rect(c, 0, WALL_TOP - 2, WIDTH, 2, '#22222a');
   for (let x = 60; x < WIDTH; x += 150) {
@@ -83,7 +83,7 @@ function door(c: CanvasRenderingContext2D, x: number, colour: string, name: stri
 const NAMEPLATES = ['ANDERSSON', 'LUNDQVIST', 'NILSSON', 'KARIMI', 'BERG', 'HOLM', 'EK', 'STRÖM', 'ÅBERG', 'DAHL', 'ÖSTLUND', 'SAAD'];
 
 /** The entrance hall on the ground floor. */
-function drawLobby(c: CanvasRenderingContext2D, run: GodsRun, t: number): void {
+function drawLobby(c: CanvasRenderingContext2D, run: RoomView, t: number): void {
   wall(c, '#d7cdb6', 3);
   ceiling(c, t);
   tiledFloor(c, '#8a8f8c', '#a8aca4');
@@ -110,7 +110,7 @@ function drawLobby(c: CanvasRenderingContext2D, run: GodsRun, t: number): void {
 }
 
 /** One floor's corridor: lift on the left, doors along the wall, and D.D's on the top floor. */
-function drawFloor(c: CanvasRenderingContext2D, run: GodsRun, t: number): void {
+function drawFloor(c: CanvasRenderingContext2D, run: RoomView, t: number): void {
   const colour = CORRIDOR_WALLS[run.floor % CORRIDOR_WALLS.length];
   wall(c, colour, 20 + run.floor);
   ceiling(c, t);
@@ -130,7 +130,7 @@ function drawFloor(c: CanvasRenderingContext2D, run: GodsRun, t: number): void {
 }
 
 /** The lift cabin, seen from inside: doors on the left, the wood-panelled wall and the button panel on the right. */
-function drawCabin(c: CanvasRenderingContext2D, run: GodsRun, t: number): void {
+function drawCabin(c: CanvasRenderingContext2D, run: RoomView, t: number): void {
   rect(c, 0, 0, WIDTH, HEIGHT, '#5a5e60');
   // Light oak wall panelling.
   rect(c, 0, WALL_TOP, WIDTH, FLOOR_Y - WALL_TOP + 6, '#c99a63');
@@ -158,7 +158,7 @@ function drawCabin(c: CanvasRenderingContext2D, run: GodsRun, t: number): void {
   drawButton(c, 430, 242, '', false, false, 'doors');
 }
 
-function floorLabel(run: GodsRun, t: number): string {
+function floorLabel(run: RoomView, t: number): string {
   if (!run.ride) return run.floor === 0 ? 'BV' : String(run.floor);
   const k = Math.min(1, run.ride.t / run.ride.dur), n = Math.round(run.ride.from + (run.ride.to - run.ride.from) * k);
   return n === 0 ? 'BV' : String(n);
@@ -175,7 +175,7 @@ function drawButton(c: CanvasRenderingContext2D, x: number, y: number, label: st
   text(c, label, x - Math.floor(w / 2), y - 4, '#1b1d20', 2);
 }
 
-export function drawRoom(c: CanvasRenderingContext2D, run: GodsRun, t: number): void {
+export function drawRoom(c: CanvasRenderingContext2D, run: RoomView, t: number): void {
   if (run.scene === 'lobby') drawLobby(c, run, t);
   else if (run.scene === 'floor') drawFloor(c, run, t);
   else drawCabin(c, run, t);

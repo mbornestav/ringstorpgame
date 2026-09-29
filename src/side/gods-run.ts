@@ -4,6 +4,8 @@ import { GODS_DOOR_X, GODS_START_X } from './gods-stage';
 import { t, type Key } from './i18n';
 import { PatrolCrew, type CrewHooks, type Patrol, type PatrolState, type Target } from './patrol';
 import type { SideGame } from './game';
+import { TOP_FLOOR, LOBBY_EXIT_X, LOBBY_LIFT_X, FLOOR_LIFT_X, DD_X, CABIN_X } from './interior-layout';
+export { TOP_FLOOR, LOBBY_EXIT_X, LOBBY_LIFT_X, FLOOR_LIFT_X, DD_X, CABIN_X } from './interior-layout';
 
 export { SIGHT_RANGE, SNEAK_SIGHT, HIDDEN_SIGHT, HEARING, PATROL_SPEED, CHASE_SPEED, GRAB_TIME } from './patrol';
 export type { Patrol, PatrolState } from './patrol';
@@ -12,7 +14,6 @@ export type { Patrol, PatrolState } from './patrol';
 // notice you only while the Gods are on your back; crouch behind cover, stash them, or keep out of sight.
 
 export const FINE_KR = 150;
-export const TOP_FLOOR = 8;
 export const SPOT_REACH = 24;
 export const payoutFor = (assignment: number) => Math.min(800, 300 + 100 * (assignment - 1));
 export const patrolCount = (assignment: number) => 3 + Math.min(assignment - 1, 3);
@@ -22,9 +23,6 @@ export type Scene = 'street' | 'lobby' | 'cabin' | 'floor';
 export type GodsAction = 'enter' | 'exit' | 'lift' | 'step' | 'stash' | 'collect' | 'talk' | 'dd' | 'deliver';
 export interface FloorNpc { id: string; x: number; y: number; facing: 1 | -1; talked: number }
 export interface Ride { from: number; to: number; t: number; dur: number }
-
-/** Interior layout, in screen pixels. */
-export const LOBBY_EXIT_X = 46, LOBBY_LIFT_X = 408, FLOOR_LIFT_X = 54, DD_X = 340, CABIN_X = 200;
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 

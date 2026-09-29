@@ -1,0 +1,14 @@
+.pilot main { --frame-width: min(1120px, calc((100vh - 240px) * 16 / 9)); }
+#phaser-game { position: absolute; inset: 0; }
+.pilot .game-hud { inset: 12px 14px auto; }
+.pilot .street-choice { top: auto; bottom: 5%; width: auto; min-width: 260px; }
+.pilot .street-choice strong { margin: 0; }
+.pilot .bottomline { flex-wrap: wrap; gap: 8px 16px; padding-top: 18px; line-height: 1.6; letter-spacing: .3px; }
+.pilot-harness { border-top: 1px solid #59706d66; padding: 15px 0 20px; font-size: 11px; color: #a8bdbd; }
+.pilot-harness > strong { color: #e8cb98; margin-right: 16px; }
+.pilot-actions { display: flex; align-items: center; gap: 14px; margin-top: 10px; }
+.pilot a { color: #e8cb98; }
+.pilot pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.pilot #error { position: absolute; inset: 0; background: #10212a; padding: 48px; color: #ffd0be; display: grid; place-content: center; }
+.pilot #error[hidden] { display: none; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }

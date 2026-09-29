@@ -346,7 +346,7 @@ export function setLang(lang: Lang): void {
   try { localStorage.setItem(LANG_KEY, lang); } catch { /* private mode */ }
   for (const listener of listeners) listener();
 }
-export function onLangChange(listener: () => void): void { listeners.add(listener); }
+export function onLangChange(listener: () => void): () => void { listeners.add(listener); return () => { listeners.delete(listener); }; }
 
 /** Text for a key in the current language, with `{name}` placeholders filled from `params`. */
 export function t(key: Key, params?: Params): string {

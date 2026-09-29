@@ -3,6 +3,7 @@ dist/
 test-results/
 playwright-report/
 .vite/
+.cache/
 coverage/
 
 # Local-only files
