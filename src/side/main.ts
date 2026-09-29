@@ -68,7 +68,7 @@ if (import.meta.env.DEV) Object.defineProperty(window, '__ringstorpGame', { valu
 if (import.meta.env.DEV) Object.defineProperty(window, '__ringstorpRenderer', { value: renderer });
 
 const held = new Set<string>();
-const phone = new PhoneUI(game, () => held.clear());
+const phone = new PhoneUI(game, () => held.clear(), document.querySelector<HTMLElement>('.game-frame')!);
 phoneButton.addEventListener('click', () => phone.toggle());
 let lastMode: Mode | '' = '';
 let lastChoice = '';

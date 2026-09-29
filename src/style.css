@@ -20,7 +20,7 @@ main { flex: 1; display: flex; flex-direction: column; justify-content: center; 
 .topline b { color: #ebd5a6; font-weight: 700; }
 .topline em { font-style: normal; color: #cfaa70; }
 .live-dot { display: inline-block; width: 7px; height: 7px; margin-right: 8px; border-radius: 50%; background: #f4c464; box-shadow: 0 0 10px #f4c464; }
-.game-frame { position: relative; width: 100%; max-width: var(--frame-width); margin-inline: auto; aspect-ratio: 16 / 9; overflow: hidden; background: #4c7472; border: 2px solid #c7aa77; box-shadow: 0 0 0 6px #152d35, 0 22px 65px #0009; }
+.game-frame { container-type: inline-size; position: relative; width: 100%; max-width: var(--frame-width); margin-inline: auto; aspect-ratio: 16 / 9; overflow: hidden; background: #4c7472; border: 2px solid #c7aa77; box-shadow: 0 0 0 6px #152d35, 0 22px 65px #0009; }
 canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
 #game { cursor: grab; touch-action: none; }
 #game.rotating { cursor: grabbing; }

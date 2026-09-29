@@ -1,4 +1,4 @@
-import { CLIP, CREW_CASH, DD_CONTACT, DD_NUMBER, REFILL_PRICE, type SideGame } from './game';
+import { CLIP, DD_CONTACT, DD_NUMBER, REFILL_PRICE, type SideGame } from './game';
 import { rect, text, textWidth } from './pixel';
 import './phone.css';
 
@@ -38,7 +38,8 @@ function drawHandset(c: CanvasRenderingContext2D, lcd: { contact: string; number
 
 /** A local, in-game handset. The number is display text; it never opens a telephone link. */
 export class PhoneUI {
-  private readonly dialog: HTMLDialogElement;
+  private readonly dialog: HTMLElement;
+  private isOpen = false;
   private readonly status: HTMLElement;
   private readonly hint: HTMLElement;
   private readonly wallet: HTMLElement;
@@ -51,10 +52,12 @@ export class PhoneUI {
   private previousFocus: HTMLElement | null = null;
   private receipt = false;
 
-  constructor(private readonly game: SideGame, private readonly onInput: () => void) {
-    this.dialog = document.createElement('dialog');
-    this.dialog.className = 'phone-dialog';
-    this.dialog.setAttribute('aria-labelledby', 'phone-title');
+  constructor(private readonly game: SideGame, private readonly onInput: () => void, parent: HTMLElement) {
+    this.dialog = document.createElement('aside');
+    this.dialog.className = 'phone-drawer';
+    this.dialog.setAttribute('role', 'dialog');
+    this.dialog.setAttribute('aria-label', 'Ericsson GH337 phone');
+    this.dialog.inert = true;
     this.dialog.innerHTML = `
       <div class="phone-layout">
         <div class="handset-space" role="group" aria-label="Ericsson GH337 handset">
@@ -64,19 +67,15 @@ export class PhoneUI {
           <div class="sr-only"><strong class="lcd-contact">${DD_CONTACT}</strong> <span class="lcd-number">${DD_NUMBER}</span> <span class="lcd-status" aria-live="polite"></span></div>
         </div>
         <div class="phone-copy">
-          <div class="phone-eyebrow">CONTACTS / 01</div>
-          <h2 id="phone-title">${DD_CONTACT}</h2>
-          <p class="phone-description">A familiar face.<br>A blue BMW.<br>A little backup.</p>
-          <div class="phone-offer"><small>AMMUNITION</small><strong>REFILL TO ${CLIP} ROUNDS</strong><b>${REFILL_PRICE} <span>KR</span></b><span class="phone-rounds"></span></div>
           <p class="phone-wallet"></p>
           <p class="phone-hint" aria-live="polite"></p>
           <button type="button" class="primary-button phone-action">CALL D.D</button>
           <button type="button" class="phone-cancel" hidden>Cancel visit</button>
           <button type="button" class="phone-pocket">PUT AWAY <kbd>F</kbd> / <kbd>ESC</kbd></button>
-          <small class="phone-note">Calls are free · +${CREW_CASH} kr per cleared crew<br>The fight waits while you use the phone.</small>
+          <span class="phone-rounds"></span>
         </div>
       </div>`;
-    document.body.append(this.dialog);
+    parent.append(this.dialog);
     this.status = this.dialog.querySelector('.lcd-status')!;
     this.hint = this.dialog.querySelector('.phone-hint')!;
     this.wallet = this.dialog.querySelector('.phone-wallet')!;
@@ -93,7 +92,6 @@ export class PhoneUI {
     });
     this.cancel.addEventListener('click', () => { onInput(); game.dismissDD(); this.sync(); });
     this.dialog.querySelectorAll('.phone-no, .phone-pocket').forEach(button => button.addEventListener('click', () => this.close()));
-    this.dialog.addEventListener('cancel', event => { event.preventDefault(); this.close(); });
   }
 
   toggle(): void {
@@ -109,13 +107,17 @@ export class PhoneUI {
   sync(): void {
     const g = this.game;
     const visible = g.phoneOpen && g.mode === 'playing';
-    if (visible && !this.dialog.open) {
+    if (visible && !this.isOpen) {
+      this.isOpen = true;
       this.receipt = false;
       this.previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-      this.dialog.showModal();
-      this.yes.focus();
-    } else if (!visible && this.dialog.open) {
-      this.dialog.close();
+      this.dialog.inert = false;
+      this.dialog.classList.add('open');
+      this.yes.focus({ preventScroll: true });
+    } else if (!visible && this.isOpen) {
+      this.isOpen = false;
+      this.dialog.inert = true;
+      this.dialog.classList.remove('open');
       this.previousFocus?.focus({ preventScroll: true });
     }
     if (!visible) return;
