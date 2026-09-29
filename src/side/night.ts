@@ -1,6 +1,6 @@
 import type { Car } from './game';
 import { HEIGHT, WIDTH } from './layout';
-import { mix, rand, rect, disc } from './pixel';
+import { beginArt, disc, fill, grain, isSmooth, mix, rand, rect, rgrad, vgrad } from './pixel';
 
 // Night for the heist: a dark sky, everything drawn so far tinted blue, then light pooled back in
 // around lamps, canopies, windows and headlamps. Actors are drawn after the tint, so they stay readable.
@@ -10,12 +10,29 @@ const SKY_H = 150;
 /** A lamp, window or canopy that lights the ground and air around it. */
 export interface Light { x: number; y: number; r: number; color: string; a?: number; flicker?: boolean }
 
-export function bakeNightSky(): HTMLCanvasElement {
+export function bakeNightSky(scale = 1): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
-  canvas.width = WIDTH;
-  canvas.height = SKY_H;
+  const smooth = isSmooth(), S = smooth ? scale : 1;
+  canvas.width = WIDTH * S;
+  canvas.height = SKY_H * S;
   const c = canvas.getContext('2d')!;
   const stops: Array<[number, string]> = [[0, '#141c3c'], [0.5, '#26305a'], [0.85, '#4a4a70'], [1, '#7a5a5e']];
+  if (smooth) {
+    beginArt(c, S);
+    fill(c, 0, 0, WIDTH, SKY_H, vgrad(c, 0, SKY_H, stops));
+    grain(c, 0, 0, WIDTH, SKY_H, 0.04);
+    // Stars: a few bright ones with a soft halo, many faint ones.
+    for (let i = 0; i < 90; i++) {
+      const x = rand(i, 1) * WIDTH, y = rand(i, 2) * 100, bright = rand(i, 3) > 0.82;
+      if (bright) fill(c, x - 4, y - 4, 8, 8, rgrad(c, x, y, 4, [[0, 'rgba(255, 255, 255, 0.9)'], [0.25, 'rgba(210, 222, 255, 0.35)'], [1, 'rgba(210, 222, 255, 0)']]));
+      else disc(c, x, y, 0.35, `rgba(190, 202, 236, ${0.35 + rand(i, 4) * 0.4})`);
+    }
+    // A thin crescent moon with a wide soft glow.
+    fill(c, 392 - 60, 44 - 60, 120, 120, rgrad(c, 392, 44, 60, [[0, 'rgba(200, 215, 255, 0.28)'], [0.4, 'rgba(200, 215, 255, 0.1)'], [1, 'rgba(200, 215, 255, 0)']]));
+    disc(c, 392, 44, 8, '#e8eeff');
+    disc(c, 396, 42, 7, '#27315c');
+    return canvas;
+  }
   const colour = (t: number) => {
     for (let k = 1; k < stops.length; k++) if (t <= stops[k][0]) return mix(stops[k - 1][1], stops[k][1], (t - stops[k - 1][0]) / (stops[k][0] - stops[k - 1][0]));
     return stops[stops.length - 1][1];
@@ -94,8 +111,10 @@ export function drawBeams(c: CanvasRenderingContext2D, cars: Car[], cam: number)
 }
 
 export function nightAtmosphere(c: CanvasRenderingContext2D): void {
-  c.fillStyle = 'rgba(255, 255, 255, 0.02)';
-  for (let y = 0; y < HEIGHT; y += 3) c.fillRect(0, y, WIDTH, 1);
+  if (!isSmooth()) {
+    c.fillStyle = 'rgba(255, 255, 255, 0.02)';
+    for (let y = 0; y < HEIGHT; y += 3) c.fillRect(0, y, WIDTH, 1);
+  }
   const vignette = c.createRadialGradient(WIDTH / 2, HEIGHT / 2, 100, WIDTH / 2, HEIGHT / 2, 320);
   vignette.addColorStop(0, 'rgba(2, 6, 18, 0)'); vignette.addColorStop(1, 'rgba(2, 6, 18, 0.5)');
   c.fillStyle = vignette; c.fillRect(0, 0, WIDTH, HEIGHT);

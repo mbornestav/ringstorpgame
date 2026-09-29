@@ -1,6 +1,6 @@
 import type { Car } from './game';
 import { drawHead, LOOKS, type Look } from './fighters';
-import { disc, ellipse, mix, poly, rect, seg, shade } from './pixel';
+import { disc, ellipse, isSmooth, mix, poly, rect, seg, shade, vgrad } from './pixel';
 
 // The Level 3 vehicles in side view: D.D's Ford Taunus with two heads in the windows, ordinary
 // traffic, and curtain-sided trucks whose kapell (tarpaulin) can be cut open. Cars head right, with y

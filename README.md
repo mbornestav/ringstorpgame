@@ -1,6 +1,6 @@
 # Ringstorp Run
 
-A self-contained, desktop browser side-scrolling arcade brawler on the real streets between Pålsjö and Ringstorp in Helsingborg. The route, the buildings along it, the street names, side streets, lamps, signs and bus stops come from OpenStreetMap. The pixel art is original. No map service, account or server is needed to play.
+A self-contained, desktop browser side-scrolling arcade brawler on the real streets between Pålsjö and Ringstorp in Helsingborg. The route, the buildings along it, the street names, side streets, lamps, signs and bus stops come from OpenStreetMap. The artwork is original, drawn in code as smooth vector graphics. No map service, account or server is needed to play.
 
 ## The mission
 
@@ -46,13 +46,9 @@ npm install
 npm run dev
 ```
 
-Open the local URL printed by Vite. `npm run build` creates a static production build in `dist/`.
+Open the local URL printed by Vite. `npm run build` creates a static production build in `dist/`, and `npm test` and `npm run test:browser` run the unit and browser tests.
 
-### Phaser 4 corridor pilot
-
-Open **`/phaser.html`** for the isolated eighth-floor corridor of Kurirgatan 28D. The original game still runs at `/`. This pilot preserves the adventure's ground-plane walking, dialogue, neighbours and D.D's handoff; the lift records an exit request instead of entering another environment. Progress stays in memory. Use the controls below the game to restart or re-enter.
-
-See [the pilot architecture, content guide and verification notes](docs/phaser-pilot.md). No other environment has been migrated.
+The game runs on Phaser 4. See [the architecture, dev tools and testing notes](docs/phaser-game.md). Two older entries are kept for now and are safe to remove together (the doc lists the files): the original DOM version at `/legacy.html`, and the single-corridor Phaser pilot at `/phaser.html` ([pilot notes](docs/phaser-pilot.md)).
 
 ## Deploy
 
@@ -122,7 +118,7 @@ Window layouts, visible entrances, garden boundaries and driveways are set per h
 
 The additional **Långåkersgatan** photo identifies Marcus A in the red box and supplies five street elevations, matched to the existing footprints: **2, 4, 6, 8, then the corner house at Almgatan 3** in the courier's travel order (right to left in the photograph). They include the white dark-roofed gable, Marcus A's eaves-facing villa, the brick house with a small dormer, the white house with a grey roof and rooflight, and the long brick corner house. These profiles live in `src/side/facade-references.ts` and appear on both Marcus route variants. The checkpoint marker follows the side approach; no central street-facing door is added to Marcus A's two-window frontage. The far side of Långåkersgatan is omitted from this backdrop.
 
-These are original pixel-art interpretations of the supplied images, not surveyed replicas. Heights, obscured details and unpictured elevations remain approximations. Live Google Street View could not be viewed in this session; no Google imagery is bundled with the game.
+These are original interpretations of the supplied images, drawn in code, not surveyed replicas. Heights, obscured details and unpictured elevations remain approximations. Live Google Street View could not be viewed in this session; no Google imagery is bundled with the game.
 
 The supplied aerial view and entrance photograph of **Kurir Livs** guide the shopping block: gold vertical panels, a flat roof with vents, a continuous band of upper windows, green fascia, glass shopfronts and a paved forecourt. The ICA entrance is near the left end, at the marked position, with a red-and-white sign, a pale shutter and flower racks. The long frontage continues past Direkten and Ringstorp Pizzeria. The detour uses the existing map's paths and building footprint (OSM way 95562951); its elevation and entrance placement are interpreted from the photographs. [ICA's shop page](https://www.ica.se/butiker/nara/helsingborg/ica-nara-kurir-livs-1004435/) confirms the address as Kurirgatan 1.
 

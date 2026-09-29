@@ -171,6 +171,8 @@ const EN = {
   'msg.h.spotted': 'POLIS! · THEY SAW US', 'msg.h.ddBusted': 'BUSTED · D.D IS CUFFED', 'msg.h.goranBusted': 'BUSTED · GORAN IS CUFFED',
   'msg.h.opened': 'KAPELL OPEN · TAKE THE CRATES', 'msg.h.loaded': 'LOADED · {n} CRATES IN THE BOOT', 'msg.h.leaving': 'GET TO THE CAR',
   'msg.h.gPolis': 'GORAN: POLIS! GET DOWN!', 'msg.h.gPolice': 'GORAN: POLIS BEHIND US!', 'msg.h.lost': 'YOU LOST THEM', 'msg.h.crash': 'CRASH!',
+  // ---- accessibility
+  'a11y.health': '{n} of {max} health', 'a11y.canvas': 'Ringstorp Run game view',
 } as const;
 
 export type Key = keyof typeof EN;
@@ -329,6 +331,7 @@ const SV: Record<Key, string> = {
   'msg.h.spotted': 'POLIS! · DE SÅG OSS', 'msg.h.ddBusted': 'GREPPAD · D.D ÄR GRIPEN', 'msg.h.goranBusted': 'GREPPAD · GORAN ÄR GRIPEN',
   'msg.h.opened': 'KAPELLEN UPPSKUREN · TA LÅDORNA', 'msg.h.loaded': 'LASTAT · {n} LÅDOR I BAGAGET', 'msg.h.leaving': 'TILL BILEN',
   'msg.h.gPolis': 'GORAN: POLIS! NER!', 'msg.h.gPolice': 'GORAN: POLIS BAKOM OSS!', 'msg.h.lost': 'NI SKAKADE AV DEM', 'msg.h.crash': 'KROCK!',
+  'a11y.health': '{n} av {max} hälsa', 'a11y.canvas': 'Ringstorp Run spelvy',
 };
 
 const TABLES: Record<Lang, Record<Key, string>> = { en: EN, sv: SV };

@@ -27,7 +27,7 @@ async function approach(page: Page, spot: 'romares' | 'kurir' | 'marcus' | 'lang
 test('title, controls, pause and restart work in Chrome', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto('/');
+  await page.goto('/legacy.html');
   await expect(page.getByRole('heading', { name: /Ringstorp Run/i })).toBeVisible();
   await page.screenshot({ path: 'test-results/title.png', fullPage: true });
   await expect(page.getByRole('button', { name: /via marcus a/i })).toHaveCount(0);
@@ -61,7 +61,7 @@ test('picks up the package on foot and scrolls along the street past the landmar
   test.setTimeout(60000);
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto('/');
+  await page.goto('/legacy.html');
   await page.getByRole('button', { name: /start run/i }).click();
   const canvas = page.locator('#game');
   await canvas.screenshot({ path: 'test-results/side-kiosk.png' });
@@ -91,7 +91,7 @@ test('picks up the package on foot and scrolls along the street past the landmar
 test('takes both turns during play, refills at Kurir Livs, delivers and replays', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto('/');
+  await page.goto('/legacy.html');
   await page.setViewportSize({ width: 960, height: 600 });
   await expect(page.getByRole('button', { name: /start run/i })).toBeInViewport();
   await page.screenshot({ path: 'test-results/title-compact.png', fullPage: true });
@@ -157,7 +157,7 @@ test('GH337 auto-dials D.D, summons him and confirms paid refills', async ({ pag
   test.setTimeout(45000);
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto('/');
+  await page.goto('/legacy.html');
   await page.getByRole('button', { name: /start run/i }).click();
   // No phone until D.D has been met.
   await page.keyboard.press('f');
@@ -216,7 +216,7 @@ test('GH337 auto-dials D.D, summons him and confirms paid refills', async ({ pag
 });
 
 test('GH337 shows insufficient funds and full ammo without charging', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/legacy.html');
   await page.getByRole('button', { name: /start run/i }).click();
   await page.evaluate(() => { (window as unknown as Exposed).__ringstorpGame.metDD = true; });
   await page.keyboard.press('f');
@@ -239,7 +239,7 @@ test('D.D pulls over for a wave, and firing his gun brings the police', async ({
   test.setTimeout(60000);
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto('/');
+  await page.goto('/legacy.html');
   await page.getByRole('button', { name: /start run/i }).click();
   await page.evaluate(() => {
     const g = (window as unknown as Exposed).__ringstorpGame;
@@ -270,7 +270,7 @@ test('D.D pulls over for a wave, and firing his gun brings the police', async ({
 test('the language button switches the whole page to Swedish and remembers it', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto('/');
+  await page.goto('/legacy.html');
   await expect(page.getByRole('button', { name: /start run/i })).toBeVisible();
   await page.getByRole('button', { name: 'Byt till svenska' }).click();
   await expect(page.getByRole('button', { name: /starta/i })).toBeVisible();
@@ -287,7 +287,7 @@ test('Level 2: fetch the Gods from floor 8, carry them home past the police and 
   test.setTimeout(60000);
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto('/');
+  await page.goto('/legacy.html');
   await page.getByRole('button', { name: /level 2/i }).click();
   // D.D's call opens first, with his portrait.
   await expect(page.getByRole('img', { name: 'D.D' })).toBeVisible();
@@ -355,7 +355,7 @@ test('Level 3: pick up Goran, drive out, cut a kapell, load the Taunus and drive
   test.setTimeout(90000);
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto('/');
+  await page.goto('/legacy.html');
   await page.getByRole('button', { name: /level 3/i }).click();
   await expect(page.getByRole('heading', { name: /the kapell job/i })).toBeVisible();
   await expect(page.getByRole('img', { name: 'D.D' })).toBeVisible();
@@ -412,7 +412,7 @@ test('Level 3: an arrest in the yard ends the whole job, and you can try again',
   test.setTimeout(60000);
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto('/');
+  await page.goto('/legacy.html');
   await page.getByRole('button', { name: /level 3/i }).click();
   await page.getByRole('button', { name: /take the wheel/i }).click();
   const world = <T,>(fn: (g: Exposed['__ringstorpGame']) => T) => page.evaluate(`(${fn.toString()})(window.__ringstorpGame)`) as Promise<T>;

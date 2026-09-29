@@ -1,4 +1,5 @@
-import { rect, seg, shade } from './pixel';
+import { drawSmoothFighter, paintHead } from './fighter-smooth';
+import { isSmooth, rect, seg, shade } from './pixel';
 
 // Side-view fighters as jointed puppets: a pose is a handful of joint angles, drawn with chunky
 // outlined pixel limbs, so every move animates from the same few parts.
@@ -106,6 +107,7 @@ export function drawFighter(
   c: CanvasRenderingContext2D, x: number, ground: number, z: number, facing: 1 | -1, look: Look, pose: Pose,
   opts: { tint?: string; parcel?: boolean; satchel?: boolean; gun?: boolean } = {},
 ): void {
+  if (isSmooth()) { drawSmoothFighter(c, x, ground, z, facing, look, pose, opts); return; }
   const s = look.height / 40;
   const thigh = 9 * s, shin = 9 * s, torso = 13 * s, upper = 7 * s, fore = 7 * s, headH = Math.round(8 * s), headW = Math.round(7 * s + (look.build > 9 ? 1 : 0));
   // Joints relative to the hip, with y growing downwards.
@@ -208,6 +210,16 @@ function shoe(c: CanvasRenderingContext2D, p: Pt, facing: 1 | -1, rot: number, c
 }
 
 export function drawHead(c: CanvasRenderingContext2D, p: Pt, facing: 1 | -1, w: number, h: number, look: Look, rot: number, tint?: string): void {
+  if (isSmooth()) {
+    // The smooth head is about 9 units tall and faces right; fit it to the box the pixel head would fill.
+    c.save();
+    c.translate(p[0], p[1] - h * 0.06);
+    c.scale(facing * h / 9, h / 9);
+    c.rotate(rot * facing);
+    paintHead(c, look, tint);
+    c.restore();
+    return;
+  }
   const x = Math.round(p[0] - w / 2), y = Math.round(p[1] - h / 2);
   rect(c, x - 1, y - 1, w + 2, h + 2, tint ?? OUTLINE);
   if (tint) { rect(c, x, y, w, h, tint); return; }

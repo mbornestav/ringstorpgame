@@ -1,5 +1,6 @@
 import { FRONTAGE_Y } from './layout';
 import type { FacadeBox } from './backdrop';
+import { drawLogo } from './logos';
 import { disc, mix, poly, rand, rect, shade, text, textWidth } from './pixel';
 import type { Facade } from './stage';
 
@@ -36,8 +37,9 @@ function ground(c: CanvasRenderingContext2D, b: FacadeBox): void {
   rect(c, b.x0, b.floor, b.x1 - b.x0, 1, '#a3a5a4');
 }
 
-/** The Statoil drop: a yellow teardrop. */
+/** The Statoil drop: the real orange mark when the artwork is loaded, otherwise a yellow teardrop. */
 function drop(c: CanvasRenderingContext2D, x: number, y: number, r: number): void {
+  if (drawLogo(c, 'statoil-drop', x - r * 1.25, y - r * 1.75, r * 2.5)) return;
   disc(c, x, y + r * 0.5, r, YELLOW);
   poly(c, [[x, y - r * 1.5], [x - r * 0.75, y - r * 0.1], [x + r * 0.75, y - r * 0.1]], YELLOW);
   disc(c, x, y + r * 0.6, r * 0.45, NAVY);
@@ -92,6 +94,13 @@ function drawStatoil(c: CanvasRenderingContext2D, f: Facade, b: FacadeBox): void
     text(c, 'MILES', ix + 18, b.floor - 43, '#3a2a10');
   }
   ground(c, b);
+  // The price pylon at the forecourt entrance, in front of the canopy, when the sign artwork is loaded.
+  const px = x0 + 8, top = b.floor - 96;
+  if (drawLogo(c, 'statoil-sign', px, top, 30)) {
+    rect(c, px + 13, top + 32, 4, b.floor - top - 32, '#8f9598');
+    rect(c, px + 13, top + 32, 1, b.floor - top - 32, '#c9cdcf');
+    rect(c, px - 1, top - 1, 32, 1, '#0b1f52');
+  }
   void f;
 }
 
@@ -124,8 +133,10 @@ function drawBildeve(c: CanvasRenderingContext2D, f: Facade, b: FacadeBox): void
   for (let x = x0 + 30; x < x1 - 30; x += 30) rect(c, x, shY, 2, 40, '#2b333a');
   rect(c, x0 + 30, shY + 38, w - 60, 3, '#7f8990');
   // BILDEVE, big and blue, with a dark edge.
-  text(c, 'BILDEVE', x0 + 82, b.wallTop + 16, '#0b1a4a', 4);
-  text(c, 'BILDEVE', x0 + 80, b.wallTop + 14, '#2447c2', 4);
+  if (!drawLogo(c, 'bildeve', x0 + 76, b.wallTop + 8, 108)) {
+    text(c, 'BILDEVE', x0 + 82, b.wallTop + 16, '#0b1a4a', 4);
+    text(c, 'BILDEVE', x0 + 80, b.wallTop + 14, '#2447c2', 4);
+  }
   // Two tall blue Volvo banners.
   for (const bx of [x0 + 38, x1 - 84]) {
     rect(c, bx, b.wallTop + 6, 30, 72, '#173a96');

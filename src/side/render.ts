@@ -1,10 +1,10 @@
-import { Backdrop, CHUNK, DISTANT_PARALLAX, HORIZON, bakeClouds, bakeSky, drawNearLamp, facadeBox } from './backdrop';
+import { Backdrop, CHUNK, CHUNK_PAD, DISTANT_PARALLAX, DISTANT_SEGMENT, HORIZON, bakeClouds, bakeSky, drawNearLamp, facadeBox } from './backdrop';
 import { LOOKS, POSES, drawFighter, type Look, type Pose } from './fighters';
 import type { Effect, Officer, SideEnemy, SideGame, SidePlayer } from './game';
 import type { Buddy } from './yard';
 import { PORTRAIT_H, PORTRAIT_W, drawCar, drawPortrait } from './vehicles';
 import { BAND_TOP, HEIGHT, WIDTH } from './layout';
-import { disc, ellipse, rand, rect, seg, text, textWidth } from './pixel';
+import { beginArt, disc, ellipse, isSmooth, rand, rect, rgrad, seg, text, textWidth } from './pixel';
 import { t } from './i18n';
 import { drawProp, drawRoom } from './interior';
 import { ARCHETYPE } from './gods-cast';
@@ -22,13 +22,19 @@ const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v
 
 interface Spark extends Effect { t: number; seed: number }
 
+/**
+ * Draws the side-scrolling world in logical 480x270 coordinates. With `scale` 1 in pixel mode it is the original
+ * renderer; the Phaser build sets smooth mode and a scale of 3, so the same drawing lands on a 1440x810 canvas as
+ * anti-aliased vector shapes.
+ */
 export class SideRenderer {
   readonly canvas: HTMLCanvasElement;
   private readonly c: CanvasRenderingContext2D;
   private readonly backdrops = new Map<Stage, Backdrop>();
-  private readonly sky = bakeSky();
-  private readonly nightSky = bakeNightSky();
-  private readonly clouds = bakeClouds();
+  private readonly sky: HTMLCanvasElement;
+  private readonly nightSky: HTMLCanvasElement;
+  private readonly clouds: HTMLCanvasElement;
+  private readonly S: number;
   private elapsed = 0;
   private attract = 0;
   private fx: Spark[] = [];
@@ -36,15 +42,23 @@ export class SideRenderer {
   private readonly lastWalk = new WeakMap<SideEnemy, number>();
   /** Left edge of the last frame drawn, in stage pixels. */
   view = 0;
+  /** The Phaser build draws its own HUD over this canvas and turns the in-canvas one off. */
+  showHud = true;
 
-  constructor(canvas: HTMLCanvasElement) {
+  constructor(canvas: HTMLCanvasElement, scale = 1) {
     this.canvas = canvas;
-    canvas.width = WIDTH;
-    canvas.height = HEIGHT;
+    this.S = isSmooth() ? scale : 1;
+    canvas.width = WIDTH * this.S;
+    canvas.height = HEIGHT * this.S;
     const context = canvas.getContext('2d', { alpha: false });
     if (!context) throw new Error('Canvas 2D is unavailable');
     this.c = context;
-    context.imageSmoothingEnabled = false;
+    context.imageSmoothingEnabled = isSmooth();
+    if (isSmooth()) context.imageSmoothingQuality = 'high';
+    beginArt(context, this.S);
+    this.sky = bakeSky(this.S);
+    this.nightSky = bakeNightSky(this.S);
+    this.clouds = bakeClouds(this.S);
   }
 
   /** Restart the title screen's slow pan along the street. */
@@ -52,32 +66,43 @@ export class SideRenderer {
 
   private backdrop(stage: Stage): Backdrop {
     let b = this.backdrops.get(stage);
-    if (!b) { b = new Backdrop(stage); this.backdrops.set(stage, b); }
+    if (!b) { b = new Backdrop(stage, this.S); this.backdrops.set(stage, b); }
     return b;
   }
+
+  /** Snaps a logical distance to the device grid: whole pixels in pixel mode, thirds at 3x. */
+  private snap(v: number): number { return Math.round(v * this.S) / this.S; }
+
+  /** Sets the transform for drawing in logical pixels, shifted by (dx, dy) logical pixels (camera shake). */
+  private place(dx = 0, dy = 0): void { this.c.setTransform(this.S, 0, 0, this.S, dx * this.S, dy * this.S); }
+
+  /** Draws a baked canvas at a logical position, at its natural size (it was baked S times larger). */
+  private blit(image: HTMLCanvasElement, x: number, y = 0): void { this.c.drawImage(image, x, y, image.width / this.S, image.height / this.S); }
 
   render(game: SideGame, dt: number): void {
     this.elapsed += dt;
     if (game.level === 2 && game.gods.scene !== 'street' && game.mode !== 'title') { this.renderInterior(game); return; }
     const stage = game.stage, bd = this.backdrop(stage), c = this.c;
     if (game.mode === 'title') this.attract = (this.attract + dt * 26) % Math.max(1, stage.length - WIDTH);
-    const cam = Math.round(game.mode === 'title' ? this.attract : game.camera);
-    const sx = game.shake > 0 ? Math.round((rand(this.elapsed * 97, 1) - 0.5) * game.shake * 2) : 0;
-    const sy = game.shake > 0 ? Math.round((rand(this.elapsed * 89, 2) - 0.5) * game.shake * 1.4) : 0;
+    const cam = this.snap(game.mode === 'title' ? this.attract : game.camera);
+    const sx = game.shake > 0 ? this.snap((rand(this.elapsed * 97, 1) - 0.5) * game.shake * 2) : 0;
+    const sy = game.shake > 0 ? this.snap((rand(this.elapsed * 89, 2) - 0.5) * game.shake * 1.4) : 0;
 
-    c.setTransform(1, 0, 0, 1, 0, 0);
+    this.place();
     const night = !!stage.night;
-    c.drawImage(night ? this.nightSky : this.sky, 0, 0);
+    this.blit(night ? this.nightSky : this.sky, 0);
     rect(c, 0, HORIZON, WIDTH, HEIGHT - HORIZON, '#6f9a4c');
     if (!night) {
-      const drift = (cam * 0.06 + this.elapsed * 3) % (WIDTH * 2);
-      c.drawImage(this.clouds, -Math.round(drift), 0);
-      c.drawImage(this.clouds, WIDTH * 2 - Math.round(drift), 0);
+      const drift = this.snap((cam * 0.06 + this.elapsed * 3) % (WIDTH * 2));
+      this.blit(this.clouds, -drift);
+      this.blit(this.clouds, WIDTH * 2 - drift);
     }
-    c.setTransform(1, 0, 0, 1, sx, sy);
-    c.drawImage(bd.distant(), -Math.round(cam * DISTANT_PARALLAX), 0);
-    const first = Math.floor(cam / CHUNK), last = Math.floor((cam + WIDTH) / CHUNK);
-    for (let i = Math.max(0, first); i <= last; i++) c.drawImage(bd.chunk(i), i * CHUNK - cam, 0);
+    this.place(sx, sy);
+    this.drawDistant(bd, cam);
+    const first = Math.floor(cam / CHUNK), last = Math.floor((cam + WIDTH) / CHUNK), pad = isSmooth() ? CHUNK_PAD : 0;
+    for (let i = Math.max(0, first); i <= last; i++) this.blit(bd.chunk(i), i * CHUNK - cam - pad);
+    // In smooth mode chunks are large; keep only those the camera is near (pixel chunks are tiny, so they all stay).
+    if (isSmooth()) bd.evict(first - 2, last + 4);
     // Bake the chunks ahead of time so walking, and driving, never stall: one a frame, the nearest first.
     for (let k = 1; k <= 3; k++) if ((last + k) * CHUNK < stage.length && !bd.has(last + k)) { bd.chunk(last + k); break; }
     if (night) { nightTint(c); drawLights(c, stage.lights ?? [], cam, this.elapsed); }
@@ -91,11 +116,19 @@ export class SideRenderer {
       const x = (f.x - cam - WIDTH / 2) * 1.25 + WIDTH / 2;
       if (x > -30 && x < WIDTH + 30) drawNearLamp(c, x);
     }
-    c.setTransform(1, 0, 0, 1, 0, 0);
+    this.place();
     if (night) nightAtmosphere(c); else this.drawAtmosphere();
     if (game.transition > 0) rect(c, 0, 0, WIDTH, HEIGHT, `rgba(12, 30, 35, ${game.transition / 0.35})`);
-    if (game.mode === 'playing' || game.mode === 'paused') this.drawHud(game, cam);
+    if (this.showHud && (game.mode === 'playing' || game.mode === 'paused')) this.drawHud(game, cam);
     this.view = cam;
+  }
+
+  /** The ridge and rooftops beyond the street: one strip in pixel mode, slices in smooth mode. */
+  private drawDistant(bd: Backdrop, cam: number): void {
+    const offset = cam * DISTANT_PARALLAX;
+    if (!isSmooth()) { this.blit(bd.distant(), -Math.round(offset)); return; }
+    const from = Math.max(0, Math.floor(offset / DISTANT_SEGMENT)), to = Math.min(bd.distantSegments - 1, Math.floor((offset + WIDTH) / DISTANT_SEGMENT));
+    for (let i = from; i <= to; i++) this.blit(bd.distantSegment(i), i * DISTANT_SEGMENT - CHUNK_PAD - this.snap(offset));
   }
 
   // ---------------------------------------------------------------- landmarks
@@ -240,7 +273,15 @@ export class SideRenderer {
 
   private shadow(x: number, y: number, z: number, size: number): void {
     const k = 1 - Math.min(z, 70) / 140;
-    ellipse(this.c, x, y, size * k, 2.5 * k, 'rgba(22, 30, 38, 0.36)');
+    if (!isSmooth()) { ellipse(this.c, x, y, size * k, 2.5 * k, 'rgba(22, 30, 38, 0.36)'); return; }
+    // A soft blob: dark at the feet, fading out at the edge.
+    const c = this.c;
+    c.save();
+    c.translate(x, y);
+    c.scale(size * k * 1.15, 2.9 * k);
+    c.fillStyle = rgrad(c, 0, 0, 1, [[0, 'rgba(20, 28, 36, 0.5)'], [0.55, 'rgba(20, 28, 36, 0.26)'], [1, 'rgba(20, 28, 36, 0)']]);
+    c.fillRect(-1, -1, 2, 2);
+    c.restore();
   }
 
   private drawPlayer(game: SideGame, p: SidePlayer, cam: number): void {
@@ -396,8 +437,8 @@ export class SideRenderer {
   /** The lobby, the lift and the corridors of Kurirgatan 28. */
   private renderInterior(game: SideGame): void {
     const c = this.c, run = game.gods, p = game.player;
-    const sx = run.ride ? Math.round((rand(this.elapsed * 60, 1) - 0.5) * 2) : 0;
-    c.setTransform(1, 0, 0, 1, sx, 0);
+    const sx = run.ride ? this.snap((rand(this.elapsed * 60, 1) - 0.5) * 2) : 0;
+    this.place(sx);
     drawRoom(c, run, this.elapsed);
     const actors: Array<{ y: number; draw: () => void }> = [];
     if (run.scene !== 'cabin') {
@@ -416,10 +457,10 @@ export class SideRenderer {
     actors.push({ y: p.y + 0.1, draw: () => this.drawPlayer(game, p, 0) });
     actors.sort((a, b) => a.y - b.y);
     for (const a of actors) a.draw();
-    c.setTransform(1, 0, 0, 1, 0, 0);
+    this.place();
     this.drawAtmosphere();
     if (game.transition > 0) rect(c, 0, 0, WIDTH, HEIGHT, `rgba(12, 30, 35, ${game.transition / 0.35})`);
-    if (game.mode === 'playing' || game.mode === 'paused') this.drawHud(game, 0, true);
+    if (this.showHud && (game.mode === 'playing' || game.mode === 'paused')) this.drawHud(game, 0, true);
     this.view = 0;
   }
 
@@ -495,8 +536,10 @@ export class SideRenderer {
     haze.addColorStop(0.5, 'rgba(255, 214, 160, 0.02)');
     haze.addColorStop(1, 'rgba(24, 40, 70, 0.12)');
     c.fillStyle = haze; c.fillRect(0, 0, WIDTH, HEIGHT);
-    c.fillStyle = 'rgba(255, 255, 255, 0.025)';
-    for (let y = 0; y < HEIGHT; y += 3) c.fillRect(0, y, WIDTH, 1);
+    if (!isSmooth()) {
+      c.fillStyle = 'rgba(255, 255, 255, 0.025)';
+      for (let y = 0; y < HEIGHT; y += 3) c.fillRect(0, y, WIDTH, 1);
+    }
     const vignette = c.createRadialGradient(WIDTH / 2, HEIGHT / 2, 110, WIDTH / 2, HEIGHT / 2, 330);
     vignette.addColorStop(0, 'rgba(7, 20, 32, 0)'); vignette.addColorStop(1, 'rgba(7, 20, 32, 0.38)');
     c.fillStyle = vignette; c.fillRect(0, 0, WIDTH, HEIGHT);

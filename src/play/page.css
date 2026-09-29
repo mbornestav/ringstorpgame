@@ -1,0 +1,14 @@
+:root { color: #eadfca; background: #10212a; font-synthesis: none; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; }
+body { background: radial-gradient(circle at 50% -15%, #365259 0, #10242d 47%, #0b1b24 100%); }
+#app { position: fixed; inset: 0; }
+#game { position: absolute; inset: 0; }
+#game canvas { display: block; touch-action: none; image-rendering: auto; }
+#boot-error { position: absolute; inset: auto 16px 16px; padding: 12px 14px; background: #3a1f1c; border: 1px solid #ed735f; color: #f5e5c4; font: 14px/1.4 system-ui, sans-serif; }
+#boot-error[hidden] { display: none; }
+noscript { position: fixed; inset: 40% 0 auto; text-align: center; font: 16px system-ui, sans-serif; }
+
+/* Screen-reader mirror of the canvas UI: present, focusable and announced, but not painted. */
+#a11y { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+#a11y .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

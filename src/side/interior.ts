@@ -1,25 +1,13 @@
 import { HEIGHT, WIDTH } from './layout';
 import { disc, ellipse, mix, poly, rand, rect, shade, text, textWidth } from './pixel';
-import { FLOOR_LIFT_X, LOBBY_EXIT_X, LOBBY_LIFT_X, TOP_FLOOR, type RoomView } from './interior-layout';
+import { BUTTON_R, FLOOR_LIFT_X, LOBBY_EXIT_X, LOBBY_LIFT_X, PANEL_BUTTONS, TOP_FLOOR, type RoomView } from './interior-layout';
 import type { Prop } from './gods-cast';
 
 // The inside of Kurirgatan 28: entrance hall, the lift with its button panel, and one corridor per floor.
+// The lift panel's coordinates live in interior-layout.ts so the Phaser build can use them without this drawing module.
+export { BUTTON_R, PANEL_BUTTONS, panelHit } from './interior-layout';
 
 const WALL_TOP = 20, FLOOR_Y = 176;
-
-/** Buttons on the lift panel, in the layout of the real one: the top floor alone, then pairs. */
-export const PANEL_BUTTONS: Array<{ n: number; x: number; y: number }> = [
-  { n: 8, x: 388, y: 92 },
-  { n: 6, x: 388, y: 122 }, { n: 7, x: 430, y: 122 },
-  { n: 4, x: 388, y: 152 }, { n: 5, x: 430, y: 152 },
-  { n: 2, x: 388, y: 182 }, { n: 3, x: 430, y: 182 },
-  { n: 0, x: 388, y: 212 }, { n: 1, x: 430, y: 212 },
-];
-export const BUTTON_R = 12;
-export function panelHit(x: number, y: number): number | null {
-  const hit = PANEL_BUTTONS.find(b => Math.hypot(b.x - x, b.y - y) <= BUTTON_R + 2);
-  return hit ? hit.n : null;
-}
 
 const CORRIDOR_WALLS = ['#d9cfb8', '#cfd6c8', '#d8c8c0', '#c9d2d6', '#dcd3a8', '#cbc2d3', '#d5d0c8', '#c8d7cb', '#ddd0bd'];
 

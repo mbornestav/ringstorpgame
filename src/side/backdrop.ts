@@ -1,5 +1,7 @@
 import { FACADE_PX_PER_M, FRONTAGE_Y, HEIGHT, KERB_Y, NEAR_KERB_Y, WIDTH } from './layout';
-import { disc, ellipse, mix, noise, pick, poly, rand, rect, rgb, seg, shade, text, textWidth } from './pixel';
+import { alpha, beginArt, disc, ellipse, fill, grain, isSmooth, mix, noise, pick, poly, rand, rect, rgb, rgrad, seg, shade, text, textWidth, vgrad } from './pixel';
+import { paintGround } from './ground-smooth';
+import { drawLogo } from './logos';
 import type { Facade, FrontKind, Furniture, Run, SideStreet, Stage, Surface, Tree } from './stage';
 import { drawThaeo } from './graffiti';
 import { LEVEL2_ROLES, drawLevel2Facade, level2Box } from './level2-art';
@@ -9,6 +11,8 @@ import { LEVEL3_ROLES, drawLevel3Facade, level3Box } from './level3-art';
 // so the distant ridge and the clouds show through.
 
 export const CHUNK = 256;
+/** Smooth mode bakes the distant layer in slices this wide. */
+export const DISTANT_SEGMENT = 512;
 export const HORIZON = 146;
 /** The ridge beyond the street scrolls slower than the street itself. */
 export const DISTANT_PARALLAX = 0.35;
@@ -103,7 +107,13 @@ export function windowAt(c: CanvasRenderingContext2D, cx: number, top: number, w
   rect(c, x0, y0, ww, wh, glass);
   rect(c, x0, y0 + Math.round(wh * 0.55), ww, wh - Math.round(wh * 0.55), shade(glass, 0.82));
   // Sky reflected in the upper panes.
-  for (let i = 0; i < Math.min(ww, wh) - 2; i++) rect(c, x0 + 1 + i, y0 + wh - 3 - i, 1, 1, '#8fb0c4');
+  if (isSmooth()) {
+    c.save();
+    c.beginPath(); c.rect(x0, y0, ww, wh); c.clip();
+    poly(c, [[x0, y0 + wh * 0.62], [x0 + ww * 0.62, y0], [x0 + ww * 0.92, y0], [x0, y0 + wh * 0.92]], 'rgba(170, 205, 224, 0.34)');
+    poly(c, [[x0 + ww * 0.22, y0 + wh * 0.98], [x0 + ww, y0 + wh * 0.26], [x0 + ww, y0 + wh * 0.44], [x0 + ww * 0.5, y0 + wh * 0.98]], 'rgba(170, 205, 224, 0.16)');
+    c.restore();
+  } else for (let i = 0; i < Math.min(ww, wh) - 2; i++) rect(c, x0 + 1 + i, y0 + wh - 3 - i, 1, 1, '#8fb0c4');
   if (!opts.plain && rand(seed, 9) > 0.45) { rect(c, x0, y0, 2, wh, '#e7dcc4'); rect(c, x0 + ww - 2, y0, 2, wh, '#e7dcc4'); }
   const panes = opts.panes ?? 2;
   for (let i = 1; i < panes; i++) rect(c, x0 + Math.round(ww * i / panes), y0, 1, wh, frame);
@@ -252,7 +262,7 @@ function drawKurirLivs(c: CanvasRenderingContext2D, f: Facade): void {
   rect(c, door - 8, fascia - 1, 45, 9, '#af3739');
   text(c, 'KURIR LIVS', door - 5, fascia + 2, '#fff1df');
   rect(c, door - 35, fascia - 16, 27, 23, '#e8e7dc');
-  text(c, 'ICA', door - 32, fascia - 12, '#bb303f', 2);
+  if (!drawLogo(c, 'ica', door - 31.5, fascia - 13.5, 20)) text(c, 'ICA', door - 32, fascia - 12, '#bb303f', 2);
   text(c, 'NÄRA', door - 30, fascia + 1, '#aa303d');
   rect(c, door - 56, fascia + 12, 39, 20, '#b6bfba');
   for (let y = fascia + 13; y < b.floor; y += 3) rect(c, door - 56, y, 39, 1, '#939f9b');
@@ -568,6 +578,22 @@ function drawTree(c: CanvasRenderingContext2D, t: Tree): void {
   for (const [bx, by, r] of blobs) disc(c, x + bx, cy + by, r, pal[0]);
   for (const [bx, by, r] of blobs) disc(c, x + bx + 1.5, cy + by - 1.5, r * 0.8, pal[1]);
   for (const [bx, by, r] of blobs) if (bx > -R * 0.2 && by < R * 0.2) disc(c, x + bx + 3, cy + by - 3, r * 0.42, pal[2]);
+  if (isSmooth()) {
+    // Light from the upper right: a soft sunlit bloom on the canopy, a shaded underside, and small overlapping leaf clusters.
+    c.save();
+    c.beginPath(); for (const [bx, by, r] of blobs) { c.moveTo(x + bx + r, cy + by); c.arc(x + bx, cy + by, r, 0, Math.PI * 2); } c.clip();
+    fill(c, x - R * 1.6, cy - R * 1.6, R * 3.2, R * 3.2, rgrad(c, x + R * 0.35, cy - R * 0.4, R * 1.05, [[0, alpha(pal[3], 0.5)], [1, alpha(pal[3], 0)]]));
+    fill(c, x - R * 1.6, cy - R * 1.6, R * 3.2, R * 3.2, rgrad(c, x - R * 0.3, cy + R * 0.55, R * 1.1, [[0, alpha(shade(pal[0], 0.55), 0.42)], [1, alpha(shade(pal[0], 0.55), 0)]]));
+    for (let i = 0; i < 90 * k; i++) {
+      const [bx, by, r] = blobs[i % blobs.length];
+      const a = rand(seed + i, 3) * Math.PI * 2, d = rand(seed + i, 4) * r * 0.95;
+      const px = x + bx + Math.cos(a) * d, py = cy + by + Math.sin(a) * d, lit = Math.cos(a) - Math.sin(a) > 0.3;
+      ellipse(c, px, py, 1.4, 0.9, alpha(lit ? pal[3] : shade(pal[0], 0.78), lit ? 0.32 : 0.28));
+    }
+    c.restore();
+    if (t.variant === 4) for (let i = 0; i < 8; i++) disc(c, x - R * 0.6 + rand(seed, i + 70) * R * 1.2, cy - R * 0.5 + rand(seed, i + 80) * R, 0.7, '#c8402e');
+    return;
+  }
   for (let i = 0; i < 40 * k; i++) {
     const [bx, by, r] = blobs[i % blobs.length];
     const a = rand(seed + i, 3) * Math.PI * 2, d = rand(seed + i, 4) * r * 0.95;
@@ -596,11 +622,69 @@ function drawReferenceGarden(c: CanvasRenderingContext2D, f: Facade): void {
   if (drive) path(drive[0], drive[1], b.base - 8);
 }
 
+/** A clipped hedge as one lumpy shape with a lit rim, instead of one-pixel columns. Same height noise as the pixel hedge. */
+function smoothHedge(c: CanvasRenderingContext2D, y: number, from: number, to: number, open: (x: number) => boolean): void {
+  const height = (x: number) => 12 + noise(x * 0.13, 3) * 3 + noise(x * 0.5, 9) * 1.6;
+  for (let x = from; x < to;) {
+    if (open(x)) { x++; continue; }
+    let end = x;
+    while (end < to && !open(end)) end++;
+    // Sample on a world-anchored grid, not from this chunk's own left edge, so chunks that overlap draw identical hedges.
+    const grid = (step: number) => { const xs: number[] = []; for (let px = Math.ceil(x / step) * step; px < end; px += step) xs.push(px); return xs; };
+    c.beginPath();
+    c.moveTo(x, y + 1);
+    c.lineTo(x, y - height(x));
+    for (const px of grid(0.5)) c.lineTo(px, y - height(px));
+    c.lineTo(end, y - height(end));
+    c.lineTo(end, y + 1);
+    c.closePath();
+    c.fillStyle = vgrad(c, y - 16, y + 1, [[0, '#6d9b4b'], [0.35, '#4b7a3f'], [1, '#2c5030']]);
+    c.fill();
+    for (const px of grid(1.4)) {
+      const r = rand(px * 10, 5), top = y - height(px);
+      if (r > 0.35) ellipse(c, px, top + 1.5 + rand(px * 10, 8) * (height(px) - 3), 1.5, 1, r > 0.7 ? alpha('#a5cc78', 0.42) : alpha('#1f3c22', 0.32));
+    }
+    c.beginPath();
+    c.moveTo(x, y - height(x));
+    for (const px of grid(0.5)) c.lineTo(px, y - height(px));
+    c.lineTo(end, y - height(end));
+    c.strokeStyle = alpha('#b6d98a', 0.7); c.lineWidth = 0.8; c.lineJoin = 'round'; c.stroke();
+    x = end;
+  }
+}
+
+/** A chain-link fence: posts every 24 px and a fine diamond mesh between them, drawn as two sets of hairlines. */
+function smoothChainlink(c: CanvasRenderingContext2D, y: number, from: number, to: number, open: (x: number) => boolean): void {
+  const top = y - 18;
+  for (let x = from; x < to;) {
+    if (open(x)) { x++; continue; }
+    let end = x;
+    while (end < to && !open(end)) end++;
+    c.save();
+    c.beginPath(); c.rect(x, top, end - x, 19); c.clip();
+    c.strokeStyle = 'rgba(146, 154, 160, 0.62)'; c.lineWidth = 0.32;
+    c.beginPath();
+    // Diagonals in both directions, on a world-anchored grid so neighbouring chunks agree.
+    for (let k = Math.floor((x - 20) / 3) * 3; k < end + 20; k += 3) {
+      c.moveTo(k, top); c.lineTo(k + 19, y + 1);
+      c.moveTo(k + 19, top); c.lineTo(k, y + 1);
+    }
+    c.stroke();
+    c.restore();
+    for (let post = Math.ceil(x / 24) * 24; post < end; post += 24) {
+      fill(c, post, top, 1.6, 19, vgrad(c, top, y + 1, [[0, '#9aa1a5'], [1, '#6e767a']]));
+    }
+    fill(c, x, top, end - x, 0.9, '#8a9296');
+    x = end;
+  }
+}
+
 function drawFront(c: CanvasRenderingContext2D, run: Run<FrontKind>, gaps: Array<[number, number]>, from: number, to: number): void {
   const y = FRONTAGE_Y;
   const x0 = Math.max(Math.floor(run.x0), from), x1 = Math.min(Math.ceil(run.x1), to);
   const open = (x: number) => gaps.some(([a, b]) => x >= a && x < b);
-  for (let x = x0; x < x1; x++) {
+  if (isSmooth() && run.value === 'hedge') smoothHedge(c, y, x0, x1, open);
+  else for (let x = x0; x < x1; x++) {
     if (open(x)) continue;
     switch (run.value) {
       case 'hedge': {
@@ -939,12 +1023,16 @@ function roadMarkings(c: CanvasRenderingContext2D, stage: Stage, from: number, t
 
 // ---------------------------------------------------------------- backdrop
 
+/** In smooth mode each chunk is baked this many logical pixels wider on both sides, so linear filtering never shows a seam. */
+export const CHUNK_PAD = 2;
+
 export class Backdrop {
   private readonly chunks = new Map<number, HTMLCanvasElement>();
   private distantStrip: HTMLCanvasElement | null = null;
   readonly items: Array<{ dist: number; x0: number; x1: number; draw: (c: CanvasRenderingContext2D) => void }>;
 
-  constructor(readonly stage: Stage) {
+  /** `scale` is device pixels per logical pixel; it only matters in smooth mode. */
+  constructor(readonly stage: Stage, readonly scale = 1) {
     const facades = stage.facades.map(f => {
       const b = facadeBox(f);
       return { dist: f.dist + (f.row ? 100 : 0), x0: b.x0 - 12, x1: b.x1 + 12, draw: (c: CanvasRenderingContext2D) => drawFacade(c, f) };
@@ -955,6 +1043,18 @@ export class Backdrop {
 
   has(i: number): boolean { return this.chunks.has(i); }
 
+  /**
+   * Frees baked chunks outside [from, to]. A smooth chunk is about 2.5 MB, so a whole level kept in memory would run to
+   * over 100 MB; the camera only ever needs the ones around it, and a chunk behind can be baked again identically.
+   */
+  evict(from: number, to: number): void {
+    for (const [i, canvas] of this.chunks) {
+      if (i >= from && i <= to) continue;
+      canvas.width = 0;
+      this.chunks.delete(i);
+    }
+  }
+
   chunk(i: number): HTMLCanvasElement {
     let canvas = this.chunks.get(i);
     if (!canvas) { canvas = this.bake(i); this.chunks.set(i, canvas); }
@@ -962,25 +1062,89 @@ export class Backdrop {
   }
 
   private bake(i: number): HTMLCanvasElement {
+    const smooth = isSmooth(), S = smooth ? this.scale : 1, pad = smooth ? CHUNK_PAD : 0;
     const canvas = document.createElement('canvas');
-    canvas.width = CHUNK;
-    canvas.height = HEIGHT;
+    canvas.width = (CHUNK + 2 * pad) * S;
+    canvas.height = HEIGHT * S;
     const c = canvas.getContext('2d')!;
-    c.imageSmoothingEnabled = false;
     const x0 = i * CHUNK, x1 = x0 + CHUNK;
-    c.putImageData(bakeGround(this.stage, x0), 0, HORIZON);
-    c.translate(-x0, 0);
-    for (const f of this.stage.facades) if (f.reference && f.row === 0 && f.x1 + 28 > x0 && f.x0 - 28 < x1) drawReferenceGarden(c, f);
-    for (const item of this.items) if (item.x1 > x0 && item.x0 < x1) item.draw(c);
+    if (smooth) {
+      beginArt(c, S);
+      c.translate(pad - x0, 0);
+      paintGround(c, this.stage, x0 - pad, x1 + pad);
+    } else {
+      c.imageSmoothingEnabled = false;
+      c.putImageData(bakeGround(this.stage, x0), 0, HORIZON);
+      c.translate(-x0, 0);
+    }
+    // Everything below is drawn against the padded range, so the overlap between neighbouring chunks is identical.
+    const lo = x0 - pad, hi = x1 + pad;
+    for (const f of this.stage.facades) if (f.reference && f.row === 0 && f.x1 + 28 > lo && f.x0 - 28 < hi) drawReferenceGarden(c, f);
+    for (const item of this.items) if (item.x1 > lo && item.x0 < hi) item.draw(c);
     const gaps: Array<[number, number]> = [
       ...this.stage.gates.map(g => [g - 7, g + 7] as [number, number]),
       ...this.stage.facades.map(referenceDrive).filter((d): d is [number, number] => d !== null),
       ...this.stage.sideStreets.filter(s => s.far).map(s => [s.x - s.width / 2 - 3, s.x + s.width / 2 + 3] as [number, number]),
     ];
-    for (const run of this.stage.fronts) if (run.x1 > x0 && run.x0 < x1) drawFront(c, run, gaps, x0 - 1, x1 + 1);
-    for (const g of this.stage.gates) if (g > x0 - 30 && g < x1 + 30) drawGate(c, g, Math.round(g));
-    roadMarkings(c, this.stage, x0 - 50, x1 + 50);
-    for (const f of this.stage.furniture) if (!f.near && f.x > x0 - 60 && f.x < x1 + 60) drawFurniture(c, f);
+    for (const run of this.stage.fronts) if (run.x1 > lo && run.x0 < hi) drawFront(c, run, gaps, lo - 1, hi + 1);
+    for (const g of this.stage.gates) if (g > lo - 30 && g < hi + 30) drawGate(c, g, Math.round(g));
+    roadMarkings(c, this.stage, lo - 50, hi + 50);
+    for (const f of this.stage.furniture) if (!f.near && f.x > lo - 60 && f.x < hi + 60) drawFurniture(c, f);
+    return canvas;
+  }
+
+  /** Width of the whole distant layer in logical pixels. */
+  get distantWidth(): number { return Math.ceil(WIDTH + this.stage.length * DISTANT_PARALLAX) + 8; }
+  get distantSegments(): number { return Math.ceil(this.distantWidth / DISTANT_SEGMENT); }
+  private readonly distantCache = new Map<number, HTMLCanvasElement>();
+
+  /**
+   * Smooth mode only: one DISTANT_SEGMENT-wide slice of the ridge, rooftops and treeline, drawn CHUNK_PAD wider each side.
+   * At 3x the whole layer would be ~15,000 device pixels across, more than a mobile texture can hold, so it comes in slices.
+   */
+  distantSegment(i: number): HTMLCanvasElement {
+    let canvas = this.distantCache.get(i);
+    if (canvas) return canvas;
+    const S = this.scale, pad = CHUNK_PAD, xa = i * DISTANT_SEGMENT - pad, xb = (i + 1) * DISTANT_SEGMENT + pad;
+    canvas = document.createElement('canvas');
+    canvas.width = (xb - xa) * S;
+    canvas.height = (HORIZON + 2) * S;
+    const c = canvas.getContext('2d')!;
+    beginArt(c, S);
+    c.translate(-xa, 0);
+    const bottom = HORIZON + 2;
+    const ridgeAt = (x: number) => HORIZON - 30 - noise(x * 0.004, 1) * 20 - noise(x * 0.021, 2) * 6;
+    c.beginPath(); c.moveTo(xa, bottom);
+    for (let x = xa; x <= xb; x += 2) c.lineTo(x, ridgeAt(x));
+    c.lineTo(xb, bottom); c.closePath();
+    c.fillStyle = vgrad(c, HORIZON - 56, bottom, [[0, '#b6cbc0'], [1, '#a2bcb0']]);
+    c.fill();
+    // Rooftops. The run is sequential from x=0, so replay it from the start and draw what falls in this slice.
+    for (let x = 0; x < this.distantWidth;) {
+      const w = 18 + Math.round(rand(x, 1) * 26), h = 8 + Math.round(rand(x, 2) * 12);
+      if (rand(x, 3) > 0.35 && x + w + 3 > xa && x - 3 < xb) {
+        const top = HORIZON - 8 - h;
+        fill(c, x, top, w, h + 10, vgrad(c, top, top + h + 10, [[0, '#b3c1b8'], [1, '#a5b6ac']]));
+        poly(c, [[x - 2, top + 1], [x + w + 2, top + 1], [x + w / 2, top - 6 - rand(x, 4) * 5]], '#9db0a9');
+        for (let k = 3; k < w - 3; k += 6) fill(c, x + k, top + 4, 1.6, 1.6, '#93a7a3');
+      }
+      x += w + 6 + Math.round(rand(x, 5) * 30);
+    }
+    // Treeline: a soft, lumpy edge with a lighter rim and darker mass.
+    const treeAt = (x: number) => HORIZON - 9 - noise(x * 0.035, 3) * 11 - noise(x * 0.16, 4) * 4;
+    c.beginPath(); c.moveTo(xa, bottom);
+    for (let x = xa; x <= xb; x += 1) c.lineTo(x, treeAt(x));
+    c.lineTo(xb, bottom); c.closePath();
+    c.fillStyle = vgrad(c, HORIZON - 24, bottom, [[0, '#9dbca6'], [0.5, '#88a891'], [1, '#7c9c86']]);
+    c.fill();
+    c.strokeStyle = 'rgba(200, 224, 204, 0.55)'; c.lineWidth = 0.7;
+    c.beginPath();
+    for (let x = xa; x <= xb; x += 1) x === xa ? c.moveTo(x, treeAt(x)) : c.lineTo(x, treeAt(x));
+    c.stroke();
+    for (let x = Math.floor(xa); x < xb; x += 2) {
+      if (rand(x, 6) > 0.55) ellipse(c, x, treeAt(x) + 2 + rand(x, 7) * 6, 1.6, 1.1, 'rgba(96, 130, 106, 0.6)');
+    }
+    this.distantCache.set(i, canvas);
     return canvas;
   }
 
@@ -1018,13 +1182,25 @@ export class Backdrop {
   }
 }
 
-/** A dithered afternoon sky: pale blue overhead, warm towards the horizon. */
-export function bakeSky(): HTMLCanvasElement {
+/** A dithered afternoon sky: pale blue overhead, warm towards the horizon. Smooth mode paints a true gradient at `scale`. */
+export function bakeSky(scale = 1): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
-  canvas.width = WIDTH;
-  canvas.height = HORIZON + 4;
+  const smooth = isSmooth(), S = smooth ? scale : 1;
+  canvas.width = WIDTH * S;
+  canvas.height = (HORIZON + 4) * S;
   const c = canvas.getContext('2d')!;
   const stops: Array<[number, string]> = [[0, '#6fa6cc'], [0.45, '#9dc6dc'], [0.8, '#d5e0d2'], [1, '#f1dfba']];
+  if (smooth) {
+    beginArt(c, S);
+    fill(c, 0, 0, WIDTH, HORIZON + 4, vgrad(c, 0, HORIZON + 4, stops));
+    // Two faint, wide bands of lighter haze, and a whisper of grain so the gradient doesn't band on 8-bit screens.
+    fill(c, 0, HORIZON - 40, WIDTH, 44, vgrad(c, HORIZON - 40, HORIZON + 4, [[0, 'rgba(255, 244, 220, 0)'], [1, 'rgba(255, 244, 220, 0.35)']]));
+    grain(c, 0, 0, WIDTH, HORIZON + 4, 0.03);
+    // The afternoon sun, low over the Sound to the right.
+    fill(c, 430 - 90, 58 - 90, 180, 180, rgrad(c, 430, 58, 90, [[0, 'rgba(255, 244, 205, 0.75)'], [0.18, 'rgba(255, 240, 196, 0.42)'], [0.5, 'rgba(255, 236, 190, 0.12)'], [1, 'rgba(255, 236, 190, 0)']]));
+    disc(c, 430, 58, 9, '#fff6d8');
+    return canvas;
+  }
   const colour = (t: number) => {
     for (let k = 1; k < stops.length; k++) if (t <= stops[k][0]) return mix(stops[k - 1][1], stops[k][1], (t - stops[k - 1][0]) / (stops[k][0] - stops[k - 1][0]));
     return stops[stops.length - 1][1];
@@ -1049,11 +1225,13 @@ export function bakeSky(): HTMLCanvasElement {
 }
 
 /** A strip of flat-bottomed clouds that tiles horizontally. */
-export function bakeClouds(): HTMLCanvasElement {
+export function bakeClouds(scale = 1): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
-  canvas.width = WIDTH * 2;
-  canvas.height = 110;
+  const S = isSmooth() ? scale : 1;
+  canvas.width = WIDTH * 2 * S;
+  canvas.height = 110 * S;
   const c = canvas.getContext('2d')!;
+  if (S !== 1 || isSmooth()) beginArt(c, S);
   for (let i = 0; i < 7; i++) {
     const cx = 60 + i * 136 + rand(i, 1) * 40, cy = 34 + rand(i, 2) * 50, w = 34 + rand(i, 3) * 40;
     const puffs: Array<[number, number, number]> = [];
