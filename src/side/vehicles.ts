@@ -1,5 +1,6 @@
 import type { Car } from './game';
 import { disc, ellipse, poly, rect, seg, text, textWidth } from './pixel';
+import { t as tr } from './i18n';
 
 // Cars in side view: D.D's blue BMW saloon and the Swedish police's Volvo estate. Parts are laid
 // out for a car heading right, with y measured up from the tyre line, and mirrored for a car heading left.
@@ -133,7 +134,7 @@ function driver(c: CanvasRenderingContext2D, [x, y]: [number, number], dir: 1 | 
     seg(c, X + 3 * dir, Y + 4, X + 9 * dir, Y + 9, 2, DD.skin);
   }
   if (t > 0.15) {
-    const label = delivery ? 'D.D · 100 KR' : t < 1.1 ? 'D.D!' : 'LYCKA TILL';
+    const label = delivery ? tr('car.dd') : t < 1.1 ? tr('car.hey') : tr('car.luck');
     const w = textWidth(label) + 8, bx = X - Math.round(w / 2), by = Y - 22;
     rect(c, bx - 1, by - 1, w + 2, 11, '#141820');
     rect(c, bx, by, w, 9, '#fbf7ea');

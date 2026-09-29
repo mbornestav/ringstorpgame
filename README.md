@@ -14,6 +14,21 @@ Turns preserve your package, health, cleared crews, score and Marcus checkpoint.
 
 Crews wait where they hang around on the map. When you reach one, the screen stops scrolling until you've shaken them off, and bigger crews call for backup. A final crew, led by a boss, waits outside the terrace on Ringstorpsvägen: beat them and step up to the door. The markers show a **?** over the package, googly eyes over Marcus A, a green **+** over Kurir Livs, and a star over Home. The strip along the bottom shows the junctions, stops and remaining crews. Your best score is saved in this browser.
 
+## Level 2: the Gods run
+
+Pick **LEVEL 2 · GODS RUN** on the title screen. D.D rings: he wants Marcus at **Kurirgatan 28D** to carry some "Gods" (contraband) home. There is no fighting in this level; it's about sneaking.
+
+1. **Go in** through the door of 28D (E), cross the hall to **Superhissen** and press E. Choose a floor with **0-8** or by clicking a button on the lift panel (**BV** is the ground floor). Every floor works, and each has its own few random neighbours to talk to (E). D.D waits on the **8th floor**, where he hands you the Gods.
+2. **Ride back down** and head out. Then carry the Gods home along Kurirgatan: past a row of garages, **four brick blocks**, **Kurir Livs** and the **school**, to **Ringstorpsvägen 55B**. Stand at the door and press E to hand them over.
+3. **Patrols** watch the street. The yellow cone shows where an officer is looking; a **?** and a filling bar mean they're getting suspicious, and a **!** means a chase. They only care while the Gods are on your back. Hold **Shift** to sneak (slower, but you're much harder to see), or crouch behind a hedge, bin, garage door or bush by sneaking to a stop there: you're nearly invisible. Press **E** at cover to **stash** the Gods and again to collect them, though a searching officer who passes close to your stash will find it. Jumping or dodging (**K**) slips out of a grab.
+4. **If you're caught**, the Gods are confiscated and you pay a **150 kr** fine, then you start over outside 28D with a new load.
+
+Delivering pays **300 kr**, plus 100 kr more for each assignment you've done in a row (up to 800 kr), and there's one more patrol on the street each time, up to six. Pick **NEXT ASSIGNMENT** to go again. Your cash is saved in the browser and is shared with Level 1, where it pays for D.D's refills.
+
+## Language
+
+The **SV / EN** button in the header switches the whole game between English and Swedish. The choice is saved in the browser. All text lives in `src/side/i18n.ts`; game state stores keys, so text is translated when it's shown. Signs painted into the street (Kurir Livs, ICA, POLIS, HEM 55B, HUNDFÖRBUD) stay Swedish in both languages.
+
 ## Run
 
 ```sh
@@ -48,6 +63,8 @@ The script uses `ssh/dproxy_key.pem` to deploy as `azureuser`, installs an atomi
 | Esc | Pause or resume |
 | M | Toggle sound |
 | Enter | Start, continue from Marcus A, or replay |
+| Shift | Level 2: sneak |
+| 0-8 | Level 2: choose a floor in the lift |
 
 Blows only land on someone in the same lane, so line up before you swing. A **!** means an attack is coming. Bruisers and the boss shrug off jabs while winding up, so dodge, jump clear, or finish the combo with the hook.
 
@@ -55,7 +72,7 @@ Blows only land on someone in the same lane, so line up before you swing. A **!*
 
 Press **F**, or click the **GH337** button, to pull up your Ericsson GH337 at any point during a live run, including fights and before package pickup. Its handset follows the supplied reference: long antenna, round earpiece, green LCD, blue display surround and oval keys. Press **YES** to auto-dial **D.D**, with **042218626** visible throughout dialing, ringing and the call. Calls are free. D.D comes to your position in his BMW on roads, or on foot at the kiosk and on paths. He follows you around street corners. You can pocket the phone while he travels; the fight pauses while the handset is open. **NO**, **F** or **Esc** puts it away; **Cancel call / visit** cancels the request.
 
-When he arrives, use **F** (or **E** nearby) to review his offer: **100 kr to refill to 8 rounds**, including the handgun if needed. Press YES or the purchase button to confirm; nothing is charged automatically. A full load or insufficient cash disables the purchase, and you can send him away without paying. You start with **200 kr** and earn **50 kr per cleared crew**. Your cash is shown beside the phone button and on the offer. New runs reset your wallet; turns and checkpoint continues preserve it.
+When he arrives, use **F** (or **E** nearby) to review his offer: **100 kr to refill to 8 rounds**, including the handgun if needed. Press YES or the purchase button to confirm; nothing is charged automatically. A full load or insufficient cash disables the purchase, and you can send him away without paying. You start with **200 kr** and earn **50 kr per cleared crew**. Your cash is shown beside the phone button and on the offer. Your wallet is saved in the browser between runs and is shared with Level 2.
 
 Now and then, on an open stretch of road, D.D's blue 90s BMW also passes by. Wave it down with **E** while it's close and he pulls over. The first chance encounter still provides his free handgun with 8 rounds; subsequent refills cost the same 100 kr. If you miss him, he comes round again later. The prompt at the top of the screen tells you when he's in reach.
 

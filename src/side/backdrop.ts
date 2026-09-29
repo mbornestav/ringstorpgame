@@ -2,6 +2,7 @@ import { FACADE_PX_PER_M, FRONTAGE_Y, HEIGHT, KERB_Y, NEAR_KERB_Y, WIDTH } from 
 import { disc, ellipse, mix, noise, pick, poly, rand, rect, rgb, seg, shade, text, textWidth } from './pixel';
 import type { Facade, FrontKind, Furniture, Run, SideStreet, Stage, Surface, Tree } from './stage';
 import { drawThaeo } from './graffiti';
+import { LEVEL2_ROLES, drawLevel2Facade, level2Box } from './level2-art';
 
 // The static scenery, baked into chunks as the camera approaches. The sky rows stay transparent
 // so the distant ridge and the clouds show through.
@@ -21,6 +22,7 @@ export interface FacadeBox { x0: number; x1: number; base: number; floor: number
 
 /** Where a facade sits on screen: its ground line, eaves and the top of its roof. */
 export function facadeBox(f: Facade): FacadeBox {
+  if (f.role && LEVEL2_ROLES.has(f.role)) return level2Box(f);
   const k = f.row === 0 ? 1 : BACK_SCALE;
   const cx = (f.x0 + f.x1) / 2, w = (f.x1 - f.x0) * k;
   const a = f.appearance;
@@ -63,7 +65,7 @@ function paletteOf(f: Facade): Palette {
   return { wall, roof, material: 'wood', trim: '#f4f1e6', door };
 }
 
-function brick(c: CanvasRenderingContext2D, x0: number, y0: number, w: number, h: number, color: string, seed: number): void {
+export function brick(c: CanvasRenderingContext2D, x0: number, y0: number, w: number, h: number, color: string, seed: number): void {
   rect(c, x0, y0, w, h, color);
   const mortar = mix(color, '#e8e0d0', 0.35), dark = shade(color, 0.86), light = mix(color, '#fff0d8', 0.12);
   for (let y = y0, row = 0; y < y0 + h; y += 3, row++) {
@@ -76,7 +78,7 @@ function brick(c: CanvasRenderingContext2D, x0: number, y0: number, w: number, h
   }
 }
 
-function plaster(c: CanvasRenderingContext2D, x0: number, y0: number, w: number, h: number, color: string, seed: number): void {
+export function plaster(c: CanvasRenderingContext2D, x0: number, y0: number, w: number, h: number, color: string, seed: number): void {
   rect(c, x0, y0, w, h, color);
   const dark = shade(color, 0.94), light = mix(color, '#ffffff', 0.25);
   for (let i = 0, n = Math.floor(w * h / 14); i < n; i++) {
@@ -91,7 +93,7 @@ function boards(c: CanvasRenderingContext2D, x0: number, y0: number, w: number, 
   else for (let y = y0 + 3; y < y0 + h; y += 3) { rect(c, x0, y, w, 1, line); rect(c, x0, y - 1, w, 1, light); }
 }
 
-function windowAt(c: CanvasRenderingContext2D, cx: number, top: number, ww: number, wh: number, frame: string, seed: number, opts: { shutters?: string; cross?: boolean; plain?: boolean; panes?: number } = {}): void {
+export function windowAt(c: CanvasRenderingContext2D, cx: number, top: number, ww: number, wh: number, frame: string, seed: number, opts: { shutters?: string; cross?: boolean; plain?: boolean; panes?: number } = {}): void {
   const x0 = Math.round(cx - ww / 2), y0 = Math.round(top);
   if (opts.shutters) { rect(c, x0 - 5, y0 - 1, 4, wh + 2, opts.shutters); rect(c, x0 + ww + 1, y0 - 1, 4, wh + 2, opts.shutters); }
   rect(c, x0 - 1, y0 - 1, ww + 2, wh + 2, frame);
@@ -107,7 +109,7 @@ function windowAt(c: CanvasRenderingContext2D, cx: number, top: number, ww: numb
   rect(c, x0 - 2, y0 + wh + 1, ww + 4, 1, shade(frame, 0.7));
 }
 
-function doorAt(c: CanvasRenderingContext2D, cx: number, floor: number, dw: number, dh: number, color: string, frame: string): void {
+export function doorAt(c: CanvasRenderingContext2D, cx: number, floor: number, dw: number, dh: number, color: string, frame: string): void {
   const x0 = Math.round(cx - dw / 2);
   rect(c, x0 - 1, floor - dh - 1, dw + 2, dh + 1, frame);
   rect(c, x0, floor - dh, dw, dh, color);
@@ -117,7 +119,7 @@ function doorAt(c: CanvasRenderingContext2D, cx: number, floor: number, dw: numb
   rect(c, x0 + dw + 2, floor - dh + 2, 2, 2, '#f3e2a2');
 }
 
-function chimney(c: CanvasRenderingContext2D, x: number, roofY: number, h: number, color = '#8e4a3a'): void {
+export function chimney(c: CanvasRenderingContext2D, x: number, roofY: number, h: number, color = '#8e4a3a'): void {
   rect(c, x - 1, roofY - h - 1, 8, 2, '#6b6b6b');
   rect(c, x, roofY - h + 1, 6, h, color);
   rect(c, x, roofY - h + 1, 1, h, shade(color, 0.8));
@@ -126,6 +128,7 @@ function chimney(c: CanvasRenderingContext2D, x: number, roofY: number, h: numbe
 
 /** A front elevation: the wall, its roof, windows and door. */
 export function drawFacade(c: CanvasRenderingContext2D, f: Facade): void {
+  if (f.role && LEVEL2_ROLES.has(f.role)) { drawLevel2Facade(c, f); return; }
   if (f.role === 'kurir') { drawKurirLivs(c, f); return; }
   if (f.reference) { drawReferenceFacade(c, f); return; }
   const b = facadeBox(f), pal = paletteOf(f), a = f.appearance;

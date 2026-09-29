@@ -1,5 +1,6 @@
 import { CLIP, DD_CONTACT, DD_NUMBER, REFILL_PRICE, type SideGame } from './game';
 import { rect, text, textWidth } from './pixel';
+import { getLang, t } from './i18n';
 import './phone.css';
 
 const PW = 60, PH = 136;
@@ -56,22 +57,22 @@ export class PhoneUI {
     this.dialog = document.createElement('aside');
     this.dialog.className = 'phone-drawer';
     this.dialog.setAttribute('role', 'dialog');
-    this.dialog.setAttribute('aria-label', 'Ericsson GH337 phone');
+    this.dialog.setAttribute('aria-label', t('ph.dialog'));
     this.dialog.inert = true;
     this.dialog.innerHTML = `
       <div class="phone-layout">
-        <div class="handset-space" role="group" aria-label="Ericsson GH337 handset">
+        <div class="handset-space" role="group" aria-label="${t('ph.handset')}">
           <canvas class="handset" width="${PW}" height="${PH}" aria-hidden="true"></canvas>
-          <button type="button" class="phone-key phone-yes" aria-label="Call D.D"></button>
-          <button type="button" class="phone-key phone-no" aria-label="Put phone away"></button>
+          <button type="button" class="phone-key phone-yes" aria-label="${t('ph.callAria')}"></button>
+          <button type="button" class="phone-key phone-no" aria-label="${t('ph.away')}"></button>
           <div class="sr-only"><strong class="lcd-contact">${DD_CONTACT}</strong> <span class="lcd-number">${DD_NUMBER}</span> <span class="lcd-status" aria-live="polite"></span></div>
         </div>
         <div class="phone-copy">
           <p class="phone-wallet"></p>
           <p class="phone-hint" aria-live="polite"></p>
-          <button type="button" class="primary-button phone-action">CALL D.D</button>
-          <button type="button" class="phone-cancel" hidden>Cancel visit</button>
-          <button type="button" class="phone-pocket">PUT AWAY <kbd>F</kbd> / <kbd>ESC</kbd></button>
+          <button type="button" class="primary-button phone-action">${t('ph.call')}</button>
+          <button type="button" class="phone-cancel" hidden>${t('ph.cancelVisit')}</button>
+          <button type="button" class="phone-pocket">${t('ph.putAway')}</button>
           <span class="phone-rounds"></span>
         </div>
       </div>`;
@@ -92,6 +93,16 @@ export class PhoneUI {
     });
     this.cancel.addEventListener('click', () => { onInput(); game.dismissDD(); this.sync(); });
     this.dialog.querySelectorAll('.phone-no, .phone-pocket').forEach(button => button.addEventListener('click', () => this.close()));
+  }
+
+  /** Re-applies the static text after a language change. */
+  relabel(): void {
+    this.dialog.setAttribute('aria-label', t('ph.dialog'));
+    this.dialog.querySelector('.handset-space')!.setAttribute('aria-label', t('ph.handset'));
+    this.dialog.querySelector('.phone-no')!.setAttribute('aria-label', t('ph.away'));
+    this.dialog.querySelector('.phone-pocket')!.innerHTML = t('ph.putAway');
+    this.lcdKey = '';
+    this.sync();
   }
 
   toggle(): void {
@@ -121,32 +132,32 @@ export class PhoneUI {
       this.previousFocus?.focus({ preventScroll: true });
     }
     if (!visible) return;
-    let status = 'READY', hint = 'Press YES to call. D.D will come to you.', action = 'CALL D.D', disabled = false;
-    if (g.phoneCall === 'dialing') { status = 'DIALING...'; hint = 'Dialing D.D automatically…'; disabled = true; }
-    else if (g.phoneCall === 'ringing') { status = 'RINGING...'; hint = 'Calling D.D…'; disabled = true; }
-    else if (g.phoneCall === 'connected') { status = 'CONNECTED'; hint = `“On my way. A refill is ${REFILL_PRICE} kr.”`; disabled = true; }
+    let status = t('ph.ready'), hint = t('ph.hintReady'), action = t('ph.call'), disabled = false;
+    if (g.phoneCall === 'dialing') { status = t('ph.dialing'); hint = t('ph.hintDialing'); disabled = true; }
+    else if (g.phoneCall === 'ringing') { status = t('ph.ringing'); hint = t('ph.hintRinging'); disabled = true; }
+    else if (g.phoneCall === 'connected') { status = t('ph.connected'); hint = t('ph.hintConnected', { price: REFILL_PRICE }); disabled = true; }
     if (g.delivery) {
-      action = 'D.D IS ON HIS WAY'; disabled = true;
-      if (g.delivery.state === 'leaving') { status = 'SEE YOU'; hint = 'D.D is heading off. Call again whenever you need him.'; action = 'SEE YOU, D.D'; }
+      action = t('ph.hisWay'); disabled = true;
+      if (g.delivery.state === 'leaving') { status = t('ph.seeYou'); hint = t('ph.hintLeaving'); action = t('ph.bye'); }
       else if (g.dealerNearby) {
-        status = 'D.D IS HERE'; action = `BUY REFILL · ${REFILL_PRICE} KR`;
-        hint = g.ammo >= CLIP ? 'Already fully loaded. Save your money.' : g.cash < REFILL_PRICE ? `You need ${REFILL_PRICE - g.cash} more kr. Clear crews to earn cash.` : '“Got your bullets. Want a refill?”';
+        status = t('ph.here'); action = t('ph.buy', { price: REFILL_PRICE });
+        hint = g.ammo >= CLIP ? t('ph.hintFull') : g.cash < REFILL_PRICE ? t('ph.hintBroke', { more: REFILL_PRICE - g.cash }) : t('ph.hintOffer');
         disabled = !g.canBuyAmmo;
-      } else if (g.phoneCall === 'idle') { status = 'ON MY WAY'; hint = 'D.D is coming to you. You can put the phone away and keep moving.'; }
-    } else if (disabled) action = 'CALLING D.D…';
-    if (this.receipt) { status = 'REFILLED'; hint = `${CLIP} rounds loaded. ${REFILL_PRICE} kr paid. Press I to shoot when you’re back on the street.`; }
+      } else if (g.phoneCall === 'idle') { status = t('ph.onMyWay'); hint = t('ph.hintComing'); }
+    } else if (disabled) action = t('ph.calling');
+    if (this.receipt) { status = t('ph.refilled'); hint = t('ph.hintRefilled', { clip: CLIP, price: REFILL_PRICE }); }
     // Don't re-announce unchanged live-region text on every animation frame.
     const setText = (el: HTMLElement, value: string) => { if (el.textContent !== value) el.textContent = value; };
     setText(this.status, status);
-    const lcdKey = status;
+    const lcdKey = `${getLang()}:${status}`;
     if (lcdKey !== this.lcdKey) { this.lcdKey = lcdKey; drawHandset(this.handset, { contact: DD_CONTACT, number: DD_NUMBER, status }); }
     setText(this.hint, hint);
-    setText(this.wallet, `YOUR CASH  ${g.cash} KR`);
-    setText(this.rounds, `Currently carrying ${g.ammo} / ${CLIP} rounds`);
+    setText(this.wallet, t('ph.wallet', { cash: g.cash }));
+    setText(this.rounds, t('ph.carrying', { ammo: g.ammo, clip: CLIP }));
     setText(this.action, action);
     this.yes.disabled = this.action.disabled = disabled;
-    this.yes.setAttribute('aria-label', g.dealerNearby ? `Buy refill for ${REFILL_PRICE} kr` : 'Call D.D');
+    this.yes.setAttribute('aria-label', g.dealerNearby ? t('ph.buyAria', { price: REFILL_PRICE }) : t('ph.callAria'));
     this.cancel.hidden = (!g.delivery || g.delivery.state === 'leaving') && g.phoneCall === 'idle';
-    setText(this.cancel, g.dealerNearby ? 'No thanks · send D.D away' : 'Cancel call / visit');
+    setText(this.cancel, t(g.dealerNearby ? 'ph.sendAway' : 'ph.cancelCall'));
   }
 }

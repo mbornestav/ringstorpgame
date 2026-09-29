@@ -121,7 +121,7 @@ describe('Ericsson GH337 and paid D.D visits', () => {
     expect(g.dealerNearby).toBe(true); expect(g.cash).toBe(STARTING_CASH);
   });
 
-  it('pays each cleared crew once and resets the phone and wallet for a new run', () => {
+  it('pays each cleared crew once, keeps the wallet, and resets the phone for a new run', () => {
     const g = start();
     const crew = g.stage.encounters.find(e => !e.home)!;
     g.active = { ...crew, backup: [] }; g.encounters.set(crew.id, 'active');
@@ -129,7 +129,7 @@ describe('Ericsson GH337 and paid D.D visits', () => {
     g.update(0.025); advance(g, 1);
     expect(g.cash).toBe(STARTING_CASH + CREW_CASH);
     request(g); advance(g, 6); expect(g.buyAmmo()).toBe(true);
-    g.start(); expect(g.cash).toBe(STARTING_CASH); expect(g.ammo).toBe(0);
+    g.start(); expect(g.cash).toBe(STARTING_CASH + CREW_CASH - REFILL_PRICE); expect(g.ammo).toBe(0);
     expect(g.phoneOpen).toBe(false); expect(g.phoneCall).toBe('idle'); expect(g.delivery).toBeNull();
   });
 

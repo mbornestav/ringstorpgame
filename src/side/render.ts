@@ -4,6 +4,10 @@ import type { Effect, Officer, SideEnemy, SideGame, SidePlayer } from './game';
 import { drawCar, drawPortrait } from './vehicles';
 import { BAND_TOP, HEIGHT, WIDTH } from './layout';
 import { disc, ellipse, rand, rect, seg, text, textWidth } from './pixel';
+import { t } from './i18n';
+import { drawProp, drawRoom } from './interior';
+import { ARCHETYPE } from './gods-cast';
+import { SIGHT_RANGE, type Patrol } from './gods-run';
 import type { Facade, Stage } from './stage';
 
 export { WIDTH, HEIGHT } from './layout';
@@ -48,6 +52,7 @@ export class SideRenderer {
 
   render(game: SideGame, dt: number): void {
     this.elapsed += dt;
+    if (game.level === 2 && game.gods.scene !== 'street' && game.mode !== 'title') { this.renderInterior(game); return; }
     const stage = game.stage, bd = this.backdrop(stage), c = this.c;
     if (game.mode === 'title') this.attract = (this.attract + dt * 26) % Math.max(1, stage.length - WIDTH);
     const cam = Math.round(game.mode === 'title' ? this.attract : game.camera);
@@ -94,7 +99,7 @@ export class SideRenderer {
     for (const junction of stage.junctions) {
       const x = Math.round(junction.x - cam);
       if (x < -90 || x > WIDTH + 90) continue;
-      const label = junction.id === 'romares' ? 'MARCUS A +' : 'KURIR LIVS +';
+      const label = t(junction.id === 'romares' ? 'cv.marcus' : 'cv.kurir');
       const street = junction.id === 'romares' ? 'ROMARES VÄG' : 'KURIRGATAN';
       const w = Math.max(textWidth(label), textWidth(street)) + 17;
       rect(c, x - 1, 122, 3, 47, '#616e6b');
@@ -104,10 +109,10 @@ export class SideRenderer {
       text(c, street, x - w / 2 + 4, 126, '#d5e0cc');
       text(c, label, x - w / 2 + 4, 135, '#f8e2aa');
       rect(c, x - 25, 146, 50, 11, '#eee6d0');
-      text(c, 'HOME >', x - 17, 149, '#334b45');
+      text(c, t('cv.home'), x - 17, 149, '#334b45');
       if (game.junctionAhead?.id === junction.id) this.hint(x, bob);
     }
-    if (stage.shopX !== null) {
+    if (stage.shopX !== null && game.level === 1) {
       // Beside the entrance: keep the ICA and Kurir Livs signs readable.
       const door = Math.round(stage.shopX - cam), x = door + 63, y = BAND_TOP - 25 + bob;
       if (x > -20 && x < WIDTH + 20) {
@@ -176,7 +181,9 @@ export class SideRenderer {
     const officers = game.police.filter(o => o.x > cam - 60 && o.x < cam + WIDTH + 60);
     for (const o of officers) this.shadow(o.x - cam, o.y, o.z, 9);
     this.shadow(p.x - cam, p.y, p.z, 9);
-    if (!game.hasPackage) this.shadow(game.stage.package.x - cam, game.stage.package.y, 0, 8);
+    if (game.level === 1 && !game.hasPackage) this.shadow(game.stage.package.x - cam, game.stage.package.y, 0, 8);
+    const patrols = game.level === 2 ? game.gods.patrols.filter(o => o.x > cam - 60 && o.x < cam + WIDTH + 60) : [];
+    for (const o of patrols) this.shadow(o.x - cam, o.y, 0, 9);
 
     this.trail = this.trail.filter(t => (t.t += dt) < 0.18);
     if (p.dodgeTimer > 0 && game.mode === 'playing') this.trail.push({ x: p.x, y: p.y, z: p.z, facing: p.facing, t: 0 });
@@ -194,10 +201,13 @@ export class SideRenderer {
     }
     for (const e of enemies) actors.push({ y: e.y, x: e.x, draw: () => this.drawEnemy(e, cam) });
     for (const o of officers) actors.push({ y: o.y, x: o.x, draw: () => this.drawOfficer(o, cam) });
+    for (const o of patrols) actors.push({ y: o.y, x: o.x, draw: () => this.drawPatrol(game, o, cam) });
+    const run = game.gods;
+    if (game.level === 2 && run.cargo === 'stashed' && run.stashX !== null) actors.push({ y: BAND_TOP + 1, x: run.stashX, draw: () => this.drawPackage(run.stashX! - cam, BAND_TOP + 8) });
     // A car covers anyone standing behind its tyre line.
     for (const car of game.cars) if (car.x > cam - 90 && car.x < cam + WIDTH + 90) actors.push({ y: car.y + 0.5, x: car.x, draw: () => drawCar(c, car, car.x - cam, this.elapsed) });
     actors.push({ y: p.y + 0.1, x: p.x, draw: () => this.drawPlayer(game, p, cam) });
-    if (!game.hasPackage) actors.push({ y: game.stage.package.y, x: game.stage.package.x, draw: () => this.drawPackage(game.stage.package.x - cam, game.stage.package.y) });
+    if (game.level === 1 && !game.hasPackage) actors.push({ y: game.stage.package.y, x: game.stage.package.x, draw: () => this.drawPackage(game.stage.package.x - cam, game.stage.package.y) });
     actors.sort((a, b) => a.y - b.y || a.x - b.x);
     for (const a of actors) a.draw();
     c.globalAlpha = 1;
@@ -217,9 +227,11 @@ export class SideRenderer {
       drawFighter(c, t.x - cam, t.y, t.z, t.facing, LOOKS.player, POSES.dodge(), { ...opts, tint: '#86d5c7' });
     }
     c.globalAlpha = 1;
+    if (game.level === 2 && game.gods.hidden) c.globalAlpha = 0.5;
     const blink = p.invulnerable > 0 && p.dodgeTimer <= 0 && p.downTimer <= 0 && Math.floor(this.elapsed * 18) % 2 === 0;
     if (blink && game.mode === 'playing') return;
     drawFighter(c, p.x - cam, p.y, p.z, p.facing, LOOKS.player, pose, { ...opts, tint: p.flash > 0 ? FLASH : undefined });
+    c.globalAlpha = 1;
     // A swish behind the big hits.
     if ((p.attackTimer > 0 && p.combo === 3) || (p.kick && p.z > 3)) {
       const x = p.x - cam + p.facing * (p.kick ? 20 : 16), y = p.y - p.z - (p.kick ? 20 : 30);
@@ -302,6 +314,67 @@ export class SideRenderer {
     }
   }
 
+  /** A patrol officer: the watched cone in front of them, a question mark as they grow suspicious, an exclamation when they chase. */
+  private drawPatrol(game: SideGame, o: Patrol, cam: number): void {
+    const c = this.c, x = Math.round(o.x - cam);
+    let pose: Pose;
+    switch (o.state) {
+      case 'walk': case 'chase': pose = POSES.walk(o.walk); break;
+      case 'grab': pose = POSES.grab(); break;
+      case 'wait': case 'alert': pose = POSES.loiter(this.elapsed + o.id); break;
+      default: pose = POSES.idle(this.elapsed + o.id);
+    }
+    const watching = o.state === 'walk' || o.state === 'wait' || o.state === 'alert';
+    if (watching) {
+      const reach = SIGHT_RANGE * (game.sneaking ? 0.55 : 1);
+      c.fillStyle = `rgba(255, 236, 140, ${0.09 + Math.min(1, o.suspicion) * 0.2})`;
+      c.beginPath();
+      c.moveTo(x + o.facing * 6, o.y - 38); c.lineTo(x + o.facing * reach, o.y - 52); c.lineTo(x + o.facing * reach, o.y + 4); c.closePath(); c.fill();
+    }
+    drawFighter(c, x, o.y, 0, o.facing, LOOKS.police, pose, { tint: o.flash > 0 ? FLASH : undefined });
+    const top = o.y - LOOKS.police.height - 8;
+    if (o.state === 'alert' || o.state === 'search' || o.state === 'grab' || o.state === 'chase') {
+      c.font = 'bold 12px monospace';
+      const mark = o.state === 'alert' || o.state === 'search' ? '?' : '!';
+      c.fillStyle = '#10181f'; c.fillText(mark, x - 2, top + 1);
+      c.fillStyle = mark === '?' ? '#fff1b8' : '#ef4e45'; c.fillText(mark, x - 3, top);
+    }
+    if (o.suspicion > 0.02 && watching) {
+      rect(c, x - 10, top - 10, 21, 3, '#273942');
+      rect(c, x - 9, top - 9, Math.round(19 * Math.min(1, o.suspicion)), 1, o.suspicion > 0.7 ? '#e36e61' : '#f2be64');
+    }
+  }
+
+  /** The lobby, the lift and the corridors of Kurirgatan 28. */
+  private renderInterior(game: SideGame): void {
+    const c = this.c, run = game.gods, p = game.player;
+    const sx = run.ride ? Math.round((rand(this.elapsed * 60, 1) - 0.5) * 2) : 0;
+    c.setTransform(1, 0, 0, 1, sx, 0);
+    drawRoom(c, run, this.elapsed);
+    const actors: Array<{ y: number; draw: () => void }> = [];
+    if (run.scene !== 'cabin') {
+      run.npcs.forEach((n, i) => {
+        const look = n.id === 'dd' ? LOOKS.dd : ARCHETYPE.get(n.id)!.look;
+        this.shadow(n.x, n.y, 0, 9);
+        actors.push({ y: n.y, draw: () => {
+          drawFighter(c, n.x, n.y, 0, n.facing, look, POSES.loiter(this.elapsed + i * 1.7));
+          const prop = ARCHETYPE.get(n.id)?.prop;
+          if (prop) drawProp(c, prop, n.x, n.y, n.facing, this.elapsed);
+          if (n.id === 'dd') { rect(c, n.x - 12, n.y - 60, 25, 11, '#152b2b'); text(c, 'D.D', n.x - 9, n.y - 57, '#d1df9a'); }
+        } });
+      });
+    }
+    this.shadow(p.x, p.y, p.z, 9);
+    actors.push({ y: p.y + 0.1, draw: () => this.drawPlayer(game, p, 0) });
+    actors.sort((a, b) => a.y - b.y);
+    for (const a of actors) a.draw();
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    this.drawAtmosphere();
+    if (game.transition > 0) rect(c, 0, 0, WIDTH, HEIGHT, `rgba(12, 30, 35, ${game.transition / 0.35})`);
+    if (game.mode === 'playing' || game.mode === 'paused') this.drawHud(game, 0, true);
+    this.view = 0;
+  }
+
   private drawPackage(x: number, y: number): void {
     const c = this.c, X = Math.round(x), Y = Math.round(y);
     rect(c, X - 8, Y - 12, 16, 12, '#3a2a22');
@@ -381,13 +454,13 @@ export class SideRenderer {
     c.fillStyle = vignette; c.fillRect(0, 0, WIDTH, HEIGHT);
   }
 
-  private drawHud(game: SideGame, cam: number): void {
+  private drawHud(game: SideGame, cam: number, interior = false): void {
     const c = this.c, stage = game.stage;
     if (game.goTimer > 0 && Math.floor(this.elapsed * 4) % 2 === 0) {
       const x = WIDTH - 74, y = 112;
       c.font = 'bold 26px Impact, "Arial Black", sans-serif';
-      c.fillStyle = '#10181f'; c.fillText('GO', x + 2, y + 2);
-      c.fillStyle = '#f3cc75'; c.fillText('GO', x, y);
+      c.fillStyle = '#10181f'; c.fillText(t('cv.go'), x + 2, y + 2);
+      c.fillStyle = '#f3cc75'; c.fillText(t('cv.go'), x, y);
       c.fillStyle = '#10181f';
       c.beginPath(); c.moveTo(x + 40, y - 20); c.lineTo(x + 58, y - 9); c.lineTo(x + 40, y + 2); c.closePath(); c.fill();
       c.fillStyle = '#ef7a58';
@@ -396,13 +469,23 @@ export class SideRenderer {
     if (game.messageTimer > 0 && game.mode === 'playing') {
       c.globalAlpha = Math.min(1, game.messageTimer * 2);
       c.font = 'bold 10px monospace';
-      const width = Math.min(WIDTH - 24, c.measureText(game.message).width + 26);
-      c.fillStyle = '#102c35e6'; c.fillRect((WIDTH - width) / 2, 40, width, 20);
-      c.strokeStyle = '#eec36e'; c.lineWidth = 1; c.strokeRect((WIDTH - width) / 2 + 0.5, 40.5, width - 1, 19);
-      c.fillStyle = '#f7e8c4'; c.textAlign = 'center'; c.fillText(game.message, WIDTH / 2, 53); c.textAlign = 'left';
-      if (game.message.startsWith('D.D')) drawPortrait(c, Math.round((WIDTH - width) / 2) - 25, 38);
+      // Long lines (Swedish runs longer) wrap onto a second row.
+      const maxText = WIDTH - 64, words = game.message.split(' '), lines: string[] = [];
+      for (const word of words) {
+        const last = lines[lines.length - 1];
+        if (last !== undefined && c.measureText(`${last} ${word}`).width <= maxText) lines[lines.length - 1] = `${last} ${word}`;
+        else lines.push(word);
+      }
+      const width = Math.min(WIDTH - 24, Math.max(...lines.map(l => c.measureText(l).width)) + 26), height = 10 + lines.length * 12 - 2;
+      c.fillStyle = '#102c35e6'; c.fillRect((WIDTH - width) / 2, 40, width, height);
+      c.strokeStyle = '#eec36e'; c.lineWidth = 1; c.strokeRect((WIDTH - width) / 2 + 0.5, 40.5, width - 1, height - 1);
+      c.fillStyle = '#f7e8c4'; c.textAlign = 'center';
+      lines.forEach((l, i) => c.fillText(l, WIDTH / 2, 53 + i * 12));
+      c.textAlign = 'left';
+      if (game.messageFromDD) drawPortrait(c, Math.round((WIDTH - width) / 2) - 25, 38);
       c.globalAlpha = 1;
     }
+    if (interior) return;
     if (game.wanted) {
       // Flashing blue lights: the police are after you.
       const on = Math.floor(this.elapsed * 6) % 2;
@@ -416,7 +499,7 @@ export class SideRenderer {
     if (boss) {
       const x0 = 120, w = 240;
       rect(c, x0 - 8, 253, w + 16, 15, 'rgba(16, 42, 53, 0.86)');
-      text(c, 'THE RINGSTORPSVÄGEN BOSS', x0, 256, '#edc278');
+      text(c, t('cv.boss'), x0, 256, '#edc278');
       rect(c, x0, 263, w, 3, '#273942');
       rect(c, x0, 263, Math.round(w * boss.hp / boss.maxHp), 3, '#e36e61');
       rect(c, x0, 263, Math.round(w * boss.hp / boss.maxHp), 1, '#f5a08e');
@@ -451,7 +534,7 @@ export class SideRenderer {
     const px = toX(game.player.x);
     c.fillStyle = '#86d5c7';
     c.beginPath(); c.moveTo(px - 3, Y - 6); c.lineTo(px + 3, Y - 6); c.lineTo(px, Y - 2); c.closePath(); c.fill();
-    const label = `${Math.round(game.metresToHome)} M HOME`;
+    const label = t('cv.metresHome', { m: Math.round(game.metresToHome) });
     text(c, label, X1 + 10, Y - 2, '#e7dabc');
   }
 }

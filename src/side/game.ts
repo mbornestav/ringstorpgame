@@ -2,6 +2,10 @@ import { computeScore, type Mode } from '../game';
 import { turnRoute, type Route, type JunctionId } from './routes';
 import { BAND_BOTTOM, BAND_TOP, PX_PER_M, WIDTH } from './layout';
 import { stageFor, streetAt, type EnemyKind, type Encounter, type Stage, type StageSpawn } from './stage';
+import { t, type Key, type Params } from './i18n';
+import { STARTING_CASH, loadWallet, saveWallet } from './wallet';
+import { GodsRun, type GodsAction } from './gods-run';
+import { godsStage } from './gods-stage';
 
 export type { EnemyKind } from './stage';
 export type EnemyState = 'idle' | 'walk' | 'windup' | 'strike' | 'recover' | 'hurt' | 'down' | 'rise' | 'ko';
@@ -140,7 +144,7 @@ export const CLIP = 8;
 export const DD_CONTACT = 'D.D';
 export const DD_NUMBER = '042218626';
 export const REFILL_PRICE = 100;
-export const STARTING_CASH = 200;
+export { STARTING_CASH };
 export const CREW_CASH = 50;
 const SHOT_DAMAGE = 2, SHOT_COOLDOWN = 0.3;
 const POLICE_SPEED = 82;
@@ -156,6 +160,11 @@ const OUT = new Set<EnemyState>(['idle', 'down', 'rise', 'ko']);
 
 export class SideGame {
   mode: Mode = 'title';
+  /** 1 is the package run with its crews; 2 is the stealth run carrying Gods. */
+  level: 1 | 2 = 1;
+  /** Held Shift: quieter and slower. Only Level 2 uses it. */
+  sneaking = false;
+  readonly gods = new GodsRun(this);
   route: Route = 'direct';
   stage: Stage = stageFor('direct');
   player!: SidePlayer;
@@ -178,7 +187,8 @@ export class SideGame {
   crewSprung = false;
   score = 0;
   bestScore = 0;
-  message = '';
+  /** The current toast as a key and parameters, so it can be shown in whichever language is active. */
+  private toast: { key: Key; params?: Params } | null = null;
   messageTimer = 0;
   /** Seconds left on the flashing GO arrow after a crew is cleared. */
   goTimer = 0;
@@ -190,7 +200,16 @@ export class SideGame {
   /** Rounds left in D.D's handgun; none means no gun. */
   ammo = 0;
   metDD = false;
-  cash = STARTING_CASH;
+  /** Cash is shared by both levels and saved in the browser between runs. */
+  private wallet = loadWallet();
+  get cash(): number { return this.wallet.cash; }
+  set cash(value: number) {
+    if (value > this.wallet.cash) this.wallet.earned += value - this.wallet.cash;
+    this.wallet.cash = Math.max(0, value);
+    saveWallet(this.wallet);
+  }
+  /** Everything ever earned, across runs. */
+  get earned(): number { return this.wallet.earned; }
   phoneOpen = false;
   phoneCall: 'idle' | 'dialing' | 'ringing' | 'connected' = 'idle';
   delivery: Delivery | null = null;
@@ -224,6 +243,9 @@ export class SideGame {
   }
 
   reset(route: Route = 'direct'): void {
+    this.level = 1;
+    this.sneaking = false;
+    this.gods.reset();
     this.route = route;
     this.stage = stageFor(route);
     const { start } = this.stage;
@@ -248,7 +270,7 @@ export class SideGame {
     this.continues = 0;
     this.crewSprung = false;
     this.score = 0;
-    this.message = '';
+    this.toast = null;
     this.messageTimer = 0;
     this.goTimer = 0;
     this.shake = 0;
@@ -262,7 +284,6 @@ export class SideGame {
     this.police = [];
     this.ammo = 0;
     this.metDD = false;
-    this.cash = STARTING_CASH;
     this.phoneOpen = false;
     this.phoneCall = 'idle';
     this.callTimer = 0;
@@ -275,10 +296,30 @@ export class SideGame {
     this.fines = 0;
   }
 
+  /** Starts the Gods run: an assignment outside Kurirgatan 28D. */
+  startGods(assignment = 1): void {
+    this.reset();
+    this.level = 2;
+    this.stage = godsStage();
+    this.encounters = new Map();
+    this.enemies = [];
+    this.gods.begin(assignment);
+    this.mode = 'playing';
+    this.events.push('start');
+  }
+
+  /** Back to the title screen, with a fresh run behind it. */
+  toTitle(): void {
+    this.reset();
+    this.mode = 'title';
+  }
+
+  setSneak(on: boolean): void { this.sneaking = on && this.level === 2; }
+
   start(route: Route = 'direct'): void {
     this.reset(route);
     this.mode = 'playing';
-    this.say('Pick up the package at Pålsjö kiosk');
+    this.say('msg.start');
     this.events.push('start');
   }
 
@@ -293,37 +334,39 @@ export class SideGame {
     return this.stage.junctions.find(j => !this.decisions.has(j.id) && j.x >= this.player.x - TURN_REACH && j.x <= this.player.x + 280);
   }
 
-  get interaction(): { kind: 'turn' | 'shop' | 'hail' | 'ammo'; label: string } | null {
+  get interaction(): { kind: 'turn' | 'shop' | 'hail' | 'ammo' | GodsAction; label: string } | null {
+    if (this.level === 2) return this.gods.interaction();
     if (this.phoneOpen || this.mode !== 'playing' || this.transition > 0) return null;
     const p = this.player;
     if (p.hp <= 0 || p.z > 0 || p.downTimer > 0 || p.hurtTimer > 0 || p.riseTimer > 0 || p.dodgeTimer > 0 || p.attackTimer > 0 || p.cuffTimer > 0) return null;
-    if (this.dealerNearby) return { kind: 'ammo', label: `D.D · refill to ${CLIP} rounds · ${REFILL_PRICE} kr` };
+    if (this.dealerNearby) return { kind: 'ammo', label: t('act.ammo', { clip: CLIP, price: REFILL_PRICE }) };
     if (!this.hasPackage) return null;
     // Waving down D.D works mid-fight; changing streets or shopping does not.
-    if (this.bmwInReach) return { kind: 'hail', label: 'Wave down the BMW' };
+    if (this.bmwInReach) return { kind: 'hail', label: t('act.hail') };
     if (this.active) return null;
     const j = this.junctionAhead;
-    if (j && Math.abs(p.x - j.x) <= TURN_REACH) return { kind: 'turn', label: `Turn · ${j.turn}` };
+    if (j && Math.abs(p.x - j.x) <= TURN_REACH) return { kind: 'turn', label: t('act.turn', { turn: t(j.turn as Key) }) };
     if (this.stage.shopX !== null && Math.abs(p.x - this.stage.shopX) < 28 && p.y < BAND_TOP + 24) {
-      return { kind: 'shop', label: this.shopHealed ? 'Kurir Livs · supplies collected' : p.hp === p.maxHp ? 'Kurir Livs · health already full' : 'Kurir Livs · refill health' };
+      return { kind: 'shop', label: t(this.shopHealed ? 'act.shopDone' : p.hp === p.maxHp ? 'act.shopFull' : 'act.shop') };
     }
     return null;
   }
 
   /** E is contextual: wave down D.D, take a signed turn, or collect supplies at the shop door. */
   interact(): void {
+    if (this.level === 2) { this.gods.interact(); return; }
     const action = this.interaction;
     if (!action) return;
     if (action.kind === 'ammo') { this.openPhone(); return; }
     if (action.kind === 'hail') { this.hail(); return; }
     if (action.kind === 'shop') {
-      if (this.shopHealed) { this.say('KURIR LIVS · SUPPLIES ALREADY COLLECTED'); return; }
-      if (this.player.hp === this.player.maxHp) { this.say('HEALTH IS FULL · SAVE THE SUPPLIES'); return; }
+      if (this.shopHealed) { this.say('msg.shopDone'); return; }
+      if (this.player.hp === this.player.maxHp) { this.say('msg.healthFull'); return; }
       this.player.hp = this.player.maxHp;
       this.shopHealed = true;
       this.events.push('pickup');
       this.effects.push({ kind: 'heal', x: this.player.x, y: this.player.y, z: 30 });
-      this.say('KURIR LIVS · HEALTH REFILLED');
+      this.say('msg.shopRefill');
       return;
     }
     const junction = this.junctionAhead!;
@@ -347,7 +390,7 @@ export class SideGame {
     this.player.vx = this.player.vz = 0;
     this.transition = 0.35;
     this.events.push('go');
-    this.say(junction.id === 'romares' ? 'ROMARES VÄG · VIA MARCUS A' : 'KURIRGATAN · VIA KURIR LIVS');
+    this.say(junction.id === 'romares' ? 'msg.turnRomares' : 'msg.turnKurir');
   }
 
   /** After a knockout, carry on from Marcus A with full health at a score penalty. */
@@ -380,15 +423,15 @@ export class SideGame {
     this.defeatTimer = 0;
     this.mode = 'playing';
     this.attackBuffer = this.jumpBuffer = this.dodgeBuffer = this.shotBuffer = 0;
-    this.say('BACK ON YOUR FEET AT MARCUS A');
+    this.say('msg.backOnFeet');
     this.events.push('pickup');
   }
 
   setMovement(x: number, y: number): void { this.moveInput = { x: clamp(x, -1, 1), y: clamp(y, -1, 1) }; }
-  queueAttack(): void { this.attackBuffer = 0.2; }
+  queueAttack(): void { if (this.level === 1) this.attackBuffer = 0.2; }
   queueJump(): void { this.jumpBuffer = 0.12; }
   queueDodge(): void { this.dodgeBuffer = 0.12; }
-  queueShot(): void { this.shotBuffer = 0.12; }
+  queueShot(): void { if (this.level === 1) this.shotBuffer = 0.12; }
 
   /** The BMW, while it is passing close enough to notice a wave. */
   get bmwInReach(): Car | undefined {
@@ -398,7 +441,9 @@ export class SideGame {
   }
 
   /** The police are after the courier, or on their way. */
-  get wanted(): boolean { return this.dispatch !== null || this.police.some(o => o.state !== 'leave'); }
+  get wanted(): boolean {
+    if (this.level === 2) return this.gods.patrols.some(o => o.state === 'chase' || o.state === 'grab');
+    return this.dispatch !== null || this.police.some(o => o.state !== 'leave'); }
 
   get homeCrewDown(): boolean {
     return this.crewSprung && this.encounters.get(HOME_ENCOUNTER) === 'cleared';
@@ -409,22 +454,46 @@ export class SideGame {
     return this.stage.marcusX !== null && !this.healed && this.player.x < this.stage.marcusX + 90;
   }
 
+  get message(): string { return this.toast ? t(this.toast.key, this.toast.params) : ''; }
+  /** D.D speaks in his own toasts, which show his portrait. */
+  get messageFromDD(): boolean { return !!this.toast && this.toast.key.startsWith('msg.dd'); }
+
   get objective(): string {
-    if (!this.hasPackage) return 'Pick up the package · Pålsjö kiosk';
-    if (this.marcusAhead) return 'Patch up at Marcus A · Långåkersgatan 4';
-    if (this.stage.shopX !== null && !this.shopHealed && this.player.x < this.stage.shopX + 90) return 'Supplies at Kurir Livs · Kurirgatan 1';
-    if (this.crewSprung && !this.homeCrewDown) return 'Shake off the crew · Ringstorpsvägen';
-    if (this.active) return `Shake off the crew · ${this.street ?? 'Pålsjö'}`;
-    return 'Take the package home · Ringstorpsvägen 55B';
+    if (this.level === 2) return this.gods.objective;
+    if (!this.hasPackage) return t('obj.package');
+    if (this.marcusAhead) return t('obj.marcus');
+    if (this.stage.shopX !== null && !this.shopHealed && this.player.x < this.stage.shopX + 90) return t('obj.shop');
+    if (this.crewSprung && !this.homeCrewDown) return t('obj.crewHome');
+    if (this.active) return t('obj.crew', { street: this.street ?? 'Pålsjö' });
+    return t('obj.home');
   }
 
   get street(): string | undefined { return streetAt(this.stage, this.player.x); }
   get metresToHome(): number { return Math.max(0, (this.stage.homeX - this.player.x) / PX_PER_M); }
   encounterState(id: number): EncounterState { return this.encounters.get(id) ?? 'waiting'; }
 
+  /** The Gods run has no crews, cars or phone: only you, the patrols and the building. */
+  private updateGods(dt: number): void {
+    this.elapsed += dt;
+    this.messageTimer = Math.max(0, this.messageTimer - dt);
+    this.shake = Math.max(0, this.shake - dt * 18);
+    if (this.transition > 0) { this.transition = Math.max(0, this.transition - dt); return; }
+    this.updatePlayer(dt);
+    this.gods.update(dt);
+    const p = this.player, street = this.gods.scene === 'street';
+    if (street) {
+      this.camera += (this.naturalCamera() - this.camera) * Math.min(1, dt * 8);
+      p.x = clamp(p.x, Math.max(EDGE, this.camera + EDGE), Math.min(this.stage.length - EDGE, this.camera + WIDTH - EDGE));
+    } else {
+      this.camera = 0;
+      p.x = clamp(p.x, EDGE, WIDTH - EDGE);
+    }
+  }
+
   update(rawDt: number): void {
     if (this.mode !== 'playing') return;
     const dt = Math.min(rawDt, 0.05);
+    if (this.level === 2) { this.updateGods(dt); return; }
     this.updatePhone(dt);
     this.updateDelivery(dt);
     // The phone pauses the fight, but D.D can still answer and arrive.
@@ -459,7 +528,9 @@ export class SideGame {
   // ---------------------------------------------------------------- courier
 
   private updatePlayer(dt: number): void {
-    const p = this.player, input = this.moveInput;
+    const p = this.player;
+    const input = this.level === 2 && this.gods.scene === 'cabin' ? { x: 0, y: 0 } : this.moveInput;
+    const pace = this.level === 2 && this.sneaking ? 0.55 : 1;
     p.invulnerable = Math.max(0, p.invulnerable - dt);
     p.flash = Math.max(0, p.flash - dt);
     p.comboWindow = Math.max(0, p.comboWindow - dt);
@@ -526,11 +597,11 @@ export class SideGame {
       p.x += p.vx * dt;
       if (p.z <= 0) p.vx *= Math.max(0, 1 - dt * 8);
     } else if (p.attackTimer <= 0) {
-      p.x += input.x * SPEED_X * dt;
-      p.y += input.y * SPEED_Y * dt;
+      p.x += input.x * SPEED_X * pace * dt;
+      p.y += input.y * SPEED_Y * pace * dt;
       if (input.x) p.facing = input.x > 0 ? 1 : -1;
       p.moving = !!(input.x || input.y);
-      if (p.moving) p.walk += dt * 10;
+      if (p.moving) p.walk += dt * 10 * pace;
     }
     if (p.attackTimer > 0 || stunned || p.z > 0) p.moving = false;
     p.y = clamp(p.y, BAND_TOP, BAND_BOTTOM);
@@ -671,7 +742,7 @@ export class SideGame {
         enemy.facing = fromLeft ? 1 : -1;
         this.enemies.push(enemy);
         this.backupTimer = 1.4;
-        if (!this.messageTimer) this.say('BACKUP IS COMING');
+        if (!this.messageTimer) this.say('msg.backup');
         return;
       }
     }
@@ -679,7 +750,7 @@ export class SideGame {
       if (this.encounters.get(e.id) !== 'cleared') this.cash += CREW_CASH;
       this.encounters.set(e.id, 'cleared');
       this.active = null;
-      if (e.home) this.say('HOME FREE · STEP UP TO THE DOOR');
+      if (e.home) this.say('msg.homeFree');
       else { this.goTimer = 3; this.events.push('go'); }
     }
   }
@@ -700,14 +771,14 @@ export class SideGame {
         enemy.state = 'walk';
         this.enemies.push(enemy);
       });
-      this.say('A CREW IS WAITING ON RINGSTORPSVÄGEN');
+      this.say('msg.crewHome');
     } else {
       for (const enemy of this.enemies) {
         if (enemy.encounter !== e.id) continue;
         enemy.state = 'walk';
         enemy.x = clamp(enemy.x, left - 30, right + 30);
       }
-      this.say(`CREW ON ${(this.street ?? 'the street').toUpperCase()}`);
+      this.say('msg.crewOn', { street: (this.street ?? t('msg.theStreet')).toUpperCase() });
     }
     this.events.push('crew');
   }
@@ -823,7 +894,7 @@ export class SideGame {
   // ---------------------------------------------------------------- D.D and the handgun
 
   /** The handset has D.D's number only after he has pulled over once. */
-  get hasPhone(): boolean { return this.metDD; }
+  get hasPhone(): boolean { return this.level === 1 && this.metDD; }
 
   openPhone(): void {
     if (!this.hasPhone || this.mode !== 'playing' || this.player.hp <= 0) return;
@@ -852,7 +923,7 @@ export class SideGame {
       this.phoneCall = 'connected'; this.callTimer = 1.5;
       this.delivery = { state: 'coming', timer: 1, carId: null, x: this.camera - 35, y: this.player.y, walk: 0 };
       this.events.push('connect');
-      this.say(`D.D: ON MY WAY · REFILL ${REFILL_PRICE} KR`);
+      this.say('msg.ddOnWay', { price: REFILL_PRICE });
     } else this.phoneCall = 'idle';
   }
 
@@ -872,7 +943,7 @@ export class SideGame {
     this.metDD = true;
     this.effects.push({ kind: 'toss', x: d.x, y: d.y, z: 24, x1: this.player.x, y1: this.player.y });
     this.events.push('cash', 'gun');
-    this.say(`D.D: ALL SET · ${CLIP} ROUNDS · PRESS I TO SHOOT`);
+    this.say('msg.ddAllSet', { clip: CLIP });
     this.dismissDD();
     return true;
   }
@@ -952,7 +1023,7 @@ export class SideGame {
   private dealerArrived(d: Delivery): void {
     if (d.state !== 'ready') {
       this.events.push('connect');
-      this.say(`D.D: NEED BULLETS? · F TO REFILL · ${REFILL_PRICE} KR`);
+      this.say('msg.ddNeedBullets', { price: REFILL_PRICE });
     }
     d.state = 'ready';
   }
@@ -992,14 +1063,14 @@ export class SideGame {
     car.stopAt = (beside - car.x) * car.dir >= needed ? beside : car.x + car.dir * needed;
     car.state = 'braking';
     this.events.push('brake');
-    this.say('D.D? · HE’S PULLING OVER');
+    this.say('msg.ddPulling');
   }
 
   private handOver(car: Car): void {
     if (this.metDD) {
       car.delivery = true;
       this.delivery = { state: 'ready', timer: 0, carId: car.id, x: car.x, y: car.y, walk: 0 };
-      this.say(`D.D: REFILLS ARE ${REFILL_PRICE} KR · PRESS F`);
+      this.say('msg.ddRefills', { price: REFILL_PRICE });
       return;
     }
     car.handed = true;
@@ -1008,7 +1079,7 @@ export class SideGame {
     this.bmwTimer = 40 + this.random() * 20;
     this.effects.push({ kind: 'toss', x: car.x + car.dir * 6, y: car.y, z: 24, x1: this.player.x, y1: this.player.y });
     this.events.push('gun');
-    this.say('D.D: TAKE THIS · I TO SHOOT · F TO CALL ME');
+    this.say('msg.ddTakeThis');
   }
 
   private updateCars(dt: number, phoneOnly = false): void {
@@ -1069,7 +1140,7 @@ export class SideGame {
     const target = this.enemies.filter(e => e.hp > 0 && !OUT.has(e.state)).map(e => ({ e, d: inLine(e) }))
       .filter(o => o.d < Infinity).sort((a, b) => a.d - b.d)[0];
     const officer = Math.min(Infinity, ...this.police.filter(o => !o.gone && o.state !== 'down').map(inLine));
-    if (officer < (target?.d ?? Infinity)) { this.say('NOT AT THE POLICE'); return; }
+    if (officer < (target?.d ?? Infinity)) { this.say('msg.notPolice'); return; }
     this.ammo--;
     p.aimTimer = 0.28;
     p.shotCooldown = SHOT_COOLDOWN;
@@ -1079,7 +1150,7 @@ export class SideGame {
     this.events.push('shot');
     if (target) this.hitEnemy(target.e, SHOT_DAMAGE, target.e.kind === 'runner', true);
     this.offence();
-    if (this.ammo === 0) this.say('D.D’S GUN IS EMPTY');
+    if (this.ammo === 0) this.say('msg.gunEmpty');
   }
 
   // ---------------------------------------------------------------- police
@@ -1091,7 +1162,7 @@ export class SideGame {
     const units = new Set(this.police.filter(o => o.state !== 'leave').map(o => o.unit)).size + (this.dispatch !== null ? 1 : 0);
     if (units === 0) {
       this.dispatch = 3.5;
-      if (this.heat === 1) this.say('SHOTS FIRED · SOMEONE CALLED THE POLICE');
+      if (this.heat === 1) this.say('msg.shotsFired');
     } else if (units === 1 && this.heat >= 6 && this.dispatch === null) this.dispatch = 5;
   }
 
@@ -1106,7 +1177,7 @@ export class SideGame {
   private sendUnit(): void {
     const p = this.player;
     this.events.push('siren');
-    this.say('POLIS! · DON’T GET CAUGHT');
+    this.say('msg.polis');
     const dir: 1 | -1 = p.facing > 0 ? 1 : -1;
     if (this.roadInView()) {
       const car = this.makeCar('police', dir, CAR_SPEED * 1.25);
@@ -1134,17 +1205,17 @@ export class SideGame {
     }
     if (this.police.some(o => o.state !== 'leave')) {
       this.sinceOffence += dt;
-      if (this.sinceOffence > GIVE_UP) this.standDown('THE POLICE LOST YOUR TRAIL');
+      if (this.sinceOffence > GIVE_UP) this.standDown('msg.policeLost');
     }
     for (const o of this.police) this.updateOfficer(o, dt);
     this.police = this.police.filter(o => !o.gone);
   }
 
-  private standDown(message: string): void {
+  private standDown(key: Key, params?: Params): void {
     for (const o of this.police) if (o.state !== 'cuff') o.state = 'leave';
     this.heat = 0;
     this.dispatch = null;
-    this.say(message);
+    this.say(key, params);
   }
 
   private updateOfficer(o: Officer, dt: number): void {
@@ -1219,7 +1290,7 @@ export class SideGame {
     officer.timer = 1.4;
     this.ammo = 0;
     this.fines++;
-    this.standDown(`BUSTED · GUN CONFISCATED · ${FINE} FINE`);
+    this.standDown('msg.busted', { fine: FINE });
     this.events.push('cuff');
   }
 
@@ -1232,7 +1303,7 @@ export class SideGame {
     else { o.state = 'hurt'; o.timer = 0.35; o.vx = dir * 60; this.events.push('hit'); }
     this.effects.push({ kind: knockdown ? 'smash' : 'spark', x: o.x - dir * 6, y: o.y, z: o.z + 27 });
     this.freeze = knockdown ? 0.08 : 0.05;
-    if (this.heat === 0 && !this.messageTimer) this.say('ASSAULTING AN OFFICER · MORE POLICE ARE COMING');
+    if (this.heat === 0 && !this.messageTimer) this.say('msg.assault');
     this.offence();
   }
 
@@ -1243,17 +1314,17 @@ export class SideGame {
     if (!this.hasPackage) {
       if (Math.abs(p.x - st.package.x) < 16 && Math.abs(p.y - st.package.y) < 14 && p.z < 12) {
         this.hasPackage = true;
-        this.say('GOT THE PACKAGE · GET IT HOME');
+        this.say('msg.gotPackage');
         this.events.push('parcel');
         this.effects.push({ kind: 'heal', x: p.x, y: p.y, z: 30 });
-      } else if (p.x > this.camera + WIDTH - 30 && !this.messageTimer) this.say('DON’T FORGET THE PACKAGE');
+      } else if (p.x > this.camera + WIDTH - 30 && !this.messageTimer) this.say('msg.dontForget');
       return;
     }
     if (st.marcusX !== null && !this.healed && !this.active && p.hp > 0 && p.z <= 0 && Math.abs(p.x - st.marcusX) < 22 && p.y < BAND_TOP + 24) {
       this.healed = true;
       this.checkpoint = st.marcusX;
       p.hp = p.maxHp;
-      this.say('MARCUS A PATCHED YOU UP · CHECKPOINT');
+      this.say('msg.marcusPatched');
       this.events.push('pickup');
       this.effects.push({ kind: 'heal', x: p.x, y: p.y, z: 30 });
     }
@@ -1266,5 +1337,5 @@ export class SideGame {
     }
   }
 
-  private say(message: string): void { this.message = message; this.messageTimer = 3.1; }
+  say(key: Key, params?: Params): void { this.toast = { key, params }; this.messageTimer = 3.1; }
 }

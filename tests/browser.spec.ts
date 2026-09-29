@@ -266,3 +266,80 @@ test('D.D pulls over for a wave, and firing his gun brings the police', async ({
   await page.locator('#game').screenshot({ path: 'test-results/side-police.png' });
   expect(errors).toEqual([]);
 });
+
+test('the language button switches the whole page to Swedish and remembers it', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: /start run/i })).toBeVisible();
+  await page.getByRole('button', { name: 'Byt till svenska' }).click();
+  await expect(page.getByRole('button', { name: /starta/i })).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'sv');
+  await expect(page.locator('.hud-label').first()).toHaveText('KURIR / HÄLSA');
+  await page.reload();
+  await expect(page.getByRole('button', { name: /starta/i })).toBeVisible();
+  await page.getByRole('button', { name: 'Switch to English' }).click();
+  await expect(page.getByRole('button', { name: /start run/i })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('Level 2: fetch the Gods from floor 8, carry them home past the police and get paid', async ({ page }) => {
+  test.setTimeout(60000);
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/');
+  await page.getByRole('button', { name: /level 2/i }).click();
+  await expect(page.locator('#objective')).toHaveText('Go up to D.D · Kurirgatan 28D, floor 8');
+  await expect(page.locator('#level-line')).toHaveText('LEVEL 2 · GODS RUN');
+  await expect(page.locator('#bottomline')).toContainText('SNEAK');
+  const world = <T,>(fn: (g: Exposed['__ringstorpGame']) => T) => page.evaluate(`(${fn.toString()})(window.__ringstorpGame)`) as Promise<T>;
+  const settled = () => expect.poll(() => world(g => g.transition)).toBe(0);
+  // In through the door, then up in Superhissen.
+  await page.keyboard.press('e');
+  await expect.poll(() => world(g => g.gods.scene)).toBe('lobby');
+  await settled();
+  await page.evaluate(() => { const g = (window as unknown as Exposed).__ringstorpGame; g.player.x = 400; g.player.y = 214; });
+  await page.keyboard.press('e');
+  await expect.poll(() => world(g => g.gods.scene)).toBe('cabin');
+  await settled();
+  await page.keyboard.press('8');
+  await expect.poll(() => world(g => g.gods.floor), { timeout: 8000 }).toBe(8);
+  await page.keyboard.press('e');
+  await expect.poll(() => world(g => g.gods.scene)).toBe('floor');
+  await settled();
+  await page.evaluate(() => {
+    const g = (window as unknown as Exposed).__ringstorpGame;
+    const dd = g.gods.npcs.find(n => n.id === 'dd')!;
+    g.player.x = dd.x - 20; g.player.y = dd.y;
+  });
+  await page.keyboard.press('e');
+  await expect(page.locator('#hearts')).toHaveText('GODS ON YOUR BACK');
+  await expect(page.locator('#objective')).toHaveText('Out with the Gods · ground floor');
+  // Down again and out into the street, then straight to the door of 55B.
+  await page.evaluate(() => { const g = (window as unknown as Exposed).__ringstorpGame; g.player.x = 60; g.player.y = 214; g.messageTimer = 0; });
+  await page.keyboard.press('e');
+  await expect.poll(() => world(g => g.gods.scene)).toBe('cabin');
+  await settled();
+  await page.keyboard.press('0');
+  await expect.poll(() => world(g => g.gods.floor), { timeout: 8000 }).toBe(0);
+  await page.keyboard.press('e');
+  await expect.poll(() => world(g => g.gods.scene)).toBe('lobby');
+  await settled();
+  await page.evaluate(() => { const g = (window as unknown as Exposed).__ringstorpGame; g.player.x = 60; g.player.y = 214; });
+  await page.keyboard.press('e');
+  await expect.poll(() => world(g => g.gods.scene)).toBe('street');
+  await settled();
+  await expect(page.locator('#objective')).toHaveText('Carry the Gods home · Ringstorpsvägen 55B');
+  await page.evaluate(() => {
+    const g = (window as unknown as Exposed).__ringstorpGame;
+    g.gods.patrols.length = 0;
+    g.player.x = g.stage.homeX; g.player.y = 180; g.camera = g.player.x - 190;
+  });
+  await page.keyboard.press('e');
+  await expect(page.getByRole('heading', { name: /delivered/i })).toBeVisible();
+  await expect(page.locator('.outcome-panel')).toContainText('D.D pays 300 kr');
+  await page.getByRole('button', { name: /next assignment/i }).click();
+  await expect(page.locator('#objective')).toHaveText('Go up to D.D · Kurirgatan 28D, floor 8');
+  expect(await world(g => g.gods.assignment)).toBe(2);
+  expect(errors).toEqual([]);
+});

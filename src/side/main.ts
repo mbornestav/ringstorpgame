@@ -2,9 +2,12 @@ import { type Mode } from '../game';
 import { ROUTE_NAMES } from './routes';
 import { MAP_ATTRIBUTION } from '../map';
 import '../style.css';
-import { CLIP, FINE, SideGame } from './game';
+import { CLIP, FINE, REFILL_PRICE, SideGame } from './game';
+import { HEIGHT, WIDTH } from './layout';
+import { panelHit } from './interior';
 import { SideRenderer } from './render';
 import { PhoneUI } from './phone';
+import { getLang, onLangChange, setLang, t, type Key } from './i18n';
 
 // Entry point for the side-scrolling edition. The isometric edition's entry, src/main.ts, is kept
 // but no longer loaded; point index.html back at it to play that version.
@@ -15,25 +18,25 @@ if (!app) throw new Error('App element missing');
 app.innerHTML = `
   <div class="shell side-edition">
     <header class="masthead">
-      <div class="brand"><span class="brand-mark">RR<span>_</span></span><div><strong>RINGSTORP RUN</strong><small>HELSINGBORG · ARCADE FILE 01</small></div></div>
-      <div class="masthead-right"><span class="edition">SIDE-SCROLLING ACTION / 1994 EDITION</span><button id="sound-button" class="icon-button" type="button" aria-label="Mute sound">♪ ON</button></div>
+      <div class="brand"><span class="brand-mark">RR<span>_</span></span><div><strong>RINGSTORP RUN</strong><small data-i18n="brand.sub"></small></div></div>
+      <div class="masthead-right"><span class="edition" data-i18n="edition"></span><button id="lang-button" class="icon-button" type="button"></button><button id="sound-button" class="icon-button" type="button" aria-label="Mute sound">♪ ON</button></div>
     </header>
     <main>
-      <div class="topline"><span><i class="live-dot"></i> STREET LEVEL <b id="street-line">PÅLSJÖ KIOSK → RINGSTORPSVÄGEN 55B</b></span><span>01 / 01 <em>MISSION</em></span></div>
+      <div class="topline"><span><i class="live-dot"></i> <span data-i18n="top.street"></span> <b id="street-line">PÅLSJÖ KIOSK → RINGSTORPSVÄGEN 55B</b></span><span id="level-line"></span></div>
       <section class="game-frame" aria-label="Ringstorp Run game">
         <canvas id="game" aria-label="Side-scrolling game view"></canvas>
         <div class="game-hud" id="game-hud" hidden>
-          <div class="hud-card life-card"><span class="hud-label">COURIER / HEALTH</span><div id="hearts" class="hearts"></div><div id="ammo" class="ammo" hidden></div></div>
-          <div class="hud-card objective-card"><span class="hud-label">CURRENT OBJECTIVE</span><strong id="objective"></strong><div class="progress" id="progress"></div></div>
-          <div class="hud-card time-card"><span class="hud-label">TIME / SCORE</span><strong><span id="time">00:00</span> <span class="slash">/</span> <span id="score">00000</span></strong></div>
+          <div class="hud-card life-card"><span class="hud-label" id="life-label"></span><div id="hearts" class="hearts"></div><div id="ammo" class="ammo" hidden></div></div>
+          <div class="hud-card objective-card"><span class="hud-label" data-i18n="hud.objective"></span><strong id="objective"></strong><div class="progress" id="progress"></div></div>
+          <div class="hud-card time-card"><span class="hud-label" data-i18n="hud.score"></span><strong><span id="time">00:00</span> <span class="slash">/</span> <span id="score">00000</span></strong></div>
         </div>
         <div class="street-choice" id="street-choice" hidden aria-live="polite"></div>
         <div class="overlay" id="overlay"></div>
-        <button class="phone-launcher" id="phone-button" type="button" aria-label="Open Ericsson GH337 phone" hidden><kbd>F</kbd> GH337 <span id="cash"></span></button>
+        <button class="phone-launcher" id="phone-button" type="button" data-i18n-aria="phone.open" hidden><kbd>F</kbd> GH337 <span id="cash"></span></button>
       </section>
-      <div class="bottomline"><span>A D / ← → <b>WALK</b></span><span>W S / ↑ ↓ <b>STEP</b></span><span>SPACE / L <b>JUMP</b></span><span>J <b>PUNCH</b></span><span>K <b>DODGE</b></span><span>I <b>SHOOT</b></span><span>E <b>TURN / USE / WAVE</b></span><span id="phone-hint" hidden>F <b>PHONE</b></span><span>ESC <b>PAUSE</b></span><span>M <b>SOUND</b></span></div>
+      <div class="bottomline" id="bottomline"></div>
     </main>
-    <footer><span>ORIGINAL PIXEL ART · MAP DATA ${MAP_ATTRIBUTION.toUpperCase()}</span><span>BEST RUN <b id="best-score">00000</b></span></footer>
+    <footer><span id="credit"></span><span><span data-i18n="footer.best"></span> <b id="best-score">00000</b></span></footer>
   </div>`;
 
 const canvas = document.querySelector<HTMLCanvasElement>('#game')!;
@@ -50,9 +53,37 @@ const bestDisplay = document.querySelector<HTMLElement>('#best-score')!;
 const streetLine = document.querySelector<HTMLElement>('#street-line')!;
 const soundButton = document.querySelector<HTMLButtonElement>('#sound-button')!;
 const phoneButton = document.querySelector<HTMLButtonElement>('#phone-button')!;
-const phoneHint = document.querySelector<HTMLElement>('#phone-hint')!;
 const cashDisplay = document.querySelector<HTMLElement>('#cash')!;
 const main = document.querySelector<HTMLElement>('main')!;
+const langButton = document.querySelector<HTMLButtonElement>('#lang-button')!;
+const bottomline = document.querySelector<HTMLElement>('#bottomline')!;
+const levelLine = document.querySelector<HTMLElement>('#level-line')!;
+const lifeLabel = document.querySelector<HTMLElement>('#life-label')!;
+const credit = document.querySelector<HTMLElement>('#credit')!;
+
+/** Text in the page shell, which is built once, is refreshed here whenever the language changes. */
+function applyStatic(): void {
+  document.documentElement.lang = getLang();
+  document.title = t('page.title');
+  document.querySelectorAll<HTMLElement>('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n as Key); });
+  document.querySelectorAll<HTMLElement>('[data-i18n-aria]').forEach(el => el.setAttribute('aria-label', t(el.dataset.i18nAria as Key)));
+  langButton.textContent = t('lang.button');
+  langButton.setAttribute('aria-label', t('lang.aria'));
+  langButton.lang = getLang() === 'en' ? 'sv' : 'en';
+  credit.textContent = t('footer.credit', { attribution: MAP_ATTRIBUTION.toUpperCase() });
+}
+applyStatic();
+let controlsKey = '';
+/** The controls bar lists F only once D.D has given you his number. */
+function renderControls(): void {
+  const key = `${getLang()}:${game.level}:${game.hasPhone}`;
+  if (key === controlsKey) return;
+  controlsKey = key;
+  const keys: Array<[string, Key]> = game.level === 2
+    ? [['A D / ← →', 'ctl.walk'], ['W S / ↑ ↓', 'ctl.step'], ['SHIFT', 'ctl.sneak'], ['SPACE / L', 'ctl.jump'], ['K', 'ctl.dodge'], ['E', 'ctl.use2'], ['0-8', 'ctl.floor'], ['ESC', 'ctl.pause'], ['M', 'ctl.sound']]
+    : [['A D / ← →', 'ctl.walk'], ['W S / ↑ ↓', 'ctl.step'], ['SPACE / L', 'ctl.jump'], ['J', 'ctl.punch'], ['K', 'ctl.dodge'], ['I', 'ctl.shoot'], ['E', 'ctl.use'], ...(game.hasPhone ? [['F', 'ctl.phone'] as [string, Key]] : []), ['ESC', 'ctl.pause'], ['M', 'ctl.sound']];
+  bottomline.innerHTML = keys.map(([k, label]) => `<span>${k} <b>${t(label)}</b></span>`).join('');
+}
 
 function sizeFrame(): void {
   const chrome = window.innerHeight <= 760 ? 160 : 195;
@@ -97,6 +128,8 @@ class Sound {
         shot: [[1100, 0.03, 0], [170, 0.12, 0.01], [85, 0.16, 0.02]], empty: [[1800, 0.02, 0]],
         gun: [[330, 0.08, 0], [494, 0.08, 0.08], [659, 0.18, 0.16]], cuff: [[2100, 0.03, 0], [2500, 0.03, 0.08], [1400, 0.05, 0.16]],
         dial: [[941, 0.1, 0], [1336, 0.1, 0], [770, 0.1, 0.15], [1209, 0.1, 0.15], [697, 0.1, 0.3], [1336, 0.1, 0.3]],
+        doors: [[300, 0.05, 0], [220, 0.09, 0.05]], ding: [[988, 0.12, 0], [784, 0.3, 0.14]], lift: [[110, 0.5, 0], [125, 0.5, 0.45]],
+        alert: [[880, 0.08, 0], [660, 0.08, 0.09], [880, 0.14, 0.18]],
         ring: [[425, 0.35, 0], [425, 0.35, 0.65]], connect: [[660, 0.07, 0], [880, 0.1, 0.09]],
         cash: [[1568, 0.06, 0], [2093, 0.11, 0.1]],
         // The two-tone siren of a Swedish patrol car.
@@ -107,7 +140,7 @@ class Sound {
       for (const [frequency, duration, delay] of notes[name] || []) {
         const osc = c.createOscillator();
         const gain = c.createGain();
-        osc.type = ['hit', 'hurt', 'smash', 'thud', 'shot', 'brake'].includes(name) ? 'sawtooth' : name === 'siren' ? 'triangle' : 'square';
+        osc.type = ['hit', 'hurt', 'smash', 'thud', 'shot', 'brake', 'lift'].includes(name) ? 'sawtooth' : name === 'siren' ? 'triangle' : 'square';
         osc.frequency.setValueAtTime(frequency, now + delay);
         if (name === 'swing' || name === 'dodge' || name === 'shot' || name === 'brake') osc.frequency.exponentialRampToValueAtTime(Math.max(40, frequency / 3), now + delay + duration);
         gain.gain.setValueAtTime(0.0001, now + delay);
@@ -130,28 +163,42 @@ function formatTime(seconds: number): string {
 function panelFor(mode: Mode): string {
   if (mode === 'title') return `
     <div class="panel title-panel">
-      <div class="eyebrow"><span class="chip">01</span> HELSINGBORG / SWEDEN <span class="gold-line"></span> 1994</div>
+      <div class="eyebrow"><span class="chip">01</span> ${t('title.eyebrow')} <span class="gold-line"></span> 1994</div>
       <h1>RINGSTORP<br><span>RUN</span><i>▸</i></h1>
-      <p class="subtitle">ONE PACKAGE. YOUR STREETS. FIND YOUR WAY HOME.</p>
-      <p class="story">Pick up the package at Pålsjö kiosk and carry it home to Ringstorpsvägen 55B. Choose your turns as you play: visit Marcus A for a checkpoint, stop at Kurir Livs for health, or keep heading home. Press E at a junction to turn. Wave at the blue BMW for a little help. Once you’ve met D.D, press F to call him on your Ericsson GH337: he’ll bring ammunition for 100 kr a refill.</p>
+      <p class="subtitle">${t('title.subtitle')}</p>
+      <p class="story">${t('title.story')}</p>
       <div class="action-row route-row">
-        <button class="primary-button" data-action="start">▶ &nbsp; START RUN</button>
-        <span>ENTER TO PLAY · CHOOSE TURNS ON THE STREET</span>
+        <button class="primary-button" data-action="start">${t('title.start')}</button>
+        <span>${t('title.hint')}</span>
       </div>
-      <div class="controls-grid"><div><kbd>WASD</kbd> / <kbd>↑↓←→</kbd><span>WALK · STEP</span></div><div><kbd>SPACE</kbd><span>JUMP · J IN AIR KICKS</span></div><div><kbd>J</kbd><span>PUNCH · COMBO</span></div><div><kbd>K</kbd><span>DODGE</span></div></div>
+      <div class="action-row route-row">
+        <button class="secondary-button" data-action="start-2">${t('title.level2')}</button>
+        <span>${t('title.level2Hint')}</span>
+      </div>
+      <div class="controls-grid"><div><kbd>WASD</kbd> / <kbd>↑↓←→</kbd><span>${t('title.walk')}</span></div><div><kbd>SPACE</kbd><span>${t('title.jump')}</span></div><div><kbd>J</kbd><span>${t('title.punch')}</span></div><div><kbd>K</kbd><span>${t('title.dodge')}</span></div></div>
     </div>`;
-  if (mode === 'paused') return `<div class="panel compact-panel"><div class="eyebrow">MISSION ON HOLD</div><h2>PAUSED<span class="blink">_</span></h2><p>Take a breath. The streets can wait.</p><div class="action-row"><button class="primary-button" data-action="resume">▶ &nbsp; RESUME</button><button class="secondary-button" data-action="restart">↻ &nbsp; RESTART</button></div><small>ESC TO RESUME</small></div>`;
-  if (mode === 'victory') return `<div class="panel compact-panel outcome-panel"><div class="eyebrow">MISSION COMPLETE / RINGSTORPSVÄGEN 55B</div><h2>DELIVERED<span class="gold">.</span></h2><p>The package made it home${game.healed ? ', with a patch-up at Marcus A' : ''}${game.shopHealed ? ' and supplies from Kurir Livs' : ''}${game.metDD ? '. D.D had your back' : ''}${game.fines ? `, but the police fined you ${game.fines * FINE} points` : ''}.</p><div class="result-grid"><div><span>RUN TIME</span><b>${formatTime(game.elapsed)}</b></div><div><span>CREWS DOWN</span><b>${game.koCount}</b></div><div><span>FINAL SCORE</span><b>${game.score.toString().padStart(5, '0')}</b></div></div><div class="action-row"><button class="primary-button" data-action="restart">↻ &nbsp; PLAY AGAIN</button><span>PRESS ENTER TO REPLAY</span></div></div>`;
+  if (mode === 'paused') return `<div class="panel compact-panel"><div class="eyebrow">${t('pause.eyebrow')}</div><h2>${t('pause.title')}<span class="blink">_</span></h2><p>${t('pause.text')}</p><div class="action-row"><button class="primary-button" data-action="resume">${t('pause.resume')}</button><button class="secondary-button" data-action="restart">${t('pause.restart')}</button></div><small>${t('pause.hint')}</small></div>`;
+  if (mode === 'victory' && game.level === 2) {
+    const g2 = game.gods;
+    const spotted = g2.spotted ? t('win2.spotted', { n: g2.spotted }) : '';
+    return `<div class="panel compact-panel outcome-panel"><div class="eyebrow">${t('win2.eyebrow')}</div><h2>${t('win.title')}<span class="gold">.</span></h2><p>${t('win2.text', { pay: g2.payout, n: g2.assignment, spotted })}</p><div class="result-grid"><div><span>${t('win.time')}</span><b>${formatTime(game.elapsed)}</b></div><div><span>${t('win2.pay')}</span><b>${g2.payout} KR</b></div><div><span>${t('win2.cash')}</span><b>${game.cash} KR</b></div></div><div class="action-row"><button class="primary-button" data-action="restart">${t('win2.next')}</button><button class="secondary-button" data-action="menu">${t('win2.menu')}</button><span>${t('win2.nextHint')}</span></div></div>`;
+  }
+  if (mode === 'victory') {
+    const withPatch = game.healed, withSupplies = game.shopHealed;
+    const story = t('win.base') + (withPatch ? t('win.withPatch') : '') + (withSupplies ? t(withPatch ? 'win.andSupplies' : 'win.withSupplies') : '')
+      + (game.metDD ? t('win.dd') : '') + (game.fines ? t('win.fined', { points: game.fines * FINE }) : '') + '.';
+    return `<div class="panel compact-panel outcome-panel"><div class="eyebrow">${t('win.eyebrow')}</div><h2>${t('win.title')}<span class="gold">.</span></h2><p>${story}</p><div class="result-grid"><div><span>${t('win.time')}</span><b>${formatTime(game.elapsed)}</b></div><div><span>${t('win.crews')}</span><b>${game.koCount}</b></div><div><span>${t('win.score')}</span><b>${game.score.toString().padStart(5, '0')}</b></div></div><div class="action-row"><button class="primary-button" data-action="restart">${t('win.again')}</button><span>${t('win.againHint')}</span></div></div>`;
+  }
   const resume = game.checkpoint !== null
-    ? `<button class="primary-button" data-action="continue">✚ &nbsp; CONTINUE FROM MARCUS A</button><button class="secondary-button" data-action="restart">↻ &nbsp; START OVER</button>`
-    : `<button class="primary-button" data-action="restart">↻ &nbsp; TRY AGAIN</button><span>PRESS ENTER TO RETRY</span>`;
-  return `<div class="panel compact-panel outcome-panel"><div class="eyebrow">MISSION FAILED / COURIER DOWN</div><h2>GAME OVER<span class="red">.</span></h2><p>${game.checkpoint !== null ? 'Marcus A can patch you up again, for a score penalty.' : 'The package is still out there. Give it another run.'}</p><div class="result-grid"><div><span>RUN TIME</span><b>${formatTime(game.elapsed)}</b></div><div><span>PACKAGE</span><b>${game.hasPackage ? 'CARRIED' : 'AT KIOSK'}</b></div><div><span>CREWS DOWN</span><b>${game.koCount}</b></div></div><div class="action-row">${resume}</div></div>`;
+    ? `<button class="primary-button" data-action="continue">${t('lose.continue')}</button><button class="secondary-button" data-action="restart">${t('lose.startOver')}</button>`
+    : `<button class="primary-button" data-action="restart">${t('lose.retry')}</button><span>${t('lose.retryHint')}</span>`;
+  return `<div class="panel compact-panel outcome-panel"><div class="eyebrow">${t('lose.eyebrow')}</div><h2>${t('lose.title')}<span class="red">.</span></h2><p>${t(game.checkpoint !== null ? 'lose.checkpoint' : 'lose.nocheckpoint')}</p><div class="result-grid"><div><span>${t('win.time')}</span><b>${formatTime(game.elapsed)}</b></div><div><span>${t('lose.package')}</span><b>${t(game.hasPackage ? 'lose.carried' : 'lose.atKiosk')}</b></div><div><span>${t('win.crews')}</span><b>${game.koCount}</b></div></div><div class="action-row">${resume}</div></div>`;
 }
 
 function syncUI(): void {
   phone.sync();
   phoneButton.hidden = game.mode !== 'playing' || !game.hasPhone;
-  phoneHint.hidden = !game.hasPhone;
+  renderControls();
   cashDisplay.textContent = `${game.cash} KR`;
   if (lastMode !== game.mode) {
     lastMode = game.mode;
@@ -161,51 +208,86 @@ function syncUI(): void {
     // A start button that has just been hidden must not keep the keyboard focus.
     if (game.mode === 'playing' && document.activeElement instanceof HTMLElement && overlay.contains(document.activeElement)) document.activeElement.blur();
   }
-  if (game.mode !== 'title') {
+  const lifeText = t(game.level === 2 ? 'hud.cargo' : 'hud.health');
+  if (lifeLabel.textContent !== lifeText) lifeLabel.textContent = lifeText;
+  const levelText = t(game.level === 2 ? 'top.level2' : 'top.level1');
+  if (levelLine.textContent !== levelText) levelLine.textContent = levelText;
+  if (game.mode !== 'title' && game.level === 2) {
+    const g2 = game.gods, state = g2.hidden ? 'cargo.hidden' : g2.cargo === 'carried' ? 'cargo.carried' : g2.cargo === 'stashed' ? 'cargo.stashed' : 'cargo.none';
+    hearts.innerHTML = `<span class="cargo cargo-${g2.cargo}">${t(state)}${game.sneaking && !g2.hidden ? ` · ${t('cargo.sneak')}` : ''}</span>`;
+    ammo.hidden = true;
+    objective.textContent = game.objective;
+    const shop = game.stage.shopX ?? 0, school = game.stage.facades.find(f => f.role === 'school')?.x1 ?? 0, x = game.player.x, inside = g2.scene !== 'street';
+    const steps: Array<[string, string, string]> = [
+      [g2.received ? 'done' : 'active', g2.received ? '✓' : '?', t('step2.dd')],
+      [!inside && g2.received && x > shop + 400 ? 'done' : g2.received ? 'active' : '', x > shop + 400 && g2.received ? '✓' : '✚', t('step2.shop')],
+      [!inside && g2.received && x > school ? 'done' : '', x > school && g2.received ? '✓' : '✚', t('step2.school')],
+      [game.mode === 'victory' ? 'done' : '', '★', t('step.home')],
+    ];
+    progress.innerHTML = steps.map(([state, icon, title]) => `<span class="progress-step ${state}" title="${title}">${icon}</span>`).join('<i></i>') + '<em class="route-name">Kurirgatan → Ringstorpsvägen</em>';
+    timeDisplay.textContent = formatTime(game.elapsed);
+    scoreDisplay.textContent = `${game.cash}`.padStart(5, '0');
+    streetLine.textContent = inside ? `KURIRGATAN 28 · ${t('cabin.floor')} ${g2.floor === 0 ? t('cabin.ground') : g2.floor}` : `${(game.street ?? 'Kurirgatan').toUpperCase()} · ${t('hud.toHome', { m: Math.round(game.metresToHome) })}`;
+  } else if (game.mode !== 'title') {
     hearts.innerHTML = Array.from({ length: game.player.maxHp }, (_, i) => `<span class="heart ${i >= game.player.hp ? 'empty' : ''}">♥</span>`).join('');
     ammo.hidden = !game.metDD && game.ammo <= 0;
-    ammo.setAttribute('aria-label', `${game.ammo} rounds remaining`);
-    ammo.innerHTML = `<b>I</b> ${Array.from({ length: CLIP }, (_, i) => `<i class="${i < game.ammo ? '' : 'spent'}"></i>`).join('')} ${game.ammo === 0 ? ' F · CALL D.D' : ''}`;
+    ammo.setAttribute('aria-label', t('hud.rounds', { n: game.ammo }));
+    ammo.innerHTML = `<b>I</b> ${Array.from({ length: CLIP }, (_, i) => `<i class="${i < game.ammo ? '' : 'spent'}"></i>`).join('')} ${game.ammo === 0 && game.hasPhone ? t('hud.callDD') : ''}`;
     objective.textContent = game.objective;
     const marcusState = game.healed ? 'done' : game.hasPackage && game.marcusAhead ? 'active' : 'optional';
     const shopState = game.shopHealed ? 'done' : game.stage.shopX !== null && game.player.x < game.stage.shopX + 90 ? 'active' : 'optional';
     const steps: Array<[string, string, string]> = [
-      [game.hasPackage ? 'done' : 'active', game.hasPackage ? '✓' : '?', 'Package · Pålsjö kiosk'],
+      [game.hasPackage ? 'done' : 'active', game.hasPackage ? '✓' : '?', t('step.package')],
       [marcusState, game.healed ? '✓' : '✚', 'Marcus A · Långåkersgatan 4'],
       [shopState, game.shopHealed ? '✓' : '✚', 'Kurir Livs · Kurirgatan 1'],
-      [game.mode === 'victory' ? 'done' : game.hasPackage && marcusState !== 'active' && shopState !== 'active' ? 'active' : '', '★', 'Home · Ringstorpsvägen 55B'],
+      [game.mode === 'victory' ? 'done' : game.hasPackage && marcusState !== 'active' && shopState !== 'active' ? 'active' : '', '★', t('step.home')],
     ];
     progress.innerHTML = steps.map(([state, icon, title]) => `<span class="progress-step ${state}" title="${title}">${icon}</span>`).join('<i></i>') + `<em class="route-name">${ROUTE_NAMES[game.route]}</em>`;
     timeDisplay.textContent = formatTime(game.elapsed);
     scoreDisplay.textContent = Math.max(0, game.koCount * 85 + (game.hasPackage ? 500 : 0) + (game.healed ? 250 : 0) - game.fines * FINE).toString().padStart(5, '0');
     const street = game.street ?? (game.hasPackage ? (game.metresToHome < 60 ? 'RINGSTORPSVÄGEN 55B' : 'PÅLSJÖ') : 'PÅLSJÖ KIOSK');
-    streetLine.textContent = `${street.toUpperCase()} · ${Math.round(game.metresToHome)} M TO HOME`;
+    streetLine.textContent = `${street.toUpperCase()} · ${t('hud.toHome', { m: Math.round(game.metresToHome) })}`;
   } else streetLine.textContent = 'PÅLSJÖ KIOSK → RINGSTORPSVÄGEN 55B';
   bestDisplay.textContent = game.bestScore.toString().padStart(5, '0');
-  soundButton.textContent = soundOn ? '♪ ON' : '♪ OFF';
-  soundButton.setAttribute('aria-label', soundOn ? 'Mute sound' : 'Unmute sound');
+  soundButton.textContent = t(soundOn ? 'sound.on' : 'sound.off');
+  soundButton.setAttribute('aria-label', t(soundOn ? 'sound.mute' : 'sound.unmute'));
   const junction = game.junctionAhead, action = game.interaction;
   const bmw = game.cars.find(c => c.kind === 'bmw' && c.state === 'driving' && !c.handed && !c.delivery && c.x > game.camera - 60 && c.x < game.camera + 540);
   let choice = '';
-  if (game.mode === 'playing' && game.dealerNearby) {
-    choice = `<div><small>D.D · AMMUNITION</small><strong>Refill to 8 rounds · 100 kr</strong><span>${game.cash} kr in your pocket · F to open your phone</span></div><button type="button" ${action?.kind === 'ammo' ? '' : 'disabled'} aria-label="Talk to D.D about ammunition"><kbd>E</kbd> TALK</button>`;
+  if (game.mode === 'playing' && game.level === 2) {
+    if (action) {
+      const g2 = game.gods, state = g2.hidden ? 'cargo.hidden' : g2.cargo === 'carried' ? 'cargo.carried' : g2.cargo === 'stashed' ? 'cargo.stashed' : 'cargo.none';
+      choice = `<div><small>${t('choice2.small')}</small><strong>${action.label}</strong><span>${t(state)}</span></div><button type="button" aria-label="${action.label}"><kbd>E</kbd> ${t('choice2.use')}</button>`;
+    }
+  } else if (game.mode === 'playing' && game.dealerNearby) {
+    choice = `<div><small>${t('choice.ddSmall')}</small><strong>${t('choice.ddTitle', { clip: CLIP, price: REFILL_PRICE })}</strong><span>${t('choice.ddHint', { cash: game.cash })}</span></div><button type="button" ${action?.kind === 'ammo' ? '' : 'disabled'} aria-label="${t('choice.ddAria')}"><kbd>E</kbd> ${t('choice.talk')}</button>`;
   } else if (game.mode === 'playing' && bmw) {
-    choice = `<div><small>A BLUE BMW · COMING ${bmw.dir > 0 ? 'FROM BEHIND' : 'TOWARDS YOU'}</small><strong>Is that D.D?</strong><span>${action?.kind === 'hail' ? 'Wave it down before it’s gone' : 'Get closer to the car to wave'}</span></div><button type="button" ${action?.kind === 'hail' ? '' : 'disabled'} aria-label="Wave down the BMW"><kbd>E</kbd> WAVE</button>`;
+    choice = `<div><small>${t(bmw.dir > 0 ? 'choice.bmwFrom' : 'choice.bmwTowards')}</small><strong>${t('choice.bmwTitle')}</strong><span>${t(action?.kind === 'hail' ? 'choice.bmwNear' : 'choice.bmwFar')}</span></div><button type="button" ${action?.kind === 'hail' ? '' : 'disabled'} aria-label="${t('choice.bmwAria')}"><kbd>E</kbd> ${t('choice.wave')}</button>`;
   } else if (game.mode === 'playing' && junction) {
     const distance = Math.max(0, Math.ceil((junction.x - game.player.x) / 60) * 5);
-    choice = `<div><small>${junction.street.toUpperCase()}${distance > 5 ? ` · ${distance} M` : ' · JUNCTION'}</small><strong>↗ ${junction.turn}</strong><span>Keep walking → ${junction.straight}</span></div><button type="button" ${action?.kind === 'turn' ? '' : 'disabled'} aria-label="Turn towards ${junction.id === 'romares' ? 'Marcus A' : 'Kurir Livs'}"><kbd>E</kbd> ${game.active ? 'CLEAR CREW' : action?.kind === 'turn' ? 'TURN' : 'APPROACH'}</button>`;
+    const place = junction.id === 'romares' ? 'Marcus A' : 'Kurir Livs';
+    choice = `<div><small>${junction.street.toUpperCase()}${distance > 5 ? ` · ${distance} M` : ` · ${t('choice.junction')}`}</small><strong>↗ ${t(junction.turn as Key)}</strong><span>${t('choice.keepWalking', { straight: t(junction.straight as Key) })}</span></div><button type="button" ${action?.kind === 'turn' ? '' : 'disabled'} aria-label="${t('choice.turnAria', { place })}"><kbd>E</kbd> ${t(game.active ? 'choice.clearCrew' : action?.kind === 'turn' ? 'choice.turn' : 'choice.approach')}</button>`;
   } else if (game.mode === 'playing' && game.stage.shopX !== null && Math.abs(game.player.x - game.stage.shopX) < 150) {
-    choice = `<div><small>ICA NÄRA · KURIR LIVS</small><strong>${game.shopHealed ? 'Supplies collected' : 'A breather before heading home'}</strong><span>${action?.kind === 'shop' ? action.label : 'Step up to the glass entrance to collect supplies'}</span></div><button type="button" ${action?.kind === 'shop' && !game.shopHealed && game.player.hp < game.player.maxHp ? '' : 'disabled'} aria-label="Refill health at Kurir Livs"><kbd>E</kbd> REFILL HEALTH</button>`;
+    choice = `<div><small>ICA NÄRA · KURIR LIVS</small><strong>${t(game.shopHealed ? 'choice.shopTitleDone' : 'choice.shopTitle')}</strong><span>${action?.kind === 'shop' ? action.label : t('choice.shopHint')}</span></div><button type="button" ${action?.kind === 'shop' && !game.shopHealed && game.player.hp < game.player.maxHp ? '' : 'disabled'} aria-label="${t('choice.shopAria')}"><kbd>E</kbd> ${t('choice.shopButton')}</button>`;
   }
   streetChoice.hidden = !choice;
   if (lastChoice !== choice) { streetChoice.innerHTML = choice; lastChoice = choice; }
 }
 
-function restart(): void { held.clear(); game.start(); renderer.resetCamera(); syncUI(); }
+function restart(): void {
+  held.clear();
+  // In the Gods run, restarting retries the same assignment; after a delivery it moves on to the next.
+  if (game.level === 2) game.startGods(game.gods.assignment + (game.mode === 'victory' ? 1 : 0));
+  else game.start();
+  renderer.resetCamera(); syncUI();
+}
+function startLevel2(): void { held.clear(); game.startGods(1); renderer.resetCamera(); syncUI(); }
 overlay.addEventListener('click', event => {
   const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-action]');
   const action = button?.dataset.action;
   if (action === 'start' || action === 'restart') restart();
+  if (action === 'start-2') startLevel2();
+  if (action === 'menu') { held.clear(); game.toTitle(); renderer.resetCamera(); }
   if (action === 'resume') game.togglePause();
   if (action === 'continue') { held.clear(); game.continueFromCheckpoint(); }
   syncUI();
@@ -227,6 +309,25 @@ soundButton.addEventListener('click', event => {
   if (event.detail > 0) soundButton.blur();
 });
 
+langButton.addEventListener('click', event => {
+  setLang(getLang() === 'en' ? 'sv' : 'en');
+  if (event.detail > 0) langButton.blur();
+});
+onLangChange(() => {
+  applyStatic();
+  controlsKey = '';
+  lastMode = ''; lastChoice = '';
+  phone.relabel();
+  syncUI();
+});
+
+canvas.addEventListener('pointerdown', event => {
+  if (game.level !== 2 || game.mode !== 'playing' || game.gods.scene !== 'cabin') return;
+  const box = canvas.getBoundingClientRect();
+  const n = panelHit((event.clientX - box.left) / box.width * WIDTH, (event.clientY - box.top) / box.height * HEIGHT);
+  if (n !== null) { game.gods.pressFloor(n); syncUI(); }
+});
+
 const movementKeys = new Set(['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright']);
 window.addEventListener('keydown', event => {
   const key = event.key.toLowerCase();
@@ -245,6 +346,7 @@ window.addEventListener('keydown', event => {
   if ((key === 'enter' || key === ' ') && event.target instanceof HTMLButtonElement) return;
   if (movementKeys.has(key) || ['j', 'k', 'l', 'i', 'e', 'escape', 'enter', 'm', ' '].includes(key)) event.preventDefault();
   if (key === 'e' && !event.repeat && game.mode === 'playing') { game.interact(); syncUI(); }
+  if (game.level === 2 && game.mode === 'playing' && /^[0-8]$/.test(key) && !event.repeat) { event.preventDefault(); game.gods.pressFloor(Number(key)); syncUI(); }
   if (key === 'm' && !event.repeat) toggleSound();
   if (key === 'escape' && !event.repeat) { game.togglePause(); syncUI(); }
   if (key === 'enter' && !event.repeat && game.mode === 'defeat' && game.checkpoint !== null) { held.clear(); game.continueFromCheckpoint(); syncUI(); }
@@ -269,6 +371,7 @@ function tick(now: number): void {
   const x = Number(held.has('d') || held.has('arrowright')) - Number(held.has('a') || held.has('arrowleft'));
   const y = Number(held.has('s') || held.has('arrowdown')) - Number(held.has('w') || held.has('arrowup'));
   game.setMovement(x, y);
+  game.setSneak(held.has('shift'));
   game.update(dt);
   for (const event of game.events.splice(0)) sound.play(event);
   renderer.render(game, dt);

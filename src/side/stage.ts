@@ -46,7 +46,7 @@ export interface Facade {
   door: number | null;
   seed: number;
   address?: string;
-  role?: 'home' | 'marcus' | 'kiosk' | 'kurir';
+  role?: 'home' | 'marcus' | 'kiosk' | 'kurir' | 'gods' | 'block' | 'garages' | 'shed' | 'school';
 }
 export interface Tree { x: number; row: 0 | 1; dist: number; variant: number; height: number; bush: boolean }
 export type FurnitureKind = 'lamp' | 'sign' | 'busstop' | 'bench' | 'bin' | 'postbox' | 'crossing' | 'shelter';
@@ -65,6 +65,8 @@ export interface StageSpawn { id: number; kind: EnemyKind; x: number; y: number 
  * whistle up backup, who run in from behind once the fight is on.
  */
 export interface Encounter { id: number; camera: number; spawns: StageSpawn[]; backup: EnemyKind[]; home: boolean }
+/** Cover and stash points on the Gods run: hedges, bins, garage doors and bushes. */
+export interface Spot { x: number; kind: 'hedge' | 'bin' | 'garage' | 'bush' | 'shed' }
 export interface Junction { id: JunctionId; x: number; turn: string; street: string; straight: string }
 
 export interface Stage {
@@ -91,6 +93,11 @@ export interface Stage {
   sideStreets: SideStreet[];
   crossings: number[];
   encounters: Encounter[];
+  /** 1 is the package run; 2 is the Gods run, which has no crews and no junctions. */
+  level: 1 | 2;
+  spots: Spot[];
+  /** Level 2: the entrance of Kurirgatan 28D. */
+  godsDoorX: number | null;
 }
 
 // ---------------------------------------------------------------- unrolling the route
@@ -173,7 +180,7 @@ const picturedSide = (street: string | undefined) => street === 'Johan Banérs g
 
 // ---------------------------------------------------------------- deterministic variety
 
-function rand(a: number, b: number): number {
+export function rand(a: number, b: number): number {
   let h = (Math.imul(Math.round(a * 97) | 0, 374761393) + Math.imul(Math.round(b * 89) | 0, 668265263)) | 0;
   h = Math.imul(h ^ (h >>> 13), 1274126177);
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
@@ -237,7 +244,7 @@ function landmark(f: Footprint, entrance: Vec2, doorX: number, role: 'marcus' | 
 }
 
 /** The terrace at Home, laid out along its row with the real stagger, centred on 55B's door. */
-function terrace(homeX: number): Facade[] {
+export function terrace(homeX: number): Facade[] {
   const c = Math.cos(HOME_UNIT.obb.angle), s = Math.sin(HOME_UNIT.obb.angle);
   const along = (p: Vec2) => ((p.x - HOME_UNIT.obb.cx) * c + (p.y - HOME_UNIT.obb.cy) * s) * MPU;
   const back = (p: Vec2) => (-(p.x - HOME_UNIT.obb.cx) * s + (p.y - HOME_UNIT.obb.cy) * c) * MPU;
@@ -321,8 +328,8 @@ function buildStage(route: Route): Stage {
   let marcusX = viaMarcus(route) ? px(nearestOn(legs, MARCUS_A).s) : null;
   const shopX = viaKurir(route) ? px(nearestOn(legs, KURIR_STOP).s) : null;
   const junctions: Junction[] = [];
-  if (!viaMarcus(route)) junctions.push({ id: 'romares', x: px(FORK), turn: 'Marcus A · health + checkpoint', street: 'Romares väg', straight: 'Johan Banérs gata · home' });
-  if (!viaKurir(route)) junctions.push({ id: 'kurir', x: px(nearestOn(legs, KURIR_FORK).s), turn: 'Kurir Livs · health refill', street: 'Kurirgatan', straight: 'Ringstorpsvägen · home' });
+  if (!viaMarcus(route)) junctions.push({ id: 'romares', x: px(FORK), turn: 'junction.romares.turn', street: 'Romares väg', straight: 'junction.romares.straight' });
+  if (!viaKurir(route)) junctions.push({ id: 'kurir', x: px(nearestOn(legs, KURIR_FORK).s), turn: 'junction.kurir.turn', street: 'Kurirgatan', straight: 'junction.kurir.straight' });
   const inside = (x: number) => x > -60 && x < length + 60;
 
   // Streets and surfaces, sampled every 3 m along the route.
@@ -527,6 +534,7 @@ function buildStage(route: Route): Stage {
     package: { x: packageX, y: BAND_TOP + 5 },
     facades, trees, furniture, gates, fronts: clipped, streets, surfaces, sideStreets, crossings,
     encounters: encountersFor(route, legs, length),
+    level: 1, spots: [], godsDoorX: null,
   };
 }
 
