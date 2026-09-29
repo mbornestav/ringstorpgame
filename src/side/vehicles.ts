@@ -1,6 +1,7 @@
 import type { Car } from './game';
 import { disc, ellipse, poly, rect, seg, text, textWidth } from './pixel';
 import { t as tr } from './i18n';
+import { drawExtraCar } from './vehicle-art';
 import ddSmall from './dd-portrait-small.png';
 
 // Cars in side view: D.D's blue BMW saloon and the Swedish police's Volvo estate. Parts are laid
@@ -15,6 +16,7 @@ const CHROME = '#d4dbe1';
 
 /** Draws a car with its centre at screen x and its tyres on the car's lane. */
 export function drawCar(c: CanvasRenderingContext2D, car: Car, sx: number, elapsed: number): void {
+  if (drawExtraCar(c, car, sx, elapsed)) return;
   const dir = car.dir, gy = Math.round(car.y), cx = Math.round(sx);
   const P = (x: number, y: number): [number, number] => [cx + x * dir, gy + y];
   const shape = (points: Local, colour: string) => poly(c, points.map(([x, y]) => P(x, y)), colour);

@@ -3,6 +3,7 @@ import { disc, ellipse, mix, noise, pick, poly, rand, rect, rgb, seg, shade, tex
 import type { Facade, FrontKind, Furniture, Run, SideStreet, Stage, Surface, Tree } from './stage';
 import { drawThaeo } from './graffiti';
 import { LEVEL2_ROLES, drawLevel2Facade, level2Box } from './level2-art';
+import { LEVEL3_ROLES, drawLevel3Facade, level3Box } from './level3-art';
 
 // The static scenery, baked into chunks as the camera approaches. The sky rows stay transparent
 // so the distant ridge and the clouds show through.
@@ -23,6 +24,7 @@ export interface FacadeBox { x0: number; x1: number; base: number; floor: number
 /** Where a facade sits on screen: its ground line, eaves and the top of its roof. */
 export function facadeBox(f: Facade): FacadeBox {
   if (f.role && LEVEL2_ROLES.has(f.role)) return level2Box(f);
+  if (f.role && LEVEL3_ROLES.has(f.role)) return level3Box(f);
   const k = f.row === 0 ? 1 : BACK_SCALE;
   const cx = (f.x0 + f.x1) / 2, w = (f.x1 - f.x0) * k;
   const a = f.appearance;
@@ -129,6 +131,7 @@ export function chimney(c: CanvasRenderingContext2D, x: number, roofY: number, h
 /** A front elevation: the wall, its roof, windows and door. */
 export function drawFacade(c: CanvasRenderingContext2D, f: Facade): void {
   if (f.role && LEVEL2_ROLES.has(f.role)) { drawLevel2Facade(c, f); return; }
+  if (f.role && LEVEL3_ROLES.has(f.role)) { drawLevel3Facade(c, f); return; }
   if (f.role === 'kurir') { drawKurirLivs(c, f); return; }
   if (f.reference) { drawReferenceFacade(c, f); return; }
   const b = facadeBox(f), pal = paletteOf(f), a = f.appearance;
@@ -622,6 +625,13 @@ function drawFront(c: CanvasRenderingContext2D, run: Run<FrontKind>, gaps: Array
         rect(c, x, y - 4, 1, 1, '#c6b39a');
         rect(c, x, y - 9, 1, 2, '#c9c6bd');
         break;
+      case 'chainlink':
+        // Posts every 24 px, with a diamond mesh between them.
+        if (x % 24 === 0) rect(c, x, y - 18, 2, 19, '#7a8084');
+        if ((x + Math.floor((y - 18) / 3)) % 5 === 0) rect(c, x, y - 17, 1, 1, '#9aa1a5');
+        rect(c, x, y - 17 + (x % 6), 1, 1, '#8b9296'); rect(c, x, y - 11 + ((x + 3) % 6), 1, 1, '#8b9296'); rect(c, x, y - 5 + (x % 6), 1, 1, '#8b9296');
+        rect(c, x, y - 18, 1, 1, '#6a7074');
+        break;
       case 'rendered-wall':
         rect(c, x, y - 9, 1, 10, x % 17 === 0 ? '#c2c3b8' : '#deded2');
         rect(c, x, y - 10, 1, 2, '#a7aaa4');
@@ -659,6 +669,15 @@ function drawGate(c: CanvasRenderingContext2D, x: number, seed: number): void {
 function drawFurniture(c: CanvasRenderingContext2D, f: Furniture): void {
   const x = Math.round(f.x), base = FRONTAGE_Y + 7;
   switch (f.kind) {
+    case 'floodlight': {
+      const H = 118;
+      rect(c, x - 1, base - H, 4, H, '#3f454a');
+      rect(c, x, base - H, 1, H, '#8a939a');
+      rect(c, x - 2, base - 5, 8, 5, '#2b3034');
+      rect(c, x - 10, base - H - 5, 22, 4, '#2d3236');
+      for (const dx of [-8, 0, 8]) { rect(c, x + dx - 2, base - H - 2, 6, 3, '#fff3c0'); rect(c, x + dx - 2, base - H - 9, 6, 4, '#1c2024'); }
+      break;
+    }
     case 'lamp': {
       const H = 76;
       rect(c, x - 1, base - H, 3, H, '#4a5157');
@@ -807,6 +826,14 @@ function bakeGround(stage: Stage, x0: number): ImageData {
         }
         const hz = t * 0.45;
         groundPixel(d, i, r + (hazeRGB[0] - r) * hz, g + (hazeRGB[1] - g) * hz, b + (hazeRGB[2] - b) * hz);
+        continue;
+      }
+      if (col.surface === 'yard') {
+        // Worn concrete with painted bay lines and oil stains, right down to the near edge.
+        const slab = x % 40 === 0 || (y - FRONTAGE_Y) % 24 === 0;
+        const stain = noise(x * 0.03 + 7, y * 0.09) > 0.74 ? -14 : 0;
+        const v = (128 + n * 12 + blot * 10 + stain) * (slab ? 0.88 : 1);
+        groundPixel(d, i, v, v + 1, v - 3);
         continue;
       }
       if (col.surface === 'paved') {

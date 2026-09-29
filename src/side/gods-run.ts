@@ -2,18 +2,15 @@ import { BAND_BOTTOM, BAND_TOP, WIDTH } from './layout';
 import { CAST } from './gods-cast';
 import { GODS_DOOR_X, GODS_START_X } from './gods-stage';
 import { t, type Key } from './i18n';
+import { PatrolCrew, type CrewHooks, type Patrol, type PatrolState, type Target } from './patrol';
 import type { SideGame } from './game';
+
+export { SIGHT_RANGE, SNEAK_SIGHT, HIDDEN_SIGHT, HEARING, PATROL_SPEED, CHASE_SPEED, GRAB_TIME } from './patrol';
+export type { Patrol, PatrolState } from './patrol';
 
 // Level 2: carrying Gods home from Kurirgatan 28D without fighting. Patrols watch the street and
 // notice you only while the Gods are on your back; crouch behind cover, stash them, or keep out of sight.
 
-export const SIGHT_RANGE = 170;
-export const SNEAK_SIGHT = 0.55;
-export const HIDDEN_SIGHT = 26;
-export const HEARING = 30;
-export const PATROL_SPEED = 38;
-export const CHASE_SPEED = 86;
-export const GRAB_TIME = 0.45;
 export const FINE_KR = 150;
 export const TOP_FLOOR = 8;
 export const SPOT_REACH = 24;
@@ -23,11 +20,6 @@ export const patrolCount = (assignment: number) => 3 + Math.min(assignment - 1, 
 export type Cargo = 'none' | 'carried' | 'stashed';
 export type Scene = 'street' | 'lobby' | 'cabin' | 'floor';
 export type GodsAction = 'enter' | 'exit' | 'lift' | 'step' | 'stash' | 'collect' | 'talk' | 'dd' | 'deliver';
-export type PatrolState = 'walk' | 'wait' | 'alert' | 'chase' | 'grab' | 'cuff' | 'search';
-export interface Patrol {
-  id: number; x: number; y: number; z: number; facing: 1 | -1; walk: number;
-  x0: number; x1: number; state: PatrolState; timer: number; suspicion: number; flash: number; lostFor: number; cooldown: number;
-}
 export interface FloorNpc { id: string; x: number; y: number; facing: 1 | -1; talked: number }
 export interface Ride { from: number; to: number; t: number; dur: number }
 
@@ -53,7 +45,6 @@ export class GodsRun {
   scene: Scene = 'street';
   floor = 0;
   ride: Ride | null = null;
-  patrols: Patrol[] = [];
   npcs: FloorNpc[] = [];
   /** Crouching out of sight behind cover. */
   hidden = false;
@@ -68,11 +59,37 @@ export class GodsRun {
   private seed = 1;
   private retries = 0;
 
-  constructor(private readonly g: SideGame) {}
+  private readonly crew = new PatrolCrew();
+  private readonly hooks: CrewHooks;
+
+  constructor(private readonly g: SideGame) {
+    const run = this;
+    this.hooks = {
+      targets: () => [run.target()],
+      onAlarm: () => { run.spotted++; run.g.say('msg.spotted'); },
+      onCaught: () => run.caught(),
+      onSearch: o => {
+        // A searching officer who passes close to your stash finds it.
+        if (run.cargo === 'stashed' && run.stashX !== null && Math.abs(o.x - run.stashX) < 50) {
+          run.cargo = 'none'; run.stashX = null; run.g.events.push('warn'); run.g.say('msg.g2StashFound');
+        }
+      },
+      get events() { return run.g.events; },
+    };
+  }
+
+  /** The patrols watching the street. */
+  get patrols(): Patrol[] { return this.crew.patrols; }
+
+  /** Marcus as the police see him: only conspicuous while the Gods are on his back. */
+  private target(): Target {
+    const p = this.g.player;
+    return { id: 'p', x: p.x, y: p.y, z: p.z, moving: p.moving, sneaking: this.g.sneaking, hidden: this.hidden, visible: this.carrying, catchable: p.z < 10 && p.dodgeTimer <= 0 && p.cuffTimer <= 0 && p.hp > 0 };
+  }
 
   reset(): void {
     this.assignment = 1; this.cargo = 'none'; this.stashX = null; this.scene = 'street'; this.floor = 0; this.ride = null;
-    this.patrols = []; this.npcs = []; this.hidden = false; this.received = false; this.spotted = 0; this.fines = 0; this.payout = 0;
+    this.crew.patrols = []; this.npcs = []; this.hidden = false; this.received = false; this.spotted = 0; this.fines = 0; this.payout = 0;
     this.bust = 0; this.retries = 0;
   }
 
@@ -95,7 +112,7 @@ export class GodsRun {
   private spawnPatrols(): void {
     const rng = seeded(this.seed + this.retries * 7919);
     const n = patrolCount(this.assignment), from = 1350, to = this.g.stage.homeX - 600, step = (to - from) / n;
-    this.patrols = Array.from({ length: n }, (_, i) => {
+    this.crew.patrols = Array.from({ length: n }, (_, i) => {
       const centre = from + step * (i + 0.5) + (rng() - 0.5) * step * 0.4, half = 130 + rng() * 90;
       const x = centre + (rng() - 0.5) * half;
       return {
@@ -241,110 +258,28 @@ export class GodsRun {
       if (this.ride.t >= this.ride.dur) { this.floor = this.ride.to; this.ride = null; g.events.push('ding'); }
     }
     if (this.scene !== 'street') { this.hidden = false; return; }
-    for (const o of this.patrols) o.flash = Math.max(0, o.flash - dt);
     if (this.bust > 0) {
       this.bust -= dt;
-      for (const o of this.patrols) this.updatePatrol(o, dt);
+      this.crew.update(dt, this.hooks);
       if (this.bust <= 0) this.retry();
       return;
     }
     this.hidden = !!this.coverAt(p.x) && g.sneaking && !p.moving && p.z <= 0;
-    for (const o of this.patrols) this.updatePatrol(o, dt);
+    this.crew.update(dt, this.hooks);
   }
 
   private get carrying(): boolean { return this.cargo === 'carried'; }
 
-  private range(): number {
-    const g = this.g;
-    if (this.hidden) return HIDDEN_SIGHT;
-    return SIGHT_RANGE * (g.sneaking ? SNEAK_SIGHT : 1) * (g.player.moving ? 1 : 0.85);
-  }
-
-  /** In front of the officer and in range, or right behind them and close enough to hear. */
-  private sees(o: Patrol, range: number): boolean {
-    const p = this.g.player, dx = p.x - o.x;
-    if (Math.abs(dx) > range || Math.abs(p.y - o.y) > 50) return false;
-    return dx * o.facing >= 0 || Math.abs(dx) <= HEARING * (this.g.sneaking ? 0.6 : 1);
-  }
-
-  /** Jumping or dodging slips out of a grab. */
-  private catchable(): boolean {
-    const p = this.g.player;
-    return p.z < 10 && p.dodgeTimer <= 0 && p.cuffTimer <= 0 && p.hp > 0;
-  }
-
-  private updatePatrol(o: Patrol, dt: number): void {
+  private caught(): void {
     const g = this.g, p = g.player;
-    o.cooldown = Math.max(0, o.cooldown - dt);
-    const dx = p.x - o.x;
-    switch (o.state) {
-      case 'cuff': o.timer -= dt; o.facing = dx >= 0 ? 1 : -1; if (o.timer <= 0) o.state = 'walk'; return;
-      case 'grab':
-        o.timer -= dt;
-        if (o.timer > 0) return;
-        if (this.catchable() && Math.abs(dx) <= 28 && Math.abs(p.y - o.y) <= 14) this.caught(o);
-        else { o.state = 'chase'; o.cooldown = 0.7; }
-        return;
-      case 'chase': {
-        o.facing = dx >= 0 ? 1 : -1;
-        o.x += clamp(dx - o.facing * 14, -CHASE_SPEED * dt, CHASE_SPEED * dt);
-        o.y = clamp(o.y + clamp(p.y - o.y, -CHASE_SPEED * 0.65 * dt, CHASE_SPEED * 0.65 * dt), BAND_TOP, BAND_BOTTOM);
-        o.walk += dt * 12;
-        const gap = Math.abs(dx);
-        if (o.cooldown <= 0 && gap <= 24 && gap >= 4 && Math.abs(p.y - o.y) <= 8 && this.catchable()) { o.state = 'grab'; o.timer = GRAB_TIME; g.events.push('warn'); return; }
-        const seen = this.carrying && this.sees(o, SIGHT_RANGE * 1.6) && !this.hidden;
-        o.lostFor = seen ? 0 : o.lostFor + dt;
-        if (o.lostFor > 2.5 || !this.carrying) { o.state = 'search'; o.timer = 4; o.suspicion = 0.4; o.lostFor = 0; }
-        return;
-      }
-      case 'search': {
-        o.timer -= dt;
-        o.facing = Math.floor(o.timer * 1.25) % 2 ? 1 : -1;
-        if (this.cargo === 'stashed' && this.stashX !== null && Math.abs(o.x - this.stashX) < 50) {
-          this.cargo = 'none'; this.stashX = null; g.events.push('warn'); g.say('msg.g2StashFound');
-        }
-        if (this.carrying && this.sees(o, this.range())) o.suspicion += dt * 1.6;
-        if (o.suspicion >= 1) return this.alarm(o);
-        if (o.timer <= 0) { o.state = 'walk'; o.suspicion = 0; }
-        return;
-      }
-    }
-    // Watching: walking the beat, or pausing at its ends.
-    const seen = this.carrying && this.sees(o, this.range());
-    if (seen) {
-      const d = Math.abs(dx), range = this.range();
-      o.suspicion = Math.min(1.05, o.suspicion + dt * (0.9 + 1.6 * (1 - d / range)));
-      o.facing = dx >= 0 ? 1 : -1;
-    } else o.suspicion = Math.max(0, o.suspicion - dt * 0.5);
-    if (o.suspicion >= 1) return this.alarm(o);
-    if (o.suspicion > 0.3 && seen) { o.state = 'alert'; return; }
-    if (o.state === 'alert') { if (o.suspicion < 0.15) { o.state = 'walk'; o.timer = 0; } return; }
-    if (o.state === 'wait') { o.timer -= dt; if (o.timer <= 0) { o.state = 'walk'; o.facing = o.x >= (o.x0 + o.x1) / 2 ? -1 : 1; } return; }
-    o.x += o.facing * PATROL_SPEED * dt;
-    o.walk += dt * 6;
-    if ((o.facing > 0 && o.x >= o.x1) || (o.facing < 0 && o.x <= o.x0)) { o.x = clamp(o.x, o.x0, o.x1); o.state = 'wait'; o.timer = 1.2 + (o.id % 3) * 0.6; }
-  }
-
-  private alarm(o: Patrol): void {
-    const g = this.g;
-    o.state = 'chase'; o.suspicion = 1; o.lostFor = 0; o.cooldown = 0.5;
-    this.spotted++;
-    g.events.push('alert');
-    g.say('msg.spotted');
-    // Anyone close by joins in.
-    for (const other of this.patrols) if (other !== o && Math.abs(other.x - o.x) < 160 && (other.state === 'walk' || other.state === 'wait' || other.state === 'alert')) { other.state = 'chase'; other.suspicion = 1; other.cooldown = 0.6; }
-  }
-
-  private caught(o: Patrol): void {
-    const g = this.g, p = g.player;
-    o.state = 'cuff'; o.timer = 1.4;
     p.cuffTimer = 1.6; p.vx = 0; p.dodgeTimer = 0;
     const fine = Math.min(g.cash, FINE_KR);
     g.cash -= fine;
     this.fines++;
     this.cargo = 'none'; this.stashX = null;
     this.bust = 1.7;
-    for (const other of this.patrols) if (other !== o && other.state !== 'cuff') { other.state = 'walk'; other.suspicion = 0; }
+    const officer = this.crew.patrols.find(o => o.state === 'cuff');
+    if (officer) this.crew.calm(officer);
     g.events.push('cuff');
     g.say('msg.busted2', { fine });
   }

@@ -48,6 +48,8 @@ export const LOOKS = {
   runner: { skin: '#d9a985', hair: '#3a2f2c', jacket: '#985c57', arms: '#7e4a46', trousers: '#2c2f3a', shoes: '#e9e4d8', height: 43, build: 9, limb: 4, stripe: '#e9e4d8' },
   bruiser: { skin: '#c9967a', hair: '#2a2420', jacket: '#7b586f', arms: '#644659', trousers: '#262a33', shoes: '#191b1f', height: 47, build: 12, limb: 5, bald: true },
   boss: { skin: '#d2a07e', hair: '#1b1b1f', jacket: '#a34254', arms: '#86343f', trousers: '#1f2129', shoes: '#191b1f', height: 54, build: 14, limb: 6, shades: true, chain: true },
+  // Goran: broad, dark hair, a brown leather jacket and jeans.
+  goran: { skin: '#d3a27e', hair: '#2b1f1a', jacket: '#5a3a26', arms: '#4d311f', trousers: '#2f3a52', shoes: '#1c1c1e', height: 46, build: 12, limb: 5 },
   // Swedish police: a yellow hi-vis vest over a navy uniform, and a navy cap with the badge.
   police: { skin: '#e8b995', hair: '#5a4634', jacket: '#d3dc3a', arms: '#1d2a44', trousers: '#1b2436', shoes: '#141517', height: 45, build: 10, limb: 4, cap: '#1b2640', badge: true, vest: true },
 } satisfies Record<string, Look>;
@@ -205,7 +207,7 @@ function shoe(c: CanvasRenderingContext2D, p: Pt, facing: 1 | -1, rot: number, c
   rect(c, x0, y - 1, len, 2, colour);
 }
 
-function drawHead(c: CanvasRenderingContext2D, p: Pt, facing: 1 | -1, w: number, h: number, look: Look, rot: number, tint?: string): void {
+export function drawHead(c: CanvasRenderingContext2D, p: Pt, facing: 1 | -1, w: number, h: number, look: Look, rot: number, tint?: string): void {
   const x = Math.round(p[0] - w / 2), y = Math.round(p[1] - h / 2);
   rect(c, x - 1, y - 1, w + 2, h + 2, tint ?? OUTLINE);
   if (tint) { rect(c, x, y, w, h, tint); return; }

@@ -8,6 +8,7 @@ import {
 } from '../world';
 import { BAND_BOTTOM, BAND_TOP, PX_PER_M, WIDTH } from './layout';
 import { FACADE_REFERENCES, type FacadeReference } from './facade-references';
+import type { Light } from './night';
 
 // The side-scrolling stage unrolls a route into one long street. Everything along the way keeps
 // its real order and spacing: buildings, trees, lamps, signs, side streets and the waiting crews.
@@ -46,16 +47,16 @@ export interface Facade {
   door: number | null;
   seed: number;
   address?: string;
-  role?: 'home' | 'marcus' | 'kiosk' | 'kurir' | 'gods' | 'block' | 'garages' | 'shed' | 'school';
+  role?: 'home' | 'marcus' | 'kiosk' | 'kurir' | 'gods' | 'block' | 'garages' | 'shed' | 'school' | 'statoil' | 'bildeve' | 'warehouse' | 'containers' | 'yardgate';
 }
 export interface Tree { x: number; row: 0 | 1; dist: number; variant: number; height: number; bush: boolean }
-export type FurnitureKind = 'lamp' | 'sign' | 'busstop' | 'bench' | 'bin' | 'postbox' | 'crossing' | 'shelter';
+export type FurnitureKind = 'lamp' | 'sign' | 'busstop' | 'bench' | 'bin' | 'postbox' | 'crossing' | 'shelter' | 'floodlight';
 /** Street furniture on the far pavement, or a lamp post on the near side in front of the action. */
 export interface Furniture { kind: FurnitureKind; x: number; near: boolean; label?: string; variant?: number }
 export interface Run<T> { x0: number; x1: number; value: T }
 /** Carriageway, a bigger street with a centre line, a gravel park path, or the paved path to Home. */
-export type Surface = 'road' | 'major' | 'path' | 'paved';
-export type FrontKind = 'hedge' | 'picket' | 'plank' | 'wall' | 'rendered-wall' | 'open' | 'forecourt';
+export type Surface = 'road' | 'major' | 'path' | 'paved' | 'yard';
+export type FrontKind = 'hedge' | 'picket' | 'plank' | 'wall' | 'rendered-wall' | 'open' | 'forecourt' | 'chainlink';
 /** A street leaving the route: away from the camera (far) or towards it (near). */
 export interface SideStreet { x: number; width: number; far: boolean; name?: string }
 export type EnemyKind = 'runner' | 'bruiser' | 'boss';
@@ -93,8 +94,11 @@ export interface Stage {
   sideStreets: SideStreet[];
   crossings: number[];
   encounters: Encounter[];
-  /** 1 is the package run; 2 is the Gods run, which has no crews and no junctions. */
-  level: 1 | 2;
+  /** 1 is the package run; 2 is the Gods run; 3 is the truck job. Levels 2 and 3 have no crews or junctions. */
+  level: 1 | 2 | 3;
+  /** A night scene: dark sky, tinted scenery and pools of light. */
+  night?: boolean;
+  lights?: Light[];
   spots: Spot[];
   /** Level 2: the entrance of Kurirgatan 28D. */
   godsDoorX: number | null;

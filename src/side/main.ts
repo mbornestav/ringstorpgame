@@ -4,6 +4,7 @@ import { MAP_ATTRIBUTION } from '../map';
 import '../style.css';
 import { CLIP, DD_NUMBER, FINE, REFILL_PRICE, SideGame } from './game';
 import { HEIGHT, WIDTH } from './layout';
+import { HEIST } from './heist-config';
 import { panelHit } from './interior';
 import { SideRenderer } from './render';
 import { PhoneUI } from './phone';
@@ -77,10 +78,14 @@ applyStatic();
 let controlsKey = '';
 /** The controls bar lists F only once D.D has given you his number. */
 function renderControls(): void {
-  const key = `${getLang()}:${game.level}:${game.hasPhone}`;
+  const key = `${getLang()}:${game.level}:${game.hasPhone}:${game.level === 3 && game.heist.driving}`;
   if (key === controlsKey) return;
   controlsKey = key;
-  const keys: Array<[string, Key]> = game.level === 2
+  const keys: Array<[string, Key]> = game.level === 3
+    ? game.heist.driving
+      ? [['D', 'ctl.gas'], ['A', 'ctl.brakes'], ['W S / ↑ ↓', 'ctl.lane'], ['ESC', 'ctl.pause'], ['M', 'ctl.sound']]
+      : [['A D / ← →', 'ctl.walk'], ['W S / ↑ ↓', 'ctl.step'], ['SHIFT', 'ctl.sneak'], ['K', 'ctl.dodge'], ['E', 'ctl.work'], ['ESC', 'ctl.pause'], ['M', 'ctl.sound']]
+    : game.level === 2
     ? [['A D / ← →', 'ctl.walk'], ['W S / ↑ ↓', 'ctl.step'], ['SHIFT', 'ctl.sneak'], ['SPACE / L', 'ctl.jump'], ['K', 'ctl.dodge'], ['E', 'ctl.use2'], ['0-8', 'ctl.floor'], ['ESC', 'ctl.pause'], ['M', 'ctl.sound']]
     : [['A D / ← →', 'ctl.walk'], ['W S / ↑ ↓', 'ctl.step'], ['SPACE / L', 'ctl.jump'], ['J', 'ctl.punch'], ['K', 'ctl.dodge'], ['I', 'ctl.shoot'], ['E', 'ctl.use'], ...(game.hasPhone ? [['F', 'ctl.phone'] as [string, Key]] : []), ['ESC', 'ctl.pause'], ['M', 'ctl.sound']];
   bottomline.innerHTML = keys.map(([k, label]) => `<span>${k} <b>${t(label)}</b></span>`).join('');
@@ -131,6 +136,8 @@ class Sound {
         dial: [[941, 0.1, 0], [1336, 0.1, 0], [770, 0.1, 0.15], [1209, 0.1, 0.15], [697, 0.1, 0.3], [1336, 0.1, 0.3]],
         doors: [[300, 0.05, 0], [220, 0.09, 0.05]], ding: [[988, 0.12, 0], [784, 0.3, 0.14]], lift: [[110, 0.5, 0], [125, 0.5, 0.45]],
         alert: [[880, 0.08, 0], [660, 0.08, 0.09], [880, 0.14, 0.18]],
+        tear: [[180, 0.05, 0], [140, 0.05, 0.06], [200, 0.05, 0.12]], crate: [[220, 0.06, 0], [330, 0.08, 0.05]], whistle: [[1500, 0.12, 0], [1900, 0.18, 0.13]],
+        crash: [[90, 0.2, 0], [60, 0.25, 0.05], [130, 0.1, 0]],
         ring: [[425, 0.35, 0], [425, 0.35, 0.65]], connect: [[660, 0.07, 0], [880, 0.1, 0.09]],
         cash: [[1568, 0.06, 0], [2093, 0.11, 0.1]],
         // The two-tone siren of a Swedish patrol car.
@@ -141,7 +148,7 @@ class Sound {
       for (const [frequency, duration, delay] of notes[name] || []) {
         const osc = c.createOscillator();
         const gain = c.createGain();
-        osc.type = ['hit', 'hurt', 'smash', 'thud', 'shot', 'brake', 'lift'].includes(name) ? 'sawtooth' : name === 'siren' ? 'triangle' : 'square';
+        osc.type = ['hit', 'hurt', 'smash', 'thud', 'shot', 'brake', 'lift', 'crash', 'tear'].includes(name) ? 'sawtooth' : name === 'siren' ? 'triangle' : 'square';
         osc.frequency.setValueAtTime(frequency, now + delay);
         if (name === 'swing' || name === 'dodge' || name === 'shot' || name === 'brake') osc.frequency.exponentialRampToValueAtTime(Math.max(40, frequency / 3), now + delay + duration);
         gain.gain.setValueAtTime(0.0001, now + delay);
@@ -162,9 +169,26 @@ function formatTime(seconds: number): string {
 }
 
 /** The title screen shows either the main menu or, once the Gods mission is chosen, D.D's call. */
-let titleView: 'main' | 'gods' = 'main';
+let titleView: 'main' | 'gods' | 'heist' = 'main';
 
 function panelFor(mode: Mode): string {
+  if (mode === 'title' && titleView === 'heist') return `
+    <div class="panel title-panel briefing">
+      <div class="eyebrow"><span class="chip">03</span> ${t('brief3.eyebrow')} <span class="gold-line"></span></div>
+      <div class="briefing-row">
+        <figure class="dd-portrait"><img src="${ddPortrait}" width="72" height="82" alt="D.D"><figcaption><b>D.D</b><span>${t('brief3.you')}</span></figcaption></figure>
+        <div class="briefing-text">
+          <h2>${t('brief3.title')}<span class="blink">_</span></h2>
+          <p class="story">${t('brief3.text')}</p>
+          <ul class="brief-list"><li>${t('brief3.one')}</li><li>${t('brief3.two')}</li><li>${t('brief3.three')}</li></ul>
+          <div class="action-row">
+            <button class="primary-button" data-action="answer-3">${t('brief3.answer')}</button>
+            <button class="secondary-button" data-action="back">${t('brief.back')}</button>
+            <span>${t('brief.hint')}</span>
+          </div>
+        </div>
+      </div>
+    </div>`;
   if (mode === 'title' && titleView === 'gods') return `
     <div class="panel title-panel briefing">
       <div class="eyebrow"><span class="chip">02</span> ${t('brief.eyebrow')} <span class="gold-line"></span></div>
@@ -192,13 +216,23 @@ function panelFor(mode: Mode): string {
         <button class="primary-button" data-action="start">${t('title.start')}</button>
         <span>${t('title.hint')}</span>
       </div>
-      <div class="action-row route-row">
-        <button class="secondary-button" data-action="start-2">${t('title.level2')}</button>
-        <span>${t('title.level2Hint')}</span>
+      <div class="action-row level-pick">
+        <button class="secondary-button" data-action="start-2">${t('title.level2')}<small>${t('title.level2Hint')}</small></button>
+        <button class="secondary-button" data-action="start-3">${t('title.level3')}<small>${t('title.level3Hint')}</small></button>
       </div>
       <div class="controls-grid"><div><kbd>WASD</kbd> / <kbd>↑↓←→</kbd><span>${t('title.walk')}</span></div><div><kbd>SPACE</kbd><span>${t('title.jump')}</span></div><div><kbd>J</kbd><span>${t('title.punch')}</span></div><div><kbd>K</kbd><span>${t('title.dodge')}</span></div></div>
     </div>`;
   if (mode === 'paused') return `<div class="panel compact-panel"><div class="eyebrow">${t('pause.eyebrow')}</div><h2>${t('pause.title')}<span class="blink">_</span></h2><p>${t('pause.text')}</p><div class="action-row"><button class="primary-button" data-action="resume">${t('pause.resume')}</button><button class="secondary-button" data-action="restart">${t('pause.restart')}</button></div><small>${t('pause.hint')}</small></div>`;
+  if (mode === 'victory' && game.level === 3) {
+    const h = game.heist;
+    const dmg = h.damageTaken ? t('win3.dmg', { n: h.damageTaken }) : '';
+    return `<div class="panel compact-panel outcome-panel"><div class="eyebrow">${t('win3.eyebrow')}</div><h2>${t('win.title')}<span class="gold">.</span></h2><p>${t('win3.text', { n: h.delivered, dmg, pay: h.payout })}</p><div class="result-grid"><div><span>${t('win.time')}</span><b>${formatTime(game.elapsed)}</b></div><div><span>${t('win3.crates')}</span><b>${h.delivered}</b></div><div><span>${t('win3.pay')}</span><b>${h.payout} KR</b></div></div><div class="action-row"><button class="primary-button" data-action="restart">${t('win3.again')}</button><button class="secondary-button" data-action="menu">${t('win2.menu')}</button><span>${t('win3.hint')}</span></div></div>`;
+  }
+  if (mode === 'defeat' && game.level === 3) {
+    const h = game.heist, why = h.failure ?? 'busted';
+    const title = t(why === 'wrecked' ? 'lose3.wrecked' : 'lose3.busted');
+    return `<div class="panel compact-panel outcome-panel"><div class="eyebrow">${t('lose3.eyebrow')}</div><h2>${title}<span class="red">.</span></h2><p>${t(`lose3.${why}.text` as Key, { fine: h.fine })}</p><div class="result-grid"><div><span>${t('win.time')}</span><b>${formatTime(game.elapsed)}</b></div><div><span>${t('lose3.crates')}</span><b>${h.crates}</b></div><div><span>${t('lose3.fine')}</span><b>${h.fine} KR</b></div></div><div class="action-row"><button class="primary-button" data-action="restart">${t('lose3.again')}</button><button class="secondary-button" data-action="menu">${t('win2.menu')}</button><span>${t('lose3.hint')}</span></div></div>`;
+  }
   if (mode === 'victory' && game.level === 2) {
     const g2 = game.gods;
     const spotted = g2.spotted ? t('win2.spotted', { n: g2.spotted }) : '';
@@ -229,11 +263,29 @@ function syncUI(): void {
     // A start button that has just been hidden must not keep the keyboard focus.
     if (game.mode === 'playing' && document.activeElement instanceof HTMLElement && overlay.contains(document.activeElement)) document.activeElement.blur();
   }
-  const lifeText = t(game.level === 2 ? 'hud.cargo' : 'hud.health');
+  const lifeText = t(game.level === 3 ? 'hud.load' : game.level === 2 ? 'hud.cargo' : 'hud.health');
   if (lifeLabel.textContent !== lifeText) lifeLabel.textContent = lifeText;
-  const levelText = t(game.level === 2 || (game.mode === 'title' && titleView === 'gods') ? 'top.level2' : 'top.level1');
+  const levelText = t(game.level === 3 || (game.mode === 'title' && titleView === 'heist') ? 'top.level3' : game.level === 2 || (game.mode === 'title' && titleView === 'gods') ? 'top.level2' : 'top.level1');
   if (levelLine.textContent !== levelText) levelLine.textContent = levelText;
-  if (game.mode !== 'title' && game.level === 2) {
+  if (game.mode !== 'title' && game.level === 3) {
+    const h = game.heist, bar = (n: number, max: number) => '▮'.repeat(Math.max(0, n)) + '▯'.repeat(Math.max(0, max - n));
+    const car = bar(HEIST.wreckAt - h.damage, HEIST.wreckAt);
+    const carrying = h.yard.carry > 0 ? ` · ${t('h.carrying', { n: h.yard.carry })}` : '';
+    hearts.innerHTML = `<span class="cargo cargo-carried">${t('h.crates', { n: h.crates, max: HEIST.trunk })}${carrying}</span><span class="cargo">${t('h.car')} ${car}${h.phase === 'yard' ? ` · ${t('h.noise')} ${bar(Math.round(h.noise * 5), 5)}` : ''}</span>`;
+    ammo.hidden = true;
+    objective.textContent = game.objective;
+    const x = game.player.x, passedStatoil = h.phase !== 'pickup' && (h.phase !== 'out' || x > 4900);
+    const steps: Array<[string, string, string]> = [
+      [h.phase === 'pickup' ? 'active' : 'done', h.phase === 'pickup' ? '?' : '✓', t('step3.pickup')],
+      [passedStatoil ? 'done' : h.phase === 'out' ? 'active' : '', passedStatoil ? '✓' : '✚', t('step3.statoil')],
+      [h.phase === 'yard' ? 'active' : h.phase === 'back' || h.phase === 'done' ? 'done' : '', h.phase === 'back' || h.phase === 'done' ? '✓' : '✚', t('step3.yard')],
+      [game.mode === 'victory' ? 'done' : h.phase === 'back' ? 'active' : '', '★', t('step3.home')],
+    ];
+    progress.innerHTML = steps.map(([state, icon, title]) => `<span class="progress-step ${state}" title="${title}">${icon}</span>`).join('<i></i>') + '<em class="route-name">Kurirgatan → Industrivägen</em>';
+    timeDisplay.textContent = formatTime(game.elapsed);
+    scoreDisplay.textContent = `${game.cash}`.padStart(5, '0');
+    streetLine.textContent = `${(game.street ?? 'Kurirgatan').toUpperCase()}${h.driving ? ` · ${t('hud.toHome', { m: Math.round(game.metresToHome) })}` : ''}`;
+  } else if (game.mode !== 'title' && game.level === 2) {
     const g2 = game.gods, state = g2.hidden ? 'cargo.hidden' : g2.cargo === 'carried' ? 'cargo.carried' : g2.cargo === 'stashed' ? 'cargo.stashed' : 'cargo.none';
     hearts.innerHTML = `<span class="cargo cargo-${g2.cargo}">${t(state)}${game.sneaking && !g2.hidden ? ` · ${t('cargo.sneak')}` : ''}</span>`;
     ammo.hidden = true;
@@ -275,7 +327,12 @@ function syncUI(): void {
   const junction = game.junctionAhead, action = game.interaction;
   const bmw = game.cars.find(c => c.kind === 'bmw' && c.state === 'driving' && !c.handed && !c.delivery && c.x > game.camera - 60 && c.x < game.camera + 540);
   let choice = '';
-  if (game.mode === 'playing' && game.level === 2) {
+  if (game.mode === 'playing' && game.level === 3) {
+    if (action) {
+      const h = game.heist;
+      choice = `<div><small>${t('top.level3')}</small><strong>${action.label}</strong><span>${t('h.crates', { n: h.crates, max: HEIST.trunk })}</span></div><button type="button" aria-label="${action.label}"><kbd>E</kbd> ${t('choice2.use')}</button>`;
+    }
+  } else if (game.mode === 'playing' && game.level === 2) {
     if (action) {
       const g2 = game.gods, state = g2.hidden ? 'cargo.hidden' : g2.cargo === 'carried' ? 'cargo.carried' : g2.cargo === 'stashed' ? 'cargo.stashed' : 'cargo.none';
       choice = `<div><small>${t('choice2.small')}</small><strong>${action.label}</strong><span>${t(state)}</span></div><button type="button" aria-label="${action.label}"><kbd>E</kbd> ${t('choice2.use')}</button>`;
@@ -298,16 +355,18 @@ function syncUI(): void {
 function restart(): void {
   held.clear();
   // In the Gods run, restarting retries the same assignment; after a delivery it moves on to the next.
-  if (game.level === 2) game.startGods(game.gods.assignment + (game.mode === 'victory' ? 1 : 0));
+  if (game.level === 3) game.startHeist();
+  else if (game.level === 2) game.startGods(game.gods.assignment + (game.mode === 'victory' ? 1 : 0));
   else game.start();
   renderer.resetCamera(); syncUI();
 }
 function startLevel2(): void { held.clear(); titleView = 'main'; game.startGods(1); renderer.resetCamera(); syncUI(); }
-function showBriefing(view: 'main' | 'gods'): void {
+function startLevel3(): void { held.clear(); titleView = 'main'; game.startHeist(); renderer.resetCamera(); syncUI(); }
+function showBriefing(view: 'main' | 'gods' | 'heist'): void {
   titleView = view;
   lastMode = '';
   syncUI();
-  overlay.querySelector<HTMLButtonElement>(view === 'gods' ? '[data-action="answer"]' : '[data-action="start-2"]')?.focus();
+  overlay.querySelector<HTMLButtonElement>(view === 'gods' ? '[data-action="answer"]' : view === 'heist' ? '[data-action="answer-3"]' : '[data-action="start-2"]')?.focus();
 }
 overlay.addEventListener('click', event => {
   const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-action]');
@@ -315,6 +374,8 @@ overlay.addEventListener('click', event => {
   if (action === 'start' || action === 'restart') restart();
   if (action === 'start-2') showBriefing('gods');
   if (action === 'answer') startLevel2();
+  if (action === 'start-3') showBriefing('heist');
+  if (action === 'answer-3') startLevel3();
   if (action === 'back') showBriefing('main');
   if (action === 'menu') { held.clear(); titleView = 'main'; game.toTitle(); renderer.resetCamera(); }
   if (action === 'resume') game.togglePause();
@@ -380,8 +441,9 @@ window.addEventListener('keydown', event => {
   if (key === 'escape' && !event.repeat) { game.togglePause(); syncUI(); }
   if (key === 'enter' && !event.repeat && game.mode === 'defeat' && game.checkpoint !== null) { held.clear(); game.continueFromCheckpoint(); syncUI(); }
   else if (key === 'enter' && !event.repeat && game.mode === 'title' && titleView === 'gods') startLevel2();
+  else if (key === 'enter' && !event.repeat && game.mode === 'title' && titleView === 'heist') startLevel3();
   else if (key === 'enter' && !event.repeat && ['title', 'victory', 'defeat'].includes(game.mode)) restart();
-  if (key === 'escape' && !event.repeat && game.mode === 'title' && titleView === 'gods') showBriefing('main');
+  if (key === 'escape' && !event.repeat && game.mode === 'title' && titleView !== 'main') showBriefing('main');
   if (key === 'j' && !event.repeat && game.mode === 'playing') game.queueAttack();
   if (key === 'k' && !event.repeat && game.mode === 'playing') game.queueDodge();
   if (key === 'i' && !event.repeat && game.mode === 'playing') game.queueShot();
@@ -403,6 +465,7 @@ function tick(now: number): void {
   const y = Number(held.has('s') || held.has('arrowdown')) - Number(held.has('w') || held.has('arrowup'));
   game.setMovement(x, y);
   game.setSneak(held.has('shift'));
+  game.setUse(held.has('e'));
   game.update(dt);
   for (const event of game.events.splice(0)) sound.play(event);
   renderer.render(game, dt);

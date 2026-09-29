@@ -25,6 +25,16 @@ Pick **LEVEL 2 · GODS RUN** on the title screen. D.D rings: he wants Marcus at 
 
 Delivering pays **300 kr**, plus 100 kr more for each assignment you've done in a row (up to 800 kr), and there's one more patrol on the street each time, up to six. Pick **NEXT ASSIGNMENT** to go again. Your cash is saved in the browser and is shared with Level 1, where it pays for D.D's refills.
 
+## Level 3: the Kapell Job (hardcore, as D.D)
+
+Pick **LEVEL 3 · THE KAPELL JOB** on the title screen. You are **D.D**, and it's night. You pick up **Goran** on Kurirgatan in a **Ford Taunus** and drive out past **Statoil** and the **Bildeve Volvo** dealership to an industrial estate, where a truck park is full of trailers under **kapell** (tarpaulin). Cut them open, take the Gods, and drive back to Kurirgatan.
+
+1. **Driving** (out and back): **D** is gas, **A** is brake, and **W / S** (or ↑ / ↓) change lane. Slower traffic shares both lanes, so overtake, and a bump costs speed and a point of car damage. **Four points wreck the car and fail the job.** The way out is quiet: there are no police.
+2. **The yard**, on foot: **hold E** beside a trailer for three seconds to **cut the kapell**, then hold E again to take **crates** (you can carry two). Carry them to the Taunus and press **E** to load; press **E** at the car again to drive off. The boot holds eight. **Shift** sneaks and **K** dodges a grab.
+3. **Police patrol the yard.** Their yellow cones show where they're looking; a **?** and a filling bar mean suspicion, and a **!** means a chase. **Trailers block their view**, so crouch behind one (sneak and stand still) to hide. **Cutting and taking crates is loud**: officers within about 150 px hear it even when they can't see you.
+4. **Goran is your partner and lookout.** He follows you, cuts and hauls from another trailer once you've started, and **whistles and hides when police get close**. **If either of you is arrested, the whole job is over**: no checkpoints, and a 500 kr fine.
+5. **The way back**: more crates means more money and a bigger chance of a chase (**30 % + 8 % per crate + 5 % per noisy cut**). Police cars come up behind you in waves; out-drive them and swap lanes to shake them off, but if they box you in at a crawl you're arrested. Each crate pays **120 kr** on arrival, less **40 kr** for each dent.
+
 ## Language
 
 The **SV / EN** button in the header switches the whole game between English and Swedish. The choice is saved in the browser. All text lives in `src/side/i18n.ts`; game state stores keys, so text is translated when it's shown. Signs painted into the street (Kurir Livs, ICA, POLIS, HEM 55B, HUNDFÖRBUD) stay Swedish in both languages.
@@ -63,8 +73,9 @@ The script uses `ssh/dproxy_key.pem` to deploy as `azureuser`, installs an atomi
 | Esc | Pause or resume |
 | M | Toggle sound |
 | Enter | Start, continue from Marcus A, or replay |
-| Shift | Level 2: sneak |
+| Shift | Levels 2 and 3: sneak |
 | 0-8 | Level 2: choose a floor in the lift |
+| D / A, W / S | Level 3: gas and brake, change lane while driving; hold E to cut and take crates in the yard |
 
 Blows only land on someone in the same lane, so line up before you swing. A **!** means an attack is coming. Bruisers and the boss shrug off jabs while winding up, so dodge, jump clear, or finish the combo with the hook.
 

@@ -6,6 +6,8 @@ import { t, type Key, type Params } from './i18n';
 import { STARTING_CASH, loadWallet, saveWallet } from './wallet';
 import { GodsRun, type GodsAction } from './gods-run';
 import { godsStage } from './gods-stage';
+import { HeistRun, type HeistAction } from './heist-run';
+import { roadOutStage } from './heist-stages';
 
 export type { EnemyKind } from './stage';
 export type EnemyState = 'idle' | 'walk' | 'windup' | 'strike' | 'recover' | 'hurt' | 'down' | 'rise' | 'ko';
@@ -69,7 +71,7 @@ export interface Effect {
   y1?: number;
 }
 
-export type CarKind = 'bmw' | 'police';
+export type CarKind = 'bmw' | 'police' | 'taunus' | 'civil' | 'truck';
 export type CarState = 'driving' | 'braking' | 'stopped' | 'leaving';
 /** A car on the carriageway. Traffic keeps right, so cars heading right use the lane nearer the camera. */
 export interface Car {
@@ -89,6 +91,18 @@ export interface Car {
   handed: boolean;
   /** A phone order keeps D.D parked until the player accepts or dismisses him. */
   delivery?: boolean;
+  /** Paint or tarpaulin colour, for traffic. */
+  tone?: number;
+  /** Length in pixels, for the heist's traffic. */
+  len?: number;
+  /** How many people are in the car (the Taunus). */
+  crew?: number;
+  /** Headlamps on, at night. */
+  lights?: boolean;
+  /** Brake lights on. */
+  braking?: boolean;
+  /** Siren going, for the pursuit. */
+  siren?: boolean;
 }
 export interface Delivery {
   state: 'coming' | 'ready' | 'leaving';
@@ -161,10 +175,13 @@ const OUT = new Set<EnemyState>(['idle', 'down', 'rise', 'ko']);
 export class SideGame {
   mode: Mode = 'title';
   /** 1 is the package run with its crews; 2 is the stealth run carrying Gods. */
-  level: 1 | 2 = 1;
-  /** Held Shift: quieter and slower. Only Level 2 uses it. */
+  level: 1 | 2 | 3 = 1;
+  /** Held Shift: quieter and slower. Levels 2 and 3 use it. */
   sneaking = false;
+  /** Held E: cutting a tarpaulin or taking a crate in Level 3. */
+  using = false;
   readonly gods = new GodsRun(this);
+  readonly heist = new HeistRun(this);
   route: Route = 'direct';
   stage: Stage = stageFor('direct');
   player!: SidePlayer;
@@ -245,7 +262,9 @@ export class SideGame {
   reset(route: Route = 'direct'): void {
     this.level = 1;
     this.sneaking = false;
+    this.using = false;
     this.gods.reset();
+    this.heist.reset();
     this.route = route;
     this.stage = stageFor(route);
     const { start } = this.stage;
@@ -314,7 +333,24 @@ export class SideGame {
     this.mode = 'title';
   }
 
-  setSneak(on: boolean): void { this.sneaking = on && this.level === 2; }
+  /** Starts The Kapell Job: D.D at the wheel, Goran waiting by the kerb on Kurirgatan. */
+  startHeist(): void {
+    this.reset();
+    this.level = 3;
+    this.stage = roadOutStage();
+    this.encounters = new Map();
+    this.enemies = [];
+    this.heist.begin();
+    this.mode = 'playing';
+    this.events.push('start');
+  }
+
+  setSneak(on: boolean): void { this.sneaking = on && this.level >= 2; }
+  setUse(on: boolean): void { this.using = on && this.level === 3; }
+  /** The movement keys as read this frame: x is -1 to 1 along the street, y up or down it. */
+  get input(): { x: number; y: number } { return this.moveInput; }
+  /** Level 3 is played as D.D; the other levels as Marcus. */
+  get playerLook(): 'dd' | 'player' { return this.level === 3 ? 'dd' : 'player'; }
 
   start(route: Route = 'direct'): void {
     this.reset(route);
@@ -334,8 +370,9 @@ export class SideGame {
     return this.stage.junctions.find(j => !this.decisions.has(j.id) && j.x >= this.player.x - TURN_REACH && j.x <= this.player.x + 280);
   }
 
-  get interaction(): { kind: 'turn' | 'shop' | 'hail' | 'ammo' | GodsAction; label: string } | null {
+  get interaction(): { kind: 'turn' | 'shop' | 'hail' | 'ammo' | GodsAction | HeistAction; label: string } | null {
     if (this.level === 2) return this.gods.interaction();
+    if (this.level === 3) return this.heist.interaction();
     if (this.phoneOpen || this.mode !== 'playing' || this.transition > 0) return null;
     const p = this.player;
     if (p.hp <= 0 || p.z > 0 || p.downTimer > 0 || p.hurtTimer > 0 || p.riseTimer > 0 || p.dodgeTimer > 0 || p.attackTimer > 0 || p.cuffTimer > 0) return null;
@@ -355,6 +392,7 @@ export class SideGame {
   /** E is contextual: wave down D.D, take a signed turn, or collect supplies at the shop door. */
   interact(): void {
     if (this.level === 2) { this.gods.interact(); return; }
+    if (this.level === 3) { this.heist.interact(); return; }
     const action = this.interaction;
     if (!action) return;
     if (action.kind === 'ammo') { this.openPhone(); return; }
@@ -443,6 +481,7 @@ export class SideGame {
   /** The police are after the courier, or on their way. */
   get wanted(): boolean {
     if (this.level === 2) return this.gods.patrols.some(o => o.state === 'chase' || o.state === 'grab');
+    if (this.level === 3) return this.heist.yard.patrols.some(o => o.state === 'chase' || o.state === 'grab') || (this.heist.drive?.police.length ?? 0) > 0;
     return this.dispatch !== null || this.police.some(o => o.state !== 'leave'); }
 
   get homeCrewDown(): boolean {
@@ -460,6 +499,7 @@ export class SideGame {
 
   get objective(): string {
     if (this.level === 2) return this.gods.objective;
+    if (this.level === 3) return this.heist.objective;
     if (!this.hasPackage) return t('obj.package');
     if (this.marcusAhead) return t('obj.marcus');
     if (this.stage.shopX !== null && !this.shopHealed && this.player.x < this.stage.shopX + 90) return t('obj.shop');
@@ -490,10 +530,25 @@ export class SideGame {
     }
   }
 
+  /** The truck job: driving the Taunus, or on foot in the yard. */
+  private updateHeist(dt: number): void {
+    this.elapsed += dt;
+    this.messageTimer = Math.max(0, this.messageTimer - dt);
+    this.shake = Math.max(0, this.shake - dt * 18);
+    if (this.transition > 0) { this.transition = Math.max(0, this.transition - dt); return; }
+    if (this.heist.driving) { this.heist.update(dt); return; }
+    this.updatePlayer(dt);
+    this.heist.update(dt);
+    const p = this.player;
+    this.camera += (this.naturalCamera() - this.camera) * Math.min(1, dt * 8);
+    p.x = clamp(p.x, Math.max(EDGE, this.camera + EDGE), Math.min(this.stage.length - EDGE, this.camera + WIDTH - EDGE));
+  }
+
   update(rawDt: number): void {
     if (this.mode !== 'playing') return;
     const dt = Math.min(rawDt, 0.05);
     if (this.level === 2) { this.updateGods(dt); return; }
+    if (this.level === 3) { this.updateHeist(dt); return; }
     this.updatePhone(dt);
     this.updateDelivery(dt);
     // The phone pauses the fight, but D.D can still answer and arrive.
@@ -530,7 +585,7 @@ export class SideGame {
   private updatePlayer(dt: number): void {
     const p = this.player;
     const input = this.level === 2 && this.gods.scene === 'cabin' ? { x: 0, y: 0 } : this.moveInput;
-    const pace = this.level === 2 && this.sneaking ? 0.55 : 1;
+    const pace = this.level >= 2 && this.sneaking ? 0.55 : 1;
     p.invulnerable = Math.max(0, p.invulnerable - dt);
     p.flash = Math.max(0, p.flash - dt);
     p.comboWindow = Math.max(0, p.comboWindow - dt);

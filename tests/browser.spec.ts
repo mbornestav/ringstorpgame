@@ -350,3 +350,84 @@ test('Level 2: fetch the Gods from floor 8, carry them home past the police and 
   expect(await world(g => g.gods.assignment)).toBe(2);
   expect(errors).toEqual([]);
 });
+
+test('Level 3: pick up Goran, drive out, cut a kapell, load the Taunus and drive back to Kurirgatan', async ({ page }) => {
+  test.setTimeout(90000);
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/');
+  await page.getByRole('button', { name: /level 3/i }).click();
+  await expect(page.getByRole('heading', { name: /the kapell job/i })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'D.D' })).toBeVisible();
+  await page.getByRole('button', { name: /back/i }).click();
+  await expect(page.getByRole('button', { name: /start run/i })).toBeVisible();
+  await page.getByRole('button', { name: /level 3/i }).click();
+  await page.getByRole('button', { name: /take the wheel/i }).click();
+  await expect(page.locator('#objective')).toHaveText('Pick up Goran · Kurirgatan');
+  await expect(page.locator('#level-line')).toHaveText('LEVEL 3 · THE KAPELL JOB');
+  const world = <T,>(fn: (g: Exposed['__ringstorpGame']) => T) => page.evaluate(`(${fn.toString()})(window.__ringstorpGame)`) as Promise<T>;
+  await expect.poll(() => world(g => g.heist.phase), { timeout: 8000 }).toBe('out');
+  await expect(page.locator('#objective')).toHaveText('Drive to the industrial estate · past Statoil');
+  // Gas, then a lane change.
+  const x0 = await world(g => g.heist.drive!.car.x);
+  await page.keyboard.down('d');
+  await page.waitForTimeout(900);
+  await page.keyboard.down('w');
+  await page.waitForTimeout(500);
+  await page.keyboard.up('w'); await page.keyboard.up('d');
+  expect(await world(g => g.heist.drive!.car.x)).toBeGreaterThan(x0 + 100);
+  expect(await world(g => g.heist.drive!.laneOfCar)).toBe(0);
+  // Straight to the gate.
+  await page.evaluate(() => { const g = (window as unknown as Exposed).__ringstorpGame; const d = g.heist.drive!; d.traffic = []; d.car.x = 12345; d.car.speed = 40; });
+  await expect.poll(() => world(g => g.heist.phase), { timeout: 8000 }).toBe('yard');
+  await expect(page.locator('#objective')).toHaveText('Cut a kapell · take the Gods');
+  await page.evaluate(() => {
+    const g = (window as unknown as Exposed).__ringstorpGame;
+    g.heist.yard.crew.patrols = [];
+    const tr = g.heist.yard.trucks[0];
+    g.player.x = tr.x - 24; g.player.y = 226; g.camera = g.player.x - 190; g.messageTimer = 0;
+  });
+  await expect.poll(() => world(g => g.transition)).toBe(0);
+  await expect(page.locator('#street-choice')).toContainText('cut the kapell');
+  // Hold E: the kapell opens, then crates come out.
+  await page.keyboard.down('e');
+  await expect.poll(() => world(g => g.heist.yard.trucks[0].state), { timeout: 6000 }).toBe('cut');
+  await expect.poll(() => world(g => g.heist.yard.carry), { timeout: 6000 }).toBe(2);
+  await page.keyboard.up('e');
+  await page.evaluate(() => { const g = (window as unknown as Exposed).__ringstorpGame; g.player.x = 330; g.player.y = 226; g.camera = 100; });
+  await expect(page.locator('#street-choice')).toContainText('Load 2 into the Taunus');
+  await page.keyboard.press('e');
+  await expect.poll(() => world(g => g.heist.yard.trunk)).toBe(2);
+  await expect(page.locator('#hearts')).toContainText('CRATES 2/8');
+  await page.keyboard.press('e');
+  await expect.poll(() => world(g => g.heist.phase), { timeout: 12000 }).toBe('back');
+  // Back on Kurirgatan, with nobody after us.
+  await page.evaluate(() => { const g = (window as unknown as Exposed).__ringstorpGame; const d = g.heist.drive!; d.traffic = []; d.police = []; d.car.x = 11446; d.car.speed = 40; });
+  await expect(page.getByRole('heading', { name: /delivered/i })).toBeVisible({ timeout: 8000 });
+  await expect(page.locator('.outcome-panel')).toContainText('2 crates');
+  expect(errors).toEqual([]);
+});
+
+test('Level 3: an arrest in the yard ends the whole job, and you can try again', async ({ page }) => {
+  test.setTimeout(60000);
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/');
+  await page.getByRole('button', { name: /level 3/i }).click();
+  await page.getByRole('button', { name: /take the wheel/i }).click();
+  const world = <T,>(fn: (g: Exposed['__ringstorpGame']) => T) => page.evaluate(`(${fn.toString()})(window.__ringstorpGame)`) as Promise<T>;
+  await expect.poll(() => world(g => g.heist.phase), { timeout: 8000 }).toBe('out');
+  await page.evaluate(() => { const g = (window as unknown as Exposed).__ringstorpGame; const d = g.heist.drive!; d.traffic = []; d.car.x = 12345; d.car.speed = 40; });
+  await expect.poll(() => world(g => g.heist.phase), { timeout: 8000 }).toBe('yard');
+  await expect.poll(() => world(g => g.transition)).toBe(0);
+  await page.evaluate(() => {
+    const g = (window as unknown as Exposed).__ringstorpGame;
+    Object.assign(g.player, { x: 1200, y: 230 }); g.camera = 1000;
+    g.heist.yard.crew.patrols = [{ id: 1, x: 1240, y: 230, z: 0, facing: -1, walk: 0, x0: 1238, x1: 1242, state: 'wait', timer: 99, suspicion: 0, flash: 0, lostFor: 0, cooldown: 0 }];
+  });
+  await expect(page.getByRole('heading', { name: /busted/i })).toBeVisible({ timeout: 12000 });
+  await expect(page.locator('.outcome-panel')).toContainText('The police caught D.D in the yard');
+  await page.getByRole('button', { name: /try again/i }).click();
+  await expect(page.locator('#objective')).toHaveText('Pick up Goran · Kurirgatan');
+  expect(errors).toEqual([]);
+});

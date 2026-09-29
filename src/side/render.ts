@@ -1,12 +1,17 @@
 import { Backdrop, CHUNK, DISTANT_PARALLAX, HORIZON, bakeClouds, bakeSky, drawNearLamp, facadeBox } from './backdrop';
 import { LOOKS, POSES, drawFighter, type Look, type Pose } from './fighters';
 import type { Effect, Officer, SideEnemy, SideGame, SidePlayer } from './game';
+import type { Buddy } from './yard';
 import { PORTRAIT_H, PORTRAIT_W, drawCar, drawPortrait } from './vehicles';
 import { BAND_TOP, HEIGHT, WIDTH } from './layout';
 import { disc, ellipse, rand, rect, seg, text, textWidth } from './pixel';
 import { t } from './i18n';
 import { drawProp, drawRoom } from './interior';
 import { ARCHETYPE } from './gods-cast';
+import { actorTint, bakeNightSky, drawBeams, drawLights, nightAtmosphere, nightTint } from './night';
+import { drawTruck } from './vehicle-art';
+import { TRUCK_Y } from './yard';
+
 import { SIGHT_RANGE, type Patrol } from './gods-run';
 import type { Facade, Stage } from './stage';
 
@@ -22,6 +27,7 @@ export class SideRenderer {
   private readonly c: CanvasRenderingContext2D;
   private readonly backdrops = new Map<Stage, Backdrop>();
   private readonly sky = bakeSky();
+  private readonly nightSky = bakeNightSky();
   private readonly clouds = bakeClouds();
   private elapsed = 0;
   private attract = 0;
@@ -60,28 +66,33 @@ export class SideRenderer {
     const sy = game.shake > 0 ? Math.round((rand(this.elapsed * 89, 2) - 0.5) * game.shake * 1.4) : 0;
 
     c.setTransform(1, 0, 0, 1, 0, 0);
-    c.drawImage(this.sky, 0, 0);
+    const night = !!stage.night;
+    c.drawImage(night ? this.nightSky : this.sky, 0, 0);
     rect(c, 0, HORIZON, WIDTH, HEIGHT - HORIZON, '#6f9a4c');
-    const drift = (cam * 0.06 + this.elapsed * 3) % (WIDTH * 2);
-    c.drawImage(this.clouds, -Math.round(drift), 0);
-    c.drawImage(this.clouds, WIDTH * 2 - Math.round(drift), 0);
+    if (!night) {
+      const drift = (cam * 0.06 + this.elapsed * 3) % (WIDTH * 2);
+      c.drawImage(this.clouds, -Math.round(drift), 0);
+      c.drawImage(this.clouds, WIDTH * 2 - Math.round(drift), 0);
+    }
     c.setTransform(1, 0, 0, 1, sx, sy);
     c.drawImage(bd.distant(), -Math.round(cam * DISTANT_PARALLAX), 0);
     const first = Math.floor(cam / CHUNK), last = Math.floor((cam + WIDTH) / CHUNK);
     for (let i = Math.max(0, first); i <= last; i++) c.drawImage(bd.chunk(i), i * CHUNK - cam, 0);
-    // Bake the next chunk ahead of time so walking on never stalls.
-    if ((last + 1) * CHUNK < stage.length && !bd.has(last + 1)) bd.chunk(last + 1);
+    // Bake the chunks ahead of time so walking, and driving, never stall: one a frame, the nearest first.
+    for (let k = 1; k <= 3; k++) if ((last + k) * CHUNK < stage.length && !bd.has(last + k)) { bd.chunk(last + k); break; }
+    if (night) { nightTint(c); drawLights(c, stage.lights ?? [], cam, this.elapsed); }
 
     this.drawMarkers(game, cam);
     this.drawActors(game, cam, dt);
     this.drawEffects(game, cam, dt);
+    if (night) { actorTint(c); drawBeams(c, game.cars, cam); }
     for (const f of stage.furniture) {
       if (!f.near) continue;
       const x = (f.x - cam - WIDTH / 2) * 1.25 + WIDTH / 2;
       if (x > -30 && x < WIDTH + 30) drawNearLamp(c, x);
     }
     c.setTransform(1, 0, 0, 1, 0, 0);
-    this.drawAtmosphere();
+    if (night) nightAtmosphere(c); else this.drawAtmosphere();
     if (game.transition > 0) rect(c, 0, 0, WIDTH, HEIGHT, `rgba(12, 30, 35, ${game.transition / 0.35})`);
     if (game.mode === 'playing' || game.mode === 'paused') this.drawHud(game, cam);
     this.view = cam;
@@ -182,7 +193,9 @@ export class SideRenderer {
     for (const o of officers) this.shadow(o.x - cam, o.y, o.z, 9);
     this.shadow(p.x - cam, p.y, p.z, 9);
     if (game.level === 1 && !game.hasPackage) this.shadow(game.stage.package.x - cam, game.stage.package.y, 0, 8);
-    const patrols = game.level === 2 ? game.gods.patrols.filter(o => o.x > cam - 60 && o.x < cam + WIDTH + 60) : [];
+    const watchers = game.level === 2 ? game.gods.patrols : game.level === 3 ? game.heist.yard.patrols : [];
+    const patrols = watchers.filter(o => o.x > cam - 60 && o.x < cam + WIDTH + 60);
+    const heist = game.level === 3 ? game.heist : null;
     for (const o of patrols) this.shadow(o.x - cam, o.y, 0, 9);
 
     this.trail = this.trail.filter(t => (t.t += dt) < 0.18);
@@ -206,7 +219,19 @@ export class SideRenderer {
     if (game.level === 2 && run.cargo === 'stashed' && run.stashX !== null) actors.push({ y: BAND_TOP + 1, x: run.stashX, draw: () => this.drawPackage(run.stashX! - cam, BAND_TOP + 8) });
     // A car covers anyone standing behind its tyre line.
     for (const car of game.cars) if (car.x > cam - 90 && car.x < cam + WIDTH + 90) actors.push({ y: car.y + 0.5, x: car.x, draw: () => drawCar(c, car, car.x - cam, this.elapsed) });
-    actors.push({ y: p.y + 0.1, x: p.x, draw: () => this.drawPlayer(game, p, cam) });
+    if (heist && heist.phase === 'yard') {
+      for (const tr of heist.yard.trucks) {
+        if (tr.x + 110 < cam || tr.x - 120 > cam + WIDTH) continue;
+        actors.push({ y: tr.y, x: tr.x, draw: () => drawTruck(c, { x: tr.x - cam, y: tr.y, facing: 1, tone: tr.tone, cut: tr.cut, crates: tr.crates, wheel: 0, moving: false, lights: false, elapsed: this.elapsed }) });
+      }
+      const b = heist.yard.goran;
+      actors.push({ y: b.y, x: b.x, draw: () => this.drawBuddy(b, cam) });
+    }
+    if (heist && heist.phase === 'pickup') {
+      const x = heist.pickupX;
+      actors.push({ y: 252, x, draw: () => { this.shadow(x - cam, 252, 0, 9); drawFighter(c, x - cam, 252, 0, -1, LOOKS.goran, POSES.walk(this.elapsed * 8)); } });
+    }
+    if (!(heist && heist.driving)) actors.push({ y: p.y + 0.1, x: p.x, draw: () => this.drawPlayer(game, p, cam) });
     if (game.level === 1 && !game.hasPackage) actors.push({ y: game.stage.package.y, x: game.stage.package.x, draw: () => this.drawPackage(game.stage.package.x - cam, game.stage.package.y) });
     actors.sort((a, b) => a.y - b.y || a.x - b.x);
     for (const a of actors) a.draw();
@@ -221,16 +246,17 @@ export class SideRenderer {
   private drawPlayer(game: SideGame, p: SidePlayer, cam: number): void {
     const c = this.c;
     const pose = this.playerPose(game, p);
-    const opts = { parcel: game.hasPackage, satchel: true, gun: game.ammo > 0 };
+    const look = LOOKS[game.playerLook];
+    const opts = { parcel: game.hasPackage, satchel: game.level !== 3, gun: game.ammo > 0 };
     for (const t of this.trail) {
       c.globalAlpha = 0.35 * (1 - t.t / 0.18);
-      drawFighter(c, t.x - cam, t.y, t.z, t.facing, LOOKS.player, POSES.dodge(), { ...opts, tint: '#86d5c7' });
+      drawFighter(c, t.x - cam, t.y, t.z, t.facing, look, POSES.dodge(), { ...opts, tint: '#86d5c7' });
     }
     c.globalAlpha = 1;
-    if (game.level === 2 && game.gods.hidden) c.globalAlpha = 0.5;
+    if ((game.level === 2 && game.gods.hidden) || (game.level === 3 && game.heist.yard.hidden)) c.globalAlpha = 0.5;
     const blink = p.invulnerable > 0 && p.dodgeTimer <= 0 && p.downTimer <= 0 && Math.floor(this.elapsed * 18) % 2 === 0;
     if (blink && game.mode === 'playing') return;
-    drawFighter(c, p.x - cam, p.y, p.z, p.facing, LOOKS.player, pose, { ...opts, tint: p.flash > 0 ? FLASH : undefined });
+    drawFighter(c, p.x - cam, p.y, p.z, p.facing, look, pose, { ...opts, tint: p.flash > 0 ? FLASH : undefined });
     c.globalAlpha = 1;
     // A swish behind the big hits.
     if ((p.attackTimer > 0 && p.combo === 3) || (p.kick && p.z > 3)) {
@@ -326,8 +352,8 @@ export class SideRenderer {
     }
     const watching = o.state === 'walk' || o.state === 'wait' || o.state === 'alert';
     if (watching) {
-      const reach = SIGHT_RANGE * (game.sneaking ? 0.55 : 1);
-      c.fillStyle = `rgba(255, 236, 140, ${0.09 + Math.min(1, o.suspicion) * 0.2})`;
+      const reach = (game.level === 3 ? 200 : SIGHT_RANGE) * (game.sneaking ? 0.55 : 1);
+      c.fillStyle = `rgba(255, 236, 140, ${(game.stage.night ? 0.2 : 0.09) + Math.min(1, o.suspicion) * 0.22})`;
       c.beginPath();
       c.moveTo(x + o.facing * 6, o.y - 38); c.lineTo(x + o.facing * reach, o.y - 52); c.lineTo(x + o.facing * reach, o.y + 4); c.closePath(); c.fill();
     }
@@ -342,6 +368,28 @@ export class SideRenderer {
     if (o.suspicion > 0.02 && watching) {
       rect(c, x - 10, top - 10, 21, 3, '#273942');
       rect(c, x - 9, top - 9, Math.round(19 * Math.min(1, o.suspicion)), 1, o.suspicion > 0.7 ? '#e36e61' : '#f2be64');
+    }
+  }
+
+  /** Goran, D.D's partner in the yard. */
+  private drawBuddy(b: Buddy, cam: number): void {
+    const c = this.c, x = Math.round(b.x - cam);
+    let pose: Pose;
+    switch (b.state) {
+      case 'cut': pose = POSES.aim(); break;
+      case 'grab': pose = POSES.loiter(this.elapsed * 2); break;
+      case 'cuffed': pose = POSES.cuffed(); break;
+      case 'hide': pose = b.moving ? POSES.walk(b.walk) : POSES.idle(this.elapsed); break;
+      default: pose = b.moving ? POSES.walk(b.walk) : POSES.idle(this.elapsed);
+    }
+    this.shadow(x, b.y, 0, 9);
+    if (b.state === 'hide' && !b.moving) c.globalAlpha = 0.55;
+    drawFighter(c, x, b.y, 0, b.facing, LOOKS.goran, pose, { parcel: b.carry > 0 });
+    c.globalAlpha = 1;
+    if (b.whistle > 5) {
+      c.font = 'bold 12px monospace';
+      c.fillStyle = '#10181f'; c.fillText('!', x - 2, b.y - 52);
+      c.fillStyle = '#ffd166'; c.fillText('!', x - 3, b.y - 53);
     }
   }
 
@@ -505,6 +553,7 @@ export class SideRenderer {
       rect(c, x0, 263, Math.round(w * boss.hp / boss.maxHp), 1, '#f5a08e');
       return;
     }
+    if (game.level === 3 && !game.heist.driving) return;
     // The route strip: where you are between the kiosk and home, and the crews along the way.
     const X0 = 64, X1 = WIDTH - 112, Y = 261;
     const toX = (x: number) => Math.round(X0 + (X1 - X0) * clamp(x / stage.homeX, 0, 1));
