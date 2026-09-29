@@ -1,6 +1,7 @@
 import type { Car } from './game';
 import { disc, ellipse, poly, rect, seg, text, textWidth } from './pixel';
 import { t as tr } from './i18n';
+import ddSmall from './dd-portrait-small.png';
 
 // Cars in side view: D.D's blue BMW saloon and the Swedish police's Volvo estate. Parts are laid
 // out for a car heading right, with y measured up from the tyre line, and mirrored for a car heading left.
@@ -144,8 +145,23 @@ function driver(c: CanvasRenderingContext2D, [x, y]: [number, number], dir: 1 | 
   }
 }
 
-/** A small pixel portrait of D.D for his lines: short dark hair, strong brows, a light collar. */
+// D.D's portrait, from the photo, pixelated. Until it has loaded, the hand-drawn version below stands in.
+const photo = typeof Image === 'undefined' ? null : Object.assign(new Image(), { src: ddSmall });
+export const PORTRAIT_W = 34, PORTRAIT_H = 38;
+
+/** D.D's portrait beside his lines: the photo in a dark frame, top-left at (x, y). */
 export function drawPortrait(c: CanvasRenderingContext2D, x: number, y: number): void {
+  if (!photo?.complete || !photo.naturalWidth) { drawSketch(c, x, y); return; }
+  rect(c, x, y, PORTRAIT_W, PORTRAIT_H, '#141820');
+  rect(c, x + 1, y + 1, PORTRAIT_W - 2, PORTRAIT_H - 2, '#c9ab74');
+  const smoothing = c.imageSmoothingEnabled;
+  c.imageSmoothingEnabled = false;
+  c.drawImage(photo, x + 2, y + 2, PORTRAIT_W - 4, PORTRAIT_H - 4);
+  c.imageSmoothingEnabled = smoothing;
+}
+
+/** The earlier hand-drawn portrait: short dark hair, strong brows, a light collar. */
+function drawSketch(c: CanvasRenderingContext2D, x: number, y: number): void {
   const R = (dx: number, dy: number, w: number, h: number, colour: string) => rect(c, x + dx, y + dy, w, h, colour);
   R(0, 0, 22, 24, '#141820');
   R(1, 1, 20, 22, '#39505a');

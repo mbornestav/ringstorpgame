@@ -2,11 +2,12 @@ import { type Mode } from '../game';
 import { ROUTE_NAMES } from './routes';
 import { MAP_ATTRIBUTION } from '../map';
 import '../style.css';
-import { CLIP, FINE, REFILL_PRICE, SideGame } from './game';
+import { CLIP, DD_NUMBER, FINE, REFILL_PRICE, SideGame } from './game';
 import { HEIGHT, WIDTH } from './layout';
 import { panelHit } from './interior';
 import { SideRenderer } from './render';
 import { PhoneUI } from './phone';
+import ddPortrait from './dd-portrait.png';
 import { getLang, onLangChange, setLang, t, type Key } from './i18n';
 
 // Entry point for the side-scrolling edition. The isometric edition's entry, src/main.ts, is kept
@@ -160,7 +161,27 @@ function formatTime(seconds: number): string {
   return `${minutes}:${remainder}`;
 }
 
+/** The title screen shows either the main menu or, once the Gods mission is chosen, D.D's call. */
+let titleView: 'main' | 'gods' = 'main';
+
 function panelFor(mode: Mode): string {
+  if (mode === 'title' && titleView === 'gods') return `
+    <div class="panel title-panel briefing">
+      <div class="eyebrow"><span class="chip">02</span> ${t('brief.eyebrow')} <span class="gold-line"></span></div>
+      <div class="briefing-row">
+        <figure class="dd-portrait"><img src="${ddPortrait}" width="72" height="82" alt="D.D"><figcaption><b>D.D</b><span>${DD_NUMBER}</span></figcaption></figure>
+        <div class="briefing-text">
+          <h2>${t('brief.title')}<span class="blink">_</span></h2>
+          <p class="story">${t('brief.text')}</p>
+          <ul class="brief-list"><li>${t('brief.one')}</li><li>${t('brief.two')}</li><li>${t('brief.three')}</li></ul>
+          <div class="action-row">
+            <button class="primary-button" data-action="answer">${t('brief.answer')}</button>
+            <button class="secondary-button" data-action="back">${t('brief.back')}</button>
+            <span>${t('brief.hint')}</span>
+          </div>
+        </div>
+      </div>
+    </div>`;
   if (mode === 'title') return `
     <div class="panel title-panel">
       <div class="eyebrow"><span class="chip">01</span> ${t('title.eyebrow')} <span class="gold-line"></span> 1994</div>
@@ -210,7 +231,7 @@ function syncUI(): void {
   }
   const lifeText = t(game.level === 2 ? 'hud.cargo' : 'hud.health');
   if (lifeLabel.textContent !== lifeText) lifeLabel.textContent = lifeText;
-  const levelText = t(game.level === 2 ? 'top.level2' : 'top.level1');
+  const levelText = t(game.level === 2 || (game.mode === 'title' && titleView === 'gods') ? 'top.level2' : 'top.level1');
   if (levelLine.textContent !== levelText) levelLine.textContent = levelText;
   if (game.mode !== 'title' && game.level === 2) {
     const g2 = game.gods, state = g2.hidden ? 'cargo.hidden' : g2.cargo === 'carried' ? 'cargo.carried' : g2.cargo === 'stashed' ? 'cargo.stashed' : 'cargo.none';
@@ -281,13 +302,21 @@ function restart(): void {
   else game.start();
   renderer.resetCamera(); syncUI();
 }
-function startLevel2(): void { held.clear(); game.startGods(1); renderer.resetCamera(); syncUI(); }
+function startLevel2(): void { held.clear(); titleView = 'main'; game.startGods(1); renderer.resetCamera(); syncUI(); }
+function showBriefing(view: 'main' | 'gods'): void {
+  titleView = view;
+  lastMode = '';
+  syncUI();
+  overlay.querySelector<HTMLButtonElement>(view === 'gods' ? '[data-action="answer"]' : '[data-action="start-2"]')?.focus();
+}
 overlay.addEventListener('click', event => {
   const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-action]');
   const action = button?.dataset.action;
   if (action === 'start' || action === 'restart') restart();
-  if (action === 'start-2') startLevel2();
-  if (action === 'menu') { held.clear(); game.toTitle(); renderer.resetCamera(); }
+  if (action === 'start-2') showBriefing('gods');
+  if (action === 'answer') startLevel2();
+  if (action === 'back') showBriefing('main');
+  if (action === 'menu') { held.clear(); titleView = 'main'; game.toTitle(); renderer.resetCamera(); }
   if (action === 'resume') game.togglePause();
   if (action === 'continue') { held.clear(); game.continueFromCheckpoint(); }
   syncUI();
@@ -350,7 +379,9 @@ window.addEventListener('keydown', event => {
   if (key === 'm' && !event.repeat) toggleSound();
   if (key === 'escape' && !event.repeat) { game.togglePause(); syncUI(); }
   if (key === 'enter' && !event.repeat && game.mode === 'defeat' && game.checkpoint !== null) { held.clear(); game.continueFromCheckpoint(); syncUI(); }
+  else if (key === 'enter' && !event.repeat && game.mode === 'title' && titleView === 'gods') startLevel2();
   else if (key === 'enter' && !event.repeat && ['title', 'victory', 'defeat'].includes(game.mode)) restart();
+  if (key === 'escape' && !event.repeat && game.mode === 'title' && titleView === 'gods') showBriefing('main');
   if (key === 'j' && !event.repeat && game.mode === 'playing') game.queueAttack();
   if (key === 'k' && !event.repeat && game.mode === 'playing') game.queueDodge();
   if (key === 'i' && !event.repeat && game.mode === 'playing') game.queueShot();

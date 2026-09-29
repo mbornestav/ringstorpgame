@@ -289,6 +289,13 @@ test('Level 2: fetch the Gods from floor 8, carry them home past the police and 
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
   await page.getByRole('button', { name: /level 2/i }).click();
+  // D.D's call opens first, with his portrait.
+  await expect(page.getByRole('img', { name: 'D.D' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /D\.D is calling/i })).toBeVisible();
+  await page.getByRole('button', { name: /back/i }).click();
+  await expect(page.getByRole('button', { name: /start run/i })).toBeVisible();
+  await page.getByRole('button', { name: /level 2/i }).click();
+  await page.getByRole('button', { name: /answer the call/i }).click();
   await expect(page.locator('#objective')).toHaveText('Go up to D.D · Kurirgatan 28D, floor 8');
   await expect(page.locator('#level-line')).toHaveText('LEVEL 2 · GODS RUN');
   await expect(page.locator('#bottomline')).toContainText('SNEAK');

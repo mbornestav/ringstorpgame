@@ -1,7 +1,7 @@
 import { Backdrop, CHUNK, DISTANT_PARALLAX, HORIZON, bakeClouds, bakeSky, drawNearLamp, facadeBox } from './backdrop';
 import { LOOKS, POSES, drawFighter, type Look, type Pose } from './fighters';
 import type { Effect, Officer, SideEnemy, SideGame, SidePlayer } from './game';
-import { drawCar, drawPortrait } from './vehicles';
+import { PORTRAIT_H, PORTRAIT_W, drawCar, drawPortrait } from './vehicles';
 import { BAND_TOP, HEIGHT, WIDTH } from './layout';
 import { disc, ellipse, rand, rect, seg, text, textWidth } from './pixel';
 import { t } from './i18n';
@@ -482,7 +482,7 @@ export class SideRenderer {
       c.fillStyle = '#f7e8c4'; c.textAlign = 'center';
       lines.forEach((l, i) => c.fillText(l, WIDTH / 2, 53 + i * 12));
       c.textAlign = 'left';
-      if (game.messageFromDD) drawPortrait(c, Math.round((WIDTH - width) / 2) - 25, 38);
+      if (game.messageFromDD) drawPortrait(c, Math.round((WIDTH - width) / 2) - PORTRAIT_W - 3, 40 + Math.round(height / 2) - PORTRAIT_H / 2);
       c.globalAlpha = 1;
     }
     if (interior) return;

@@ -135,6 +135,11 @@ const EN = {
   'npc.suit.1': 'MAN IN SUIT: “I NEVER SAW YOU.”', 'npc.suit.2': 'MAN IN SUIT: “THE 8TH FLOOR? GOOD LUCK.”',
   'npc.jogger.1': 'JOGGER: “STAIRS ARE FASTER.”', 'npc.jogger.2': 'JOGGER: “FIVE LAPS UP AND DOWN.”',
   'npc.baker.1': 'NEIGHBOUR: “TAKE A CINNAMON BUN!”', 'npc.baker.2': 'NEIGHBOUR: “BAKING FOR THE WHOLE STAIRCASE.”',
+  'brief.eyebrow': 'LEVEL 2 / GODS RUN', 'brief.title': 'D.D IS CALLING',
+  'brief.text': 'D.D has some Gods in his flat at Kurirgatan 28D, and they need to get to Ringstorpsvägen 55B. He wants you to carry them. No fighting: this is about not being seen.',
+  'brief.one': 'Take Superhissen to the 8th floor and collect the Gods from D.D.', 'brief.two': 'Walk home past four brick blocks, Kurir Livs and the school. The police only notice you while you carry them.',
+  'brief.three': 'Sneak with Shift, crouch behind cover, and stash the Gods with E. If you’re caught, they’re confiscated.',
+  'brief.answer': '▶ &nbsp; ANSWER THE CALL', 'brief.back': 'BACK', 'brief.hint': 'ENTER TO ANSWER · ESC TO GO BACK',
 } as const;
 
 export type Key = keyof typeof EN;
@@ -258,6 +263,11 @@ const SV: Record<Key, string> = {
   'npc.suit.1': 'MAN I KOSTYM: “JAG SÅG DIG ALDRIG.”', 'npc.suit.2': 'MAN I KOSTYM: “ÅTTONDE VÅNINGEN? LYCKA TILL.”',
   'npc.jogger.1': 'JOGGARE: “TRAPPAN GÅR SNABBARE.”', 'npc.jogger.2': 'JOGGARE: “FEM VARV UPP OCH NER.”',
   'npc.baker.1': 'GRANNE: “TA EN KANELBULLE!”', 'npc.baker.2': 'GRANNE: “JAG BAKAR ÅT HELA TRAPPUPPGÅNGEN.”',
+  'brief.eyebrow': 'NIVÅ 2 / GODS-RUNDAN', 'brief.title': 'D.D RINGER',
+  'brief.text': 'D.D har lite Gods i sin lägenhet på Kurirgatan 28D, och det ska till Ringstorpsvägen 55B. Han vill att du bär det. Inga slagsmål: det gäller att inte bli sedd.',
+  'brief.one': 'Ta Superhissen till 8:e våningen och hämta Godset av D.D.', 'brief.two': 'Gå hem förbi fyra tegelhus, Kurir Livs och skolan. Polisen märker dig bara när du bär det.',
+  'brief.three': 'Smyg med Shift, göm dig bakom skydd och göm Godset med E. Blir du tagen beslagtas det.',
+  'brief.answer': '▶ &nbsp; SVARA', 'brief.back': 'TILLBAKA', 'brief.hint': 'ENTER FÖR ATT SVARA · ESC FÖR ATT GÅ TILLBAKA',
 };
 
 const TABLES: Record<Lang, Record<Key, string>> = { en: EN, sv: SV };
