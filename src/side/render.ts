@@ -15,6 +15,7 @@ import { TRUCK_Y } from './yard';
 
 import { SIGHT_RANGE, type Patrol } from './gods-run';
 import type { Facade, Stage } from './stage';
+import { drawLiljedalJourney } from './karlstad-art';
 
 export { WIDTH, HEIGHT } from './layout';
 
@@ -94,6 +95,15 @@ export class SideRenderer {
 
   render(game: SideGame, dt: number): void {
     this.elapsed += dt;
+    if (game.busRide !== null) {
+      this.place(); this.lighting = 'day'; this.view = 0;
+      drawLiljedalJourney(this.c, game.busRide);
+      if (game.busRide >= 7) {
+        drawFighter(this.c, 246, 204, 0, 1, LOOKS.player, POSES.loiter(this.elapsed));
+        this.drawPackage(262, 204);
+      }
+      return;
+    }
     if (game.level === 2 && game.gods.scene !== 'street' && game.mode !== 'title') { this.renderInterior(game); return; }
     const stage = game.stage, bd = this.backdrop(stage), c = this.c;
     if (game.mode === 'title') this.attract = (this.attract + dt * 26) % Math.max(1, stage.length - WIDTH);
@@ -154,6 +164,14 @@ export class SideRenderer {
   private drawMarkers(game: SideGame, cam: number): void {
     const c = this.c, stage = game.stage;
     const bob = Math.round(Math.sin(this.elapsed * 3) * 2);
+    for (const stop of game.custom?.street.restStops ?? []) {
+      const x = stop.x - cam;
+      if (x < -30 || x > WIDTH + 30) continue;
+      const used = game.rested.has(stop.x);
+      if (isSmooth()) paintCrossBadge(c, x, 129 + bob, used);
+      else { rect(c, x - 5, 129 + bob, 11, 3, used ? '#6a836f' : '#b9ec91'); rect(c, x - 1, 125 + bob, 3, 11, used ? '#6a836f' : '#b9ec91'); }
+      if (!used && game.hasPackage) this.hint(x, bob);
+    }
     for (const junction of stage.junctions) {
       const x = Math.round(junction.x - cam);
       if (x < -90 || x > WIDTH + 90) continue;

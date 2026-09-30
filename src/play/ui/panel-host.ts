@@ -63,13 +63,13 @@ export class PanelHost extends Phaser.GameObjects.Container {
     if (kind === 'title') {
       this.scrim.fillGradientStyle(COLOR.ink, COLOR.ink, COLOR.ink, COLOR.ink, 0.82, 0.05, 0.82, 0.05);
       this.scrim.fillRect(0, 0, UI_W, UI_H);
-    } else {
+    } else if (!model.scenic) {
       this.scrim.fillStyle(COLOR.ink, 0.6).fillRect(0, 0, UI_W, UI_H);
     }
     const card = this.scene.add.container(0, 0);
     this.card = card;
     this.add(card);
-    if (kind === 'title') this.layoutTitle(card, model); else if (kind === 'briefing') this.layoutBriefing(card, model); else this.layoutCompact(card, model);
+    if (model.scenic) this.layoutArrival(card, model); else if (kind === 'title') this.layoutTitle(card, model); else if (kind === 'briefing') this.layoutBriefing(card, model); else this.layoutCompact(card, model);
     card.setY(replacing ? 0 : 24);
     this.setVisible(true);
     this.shown = true;
@@ -152,7 +152,7 @@ export class PanelHost extends Phaser.GameObjects.Container {
       rowH = Math.max(rowH, b.height);
     };
     plain.forEach(add);
-    if (m.hint) {
+    if (m.hint && plain.length) {
       if (hintBelow) { cy += rowH + 16; this.text(card, 'small', m.hint, x, cy, { fontSize: fontPx(16) }, CSS.dim); rowH = 24; }
       else this.text(card, 'small', m.hint, cx + 8, cy + Math.round(rowH / 2) - 10, { fontSize: fontPx(16), wordWrap: { width: Math.max(160, x + width - cx - 8) } }, CSS.dim);
     }
@@ -170,6 +170,16 @@ export class PanelHost extends Phaser.GameObjects.Container {
   // ---------------------------------------------------------------- layouts
 
   private layoutTitle(card: Phaser.GameObjects.Container, m: PanelModel): void {
+    if (m.actions.length > 3) {
+      const x = 100, w = 1240, top = 100;
+      let y = this.eyebrow(card, m, x, top, w);
+      y = this.titleWithAccent(card, m, x, y - 8, 88) + 8;
+      if (m.subtitle) y += this.text(card, 'label', m.subtitle, x, y, { fontSize: fontPx(24) }, CSS.gold).height + 12;
+      y += this.text(card, 'body', m.body, x, y, { fontSize: fontPx(24), wordWrap: { width: w, useAdvancedWrap: true }, lineSpacing: 5 }).height + 4;
+      y = this.actionRows(card, m, x, y, w);
+      this.finish(card, x, top, w, y, 32);
+      return;
+    }
     // The bottom strip already lists the keys, so the controls grid of the old title screen is not repeated here.
     const x = 72, w = 900, top = 80;
     let y = this.eyebrow(card, m, x, top, w);
@@ -218,5 +228,21 @@ export class PanelHost extends Phaser.GameObjects.Container {
     if (m.stats.length) y = this.stats(card, m.stats, x, y, w);
     y = this.actionRows(card, m, x, y, w, isPause);
     this.finish(card, x, top, w, y, 44);
+  }
+
+  private layoutArrival(card: Phaser.GameObjects.Container, m: PanelModel): void {
+    const x = 100, w = 1240, top = 72, copyWidth = 900;
+    let y = this.eyebrow(card, m, x, top, copyWidth);
+    y = this.titleWithAccent(card, m, x, y - 12, 48);
+    y += this.text(card, 'body', m.body, x, y, { fontSize: fontPx(22), wordWrap: { width: copyWidth, useAdvancedWrap: true } }).height + 12;
+    const stats = m.stats.map(s => `${s.label}  ${s.value}`).join('     ·     ');
+    y += this.text(card, 'label', stats, x, y, { fontSize: fontPx(18) }, CSS.gold).height;
+    m.actions.forEach((a, i) => {
+      const b = new Button(this.scene, { id: a.id, label: a.label, kind: a.kind, width: 280, size: 'sm' });
+      b.setPosition(x + w - 280, top + 18 + i * 70);
+      b.onPress = () => this.session.dispatch(a.id, 'pointer');
+      card.add(b); this.buttons.push(b);
+    });
+    this.finish(card, x, top, w, Math.max(y, top + 140), 24);
   }
 }

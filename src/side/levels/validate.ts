@@ -28,6 +28,7 @@ export function validateLevel(def: LevelDefinition): string[] {
     else if (!value.sv?.trim() || !value.en?.trim()) bad(where, 'needs both sv and en');
   };
   text('title', def.title, true); text('subtitle', def.subtitle); text('intro', def.intro);
+  text('completion', def.completion); text('credit', def.credit);
   text('objectives.parcel', def.objectives?.parcel, true); text('objectives.crew', def.objectives?.crew); text('objectives.shop', def.objectives?.shop); text('objectives.home', def.objectives?.home, true);
 
   const inside = (where: string, x: number) => { if (!(x >= 0 && x <= s.length)) bad(where, `${x} is outside the street (0–${s.length})`); };
@@ -60,6 +61,20 @@ export function validateLevel(def: LevelDefinition): string[] {
   runs('street.names', s.names, undefined, true);
   runs('street.surfaces', s.surfaces, SURFACES, true);
   runs('street.fronts', s.fronts, FRONTS);
+  runs('street.waters', s.waters, new Set(['river', 'harbour']));
+  const stops = new Set<number>();
+  (s.restStops ?? []).forEach((stop, i) => {
+    inside(`street.restStops[${i}]`, stop.x); text(`street.restStops[${i}].name`, stop.name, true);
+    if (stop.x <= s.parcel.x || stop.x >= s.home - WIDTH) bad(`street.restStops[${i}]`, 'place between the parcel and the final encounter');
+    if (stops.has(stop.x)) bad(`street.restStops[${i}]`, 'duplicates another rest stop');
+    stops.add(stop.x);
+  });
+  if (s.finish) {
+    const f = s.finish;
+    if (!(f.kind in BUILDINGS)) bad('street.finish', 'unknown building kind');
+    inside('street.finish.from', f.from); inside('street.finish.to', f.to);
+    if (!(f.from < s.home && f.to > s.home)) bad('street.finish', 'must contain the destination door');
+  }
 
   const byRow: Array<Array<[number, number, number]>> = [[], []];
   s.buildings.forEach((b, i) => {
@@ -68,7 +83,8 @@ export function validateLevel(def: LevelDefinition): string[] {
     if (!(b.to > b.from)) bad(where, '"to" must be after "from"');
     inside(where, b.from); inside(where, b.to);
     if (b.door !== undefined && (b.door < b.from || b.door > b.to)) bad(where, 'the door must be within the building');
-    if (b.from < s.home + TERRACE_REACH && b.to > s.home - TERRACE_REACH && (b.row ?? 0) === 0) bad(where, `overlaps the home terrace (${s.home - TERRACE_REACH}–${s.home + TERRACE_REACH})`);
+    const homeFrom = s.finish?.from ?? s.home - TERRACE_REACH, homeTo = s.finish?.to ?? s.home + TERRACE_REACH;
+    if (b.from < homeTo && b.to > homeFrom && (b.row ?? 0) === 0) bad(where, `overlaps the home terrace or destination (${homeFrom}–${homeTo})`);
     for (const c of ['wall', 'roof'] as const) if (b[c] !== undefined && !/^#[0-9a-f]{6}$/i.test(b[c]!)) bad(where, `${c} must be #rrggbb`);
     const row = byRow[b.row ?? 0];
     for (const [from, to, j] of row) if (b.from < to && b.to > from) bad(where, `overlaps street.buildings[${j}] in the same row`);

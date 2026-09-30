@@ -1,4 +1,5 @@
 import { MAP_ATTRIBUTION } from '../../../map';
+import { levelText } from '../../../side/levels';
 import { getLang, t, type Key } from '../../../side/i18n';
 import { padScore, type UiContext } from './base';
 
@@ -6,6 +7,7 @@ export interface ControlHint { keys: string; label: string }
 
 /** The controls strip below the game. It lists F only once D.D has given you his number. */
 export function controlsModel({ game }: UiContext): ControlHint[] {
+  if (game.busRide !== null) return [{ keys: 'ESC', label: t('ctl.pause') }, { keys: 'M', label: t('ctl.sound') }];
   const keys: Array<[string, Key]> = game.level === 3
     ? game.heist.driving
       ? [['D', 'ctl.gas'], ['A', 'ctl.brakes'], ['W S / ↑ ↓', 'ctl.lane'], ['ESC', 'ctl.pause'], ['M', 'ctl.sound']]
@@ -48,8 +50,8 @@ export interface FooterModel { credit: string; attribution: string; bestLabel: s
 
 export function footerModel({ game }: UiContext): FooterModel {
   return {
-    credit: t('footer.credit', { attribution: MAP_ATTRIBUTION.toUpperCase() }),
-    attribution: MAP_ATTRIBUTION.toUpperCase(),
+    credit: game.custom?.credit ? levelText(game.custom.credit) : t('footer.credit', { attribution: MAP_ATTRIBUTION.toUpperCase() }),
+    attribution: game.custom?.credit ? levelText(game.custom.credit) : MAP_ATTRIBUTION.toUpperCase(),
     bestLabel: t('footer.best'),
     best: padScore(game.bestScore),
   };

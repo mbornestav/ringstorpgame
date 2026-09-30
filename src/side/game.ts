@@ -179,6 +179,9 @@ export class SideGame {
   level: 1 | 2 | 3 = 1;
   /** A level from a level file (src/side/levels), played by the Level 1 rules; null for the built-in levels. */
   custom: LevelDefinition | null = null;
+  readonly rested = new Set<number>();
+  /** Seconds into the bus trip; retained on the victory screen to show the cabin. */
+  busRide: number | null = null;
   /** Held Shift: quieter and slower. Levels 2 and 3 use it. */
   sneaking = false;
   /** Held E: cutting a tarpaulin or taking a crate in Level 3. */
@@ -265,6 +268,7 @@ export class SideGame {
   reset(route: Route = 'direct', stage: Stage = stageFor(route)): void {
     this.level = 1;
     this.custom = null;
+    this.rested.clear(); this.busRide = null;
     this.sneaking = false;
     this.using = false;
     this.gods.reset();
@@ -383,10 +387,10 @@ export class SideGame {
     return this.stage.junctions.find(j => !this.decisions.has(j.id) && j.x >= this.player.x - TURN_REACH && j.x <= this.player.x + 280);
   }
 
-  get interaction(): { kind: 'turn' | 'shop' | 'hail' | 'ammo' | GodsAction | HeistAction; label: string } | null {
+  get interaction(): { kind: 'turn' | 'shop' | 'hail' | 'ammo' | 'rest' | 'bus' | GodsAction | HeistAction; label: string } | null {
     if (this.level === 2) return this.gods.interaction();
     if (this.level === 3) return this.heist.interaction();
-    if (this.phoneOpen || this.mode !== 'playing' || this.transition > 0) return null;
+    if (this.phoneOpen || this.mode !== 'playing' || this.transition > 0 || this.busRide !== null) return null;
     const p = this.player;
     if (p.hp <= 0 || p.z > 0 || p.downTimer > 0 || p.hurtTimer > 0 || p.riseTimer > 0 || p.dodgeTimer > 0 || p.attackTimer > 0 || p.cuffTimer > 0) return null;
     if (this.dealerNearby) return { kind: 'ammo', label: t('act.ammo', { clip: CLIP, price: REFILL_PRICE }) };
@@ -394,6 +398,8 @@ export class SideGame {
     // Waving down D.D works mid-fight; changing streets or shopping does not.
     if (this.bmwInReach) return { kind: 'hail', label: t('act.hail') };
     if (this.active) return null;
+    if (this.restStop && !this.rested.has(this.restStop.x)) return { kind: 'rest', label: t('level.rest') };
+    if (this.custom?.busHome && this.homeCrewDown && Math.abs(p.x - this.stage.homeX) < 35 && p.y < BAND_TOP + 24) return { kind: 'bus', label: t('level.board') };
     const j = this.junctionAhead;
     if (j && Math.abs(p.x - j.x) <= TURN_REACH) return { kind: 'turn', label: t('act.turn', { turn: t(j.turn as Key) }) };
     if (this.stage.shopX !== null && Math.abs(p.x - this.stage.shopX) < 28 && p.y < BAND_TOP + 24) {
@@ -408,6 +414,18 @@ export class SideGame {
     if (this.level === 3) { this.heist.interact(); return; }
     const action = this.interaction;
     if (!action) return;
+    if (action.kind === 'rest') {
+      const stop = this.restStop!;
+      this.rested.add(stop.x); this.checkpoint = Math.max(this.checkpoint ?? 0, stop.x);
+      this.player.hp = this.player.maxHp;
+      this.events.push('pickup'); this.effects.push({ kind: 'heal', x: stop.x, y: this.player.y, z: 30 });
+      this.say('level.restored', { place: levelText(stop.name) }); return;
+    }
+    if (action.kind === 'bus') {
+      this.busRide = 0; this.moveInput = { x: 0, y: 0 }; this.phoneOpen = false;
+      this.cars = []; this.police = []; this.dispatch = null; this.heat = 0;
+      this.messageTimer = 0; this.events.push('go'); return;
+    }
     if (action.kind === 'ammo') { this.openPhone(); return; }
     if (action.kind === 'hail') { this.hail(); return; }
     if (action.kind === 'shop') {
@@ -474,7 +492,7 @@ export class SideGame {
     this.defeatTimer = 0;
     this.mode = 'playing';
     this.attackBuffer = this.jumpBuffer = this.dodgeBuffer = this.shotBuffer = 0;
-    this.say('msg.backOnFeet');
+    this.say(this.custom ? 'level.continued' : 'msg.backOnFeet');
     this.events.push('pickup');
   }
 
@@ -506,18 +524,23 @@ export class SideGame {
     return this.stage.marcusX !== null && !this.healed && this.player.x < this.stage.marcusX + 90;
   }
 
+  get restStop() {
+    return this.custom?.street.restStops?.find(s => Math.abs(this.player.x - s.x) < 32 && this.player.y < BAND_TOP + 24);
+  }
+
   get message(): string { return this.toast ? t(this.toast.key, this.toast.params) : ''; }
   /** D.D speaks in his own toasts, which show his portrait. */
   get messageFromDD(): boolean { return !!this.toast && this.toast.key.startsWith('msg.dd'); }
 
   get objective(): string {
+    if (this.busRide !== null) return t(this.busRide < 7 ? 'level.busRide' : 'level.arrived');
     if (this.level === 2) return this.gods.objective;
     if (this.level === 3) return this.heist.objective;
     const own = this.custom?.objectives;
     if (!this.hasPackage) return own?.parcel ? levelText(own.parcel) : t('obj.package');
     if (this.marcusAhead) return t('obj.marcus');
     if (this.stage.shopX !== null && !this.shopHealed && this.player.x < this.stage.shopX + 90 && (!this.custom || own?.shop)) return own?.shop ? levelText(own.shop) : t('obj.shop');
-    if (this.crewSprung && !this.homeCrewDown) return t('obj.crewHome');
+    if (this.crewSprung && !this.homeCrewDown) return own?.crew ? levelText(own.crew) : t('obj.crewHome');
     if (this.active) return own?.crew ? levelText(own.crew) : t('obj.crew', { street: this.street ?? 'Pålsjö' });
     return own?.home ? levelText(own.home) : t('obj.home');
   }
@@ -561,6 +584,12 @@ export class SideGame {
   update(rawDt: number): void {
     if (this.mode !== 'playing') return;
     const dt = Math.min(rawDt, 0.05);
+    if (this.busRide !== null) {
+      this.busRide = Math.min(9, this.busRide + dt);
+      this.elapsed += dt;
+      if (this.busRide >= 9) this.finishRun();
+      return;
+    }
     if (this.level === 2) { this.updateGods(dt); return; }
     if (this.level === 3) { this.updateHeist(dt); return; }
     this.updatePhone(dt);
@@ -819,7 +848,7 @@ export class SideGame {
       if (this.encounters.get(e.id) !== 'cleared') this.cash += CREW_CASH;
       this.encounters.set(e.id, 'cleared');
       this.active = null;
-      if (e.home) this.say('msg.homeFree');
+      if (e.home) this.say(this.custom?.busHome ? 'level.busReady' : 'msg.homeFree');
       else { this.goTimer = 3; this.events.push('go'); }
     }
   }
@@ -840,7 +869,7 @@ export class SideGame {
         enemy.state = 'walk';
         this.enemies.push(enemy);
       });
-      this.say('msg.crewHome');
+      this.say(this.custom?.busHome ? 'level.lastCrew' : 'msg.crewHome');
     } else {
       for (const enemy of this.enemies) {
         if (enemy.encounter !== e.id) continue;
@@ -963,7 +992,7 @@ export class SideGame {
   // ---------------------------------------------------------------- D.D and the handgun
 
   /** The handset has D.D's number only after he has pulled over once. */
-  get hasPhone(): boolean { return this.level === 1 && this.metDD; }
+  get hasPhone(): boolean { return this.level === 1 && this.metDD && this.busRide === null; }
 
   openPhone(): void {
     if (!this.hasPhone || this.mode !== 'playing' || this.player.hp <= 0) return;
@@ -1397,13 +1426,17 @@ export class SideGame {
       this.events.push('pickup');
       this.effects.push({ kind: 'heal', x: p.x, y: p.y, z: 30 });
     }
-    if (this.homeCrewDown && Math.abs(p.x - st.homeX) < 18 && p.y < BAND_TOP + 24 && p.z <= 0 && p.hp > 0) {
-      this.score = Math.max(0, computeScore(this.elapsed, p.hp, this.koCount, this.continues) - this.fines * FINE);
-      this.bestScore = Math.max(this.bestScore, this.score);
-      try { localStorage.setItem(BEST_KEY, String(this.bestScore)); } catch { /* private mode */ }
-      this.mode = 'victory';
-      this.events.push('victory');
+    if (!this.custom?.busHome && this.homeCrewDown && Math.abs(p.x - st.homeX) < 18 && p.y < BAND_TOP + 24 && p.z <= 0 && p.hp > 0) {
+      this.finishRun();
     }
+  }
+
+  private finishRun(): void {
+    this.score = Math.max(0, computeScore(this.elapsed, this.player.hp, this.koCount, this.continues) - this.fines * FINE);
+    this.bestScore = Math.max(this.bestScore, this.score);
+    try { localStorage.setItem(BEST_KEY, String(this.bestScore)); } catch { /* private mode */ }
+    this.mode = 'victory';
+    this.events.push('victory');
   }
 
   say(key: Key, params?: Params): void { this.toast = { key, params }; this.messageTimer = 3.1; }

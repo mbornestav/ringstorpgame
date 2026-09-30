@@ -97,6 +97,11 @@ export class Button extends Phaser.GameObjects.Container {
     this.title.setStyle({ ...textStyle(small ? 'label' : 'display', this.textColor()), ...(sub && { fontSize: fontPx(34) }), ...(this.spec.size === 'sm' && { fontSize: fontPx(27) }) }).setText(keyGlyphs(label.toUpperCase()));
     this.sub.setText(sub ?? '').setVisible(!!sub);
     const iconSpace = (lead ? 40 : 0) + keySpace;
+    this.title.setScale(1);
+    if (this.spec.width) {
+      const room = this.spec.width - PAD_X * 2 - iconSpace;
+      if (this.title.width > room) this.title.setScale(room / this.title.width);
+    }
     // A fixed-width button shortens its second line to fit, word by word.
     if (sub && this.spec.width) {
       const room = this.spec.width - PAD_X * 2 - iconSpace;
@@ -107,7 +112,7 @@ export class Button extends Phaser.GameObjects.Container {
     const h = this.spec.height ?? (sub ? 84 : small ? 48 : this.spec.size === 'sm' ? 52 : 68);
     this.setSize(w, h);
     this.title.setPosition(PAD_X + iconSpace, sub ? 10 : Math.round((h - this.title.height) / 2) - 1);
-    this.sub.setPosition(PAD_X + iconSpace, 10 + this.title.height);
+    this.sub.setPosition(PAD_X + iconSpace, 10 + this.title.displayHeight);
     this.keycap.setPosition(PAD_X + Math.round((keySpace - 12 - this.keycap.width) / 2), Math.round((h - this.keycap.height) / 2));
     // A Container tests its hit area from its centre (its display origin is half its size), while the button is laid out
     // from its top-left corner: offset the rectangle by half, or every button answers half a button up and to the left.

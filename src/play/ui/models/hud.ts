@@ -85,6 +85,15 @@ function heistLife(game: SideGame): LifeCard {
 }
 
 function packageSteps(game: SideGame): HudStep[] {
+  if (game.custom) {
+    const own = game.custom.objectives;
+    const total = game.custom.street.restStops?.length ?? 0;
+    return [
+      { state: game.hasPackage ? 'done' : 'active', icon: game.hasPackage ? '✓' : '?', title: own?.parcel ? levelText(own.parcel) : t('lose.package') },
+      ...(total ? [{ state: game.rested.size === total ? 'done' as const : 'optional' as const, icon: '✚' as const, title: t('level.fikaCount', { n: game.rested.size, total }) }] : []),
+      { state: game.mode === 'victory' ? 'done' : game.hasPackage ? 'active' : '', icon: '★', title: own?.home ? levelText(own.home) : t('step.home') },
+    ];
+  }
   const marcus = game.healed ? 'done' : game.hasPackage && game.marcusAhead ? 'active' : 'optional';
   const shop = game.shopHealed ? 'done' : game.stage.shopX !== null && game.player.x < game.stage.shopX + 90 ? 'active' : 'optional';
   return [
@@ -120,7 +129,8 @@ function heistSteps(game: SideGame): HudStep[] {
 
 function streetLine({ game }: UiContext): string {
   if (game.mode === 'title') return 'PÅLSJÖ KIOSK → RINGSTORPSVÄGEN 55B';
-  const toHome = t('hud.toHome', { m: Math.round(game.metresToHome) });
+  if (game.busRide !== null) return t(game.busRide < 7 ? 'level.busRide' : 'level.arrived').toUpperCase();
+  const toHome = t(game.custom?.busHome ? 'level.toBus' : 'hud.toHome', { m: Math.round(game.metresToHome) });
   if (game.level === 3) return `${(game.street ?? 'Kurirgatan').toUpperCase()}${game.heist.driving ? ` · ${toHome}` : ''}`;
   if (game.level === 2) {
     const g2 = game.gods;
@@ -155,7 +165,7 @@ export function hudModel(ctx: UiContext): HudModel {
   const { game } = ctx;
   const level = game.level;
   return withKey<HudModel>({
-    visible: game.mode !== 'title',
+    visible: game.mode !== 'title' && game.busRide === null,
     streetLabel: t('top.street'),
     streetLine: streetLine(ctx),
     levelLine: levelLine(ctx),

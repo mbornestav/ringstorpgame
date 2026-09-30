@@ -52,7 +52,7 @@ function bmw(x: number, dir: 1 | -1 = 1): Car {
 
 describe('panel models', () => {
   const variants: Array<{ name: string; kind: PanelKind; ids: UiAction[]; stats: Key[]; make: () => UiContext }> = [
-    { name: 'the title screen', kind: 'title', ids: ['start', 'start-2', 'start-3'], stats: [], make: () => ctx(new SideGame()) },
+    { name: 'the title screen', kind: 'title', ids: ['start', 'start-2', 'start-3', 'level-karlstad'], stats: [], make: () => ctx(new SideGame()) },
     { name: 'the Gods briefing', kind: 'gods-briefing', ids: ['answer', 'back'], stats: [], make: () => ctx(new SideGame(), { titleView: 'gods' }) },
     { name: 'the heist briefing', kind: 'heist-briefing', ids: ['answer-3', 'back'], stats: [], make: () => ctx(new SideGame(), { titleView: 'heist' }) },
     { name: 'the pause card', kind: 'pause', ids: ['resume', 'restart'], stats: [], make: () => { const g = level1(); g.togglePause(); return ctx(g); } },
@@ -124,13 +124,14 @@ describe('panel models', () => {
     expect(panelModel(ctx(g))!.key).not.toBe(before);
   });
 
-  it('lays out the title screen: badge, story, the start button and the two level picks', () => {
+  it('lays out the title screen with all four level picks', () => {
     const panel = panelModel(ctx(new SideGame()))!;
-    expect(panel).toMatchObject({ chip: '01', eyebrowExtra: '1994', title: 'RINGSTORP RUN', titleAccent: null, body: t('title.story'), hint: t('title.hint') });
+    expect(panel).toMatchObject({ chip: '01', eyebrowExtra: '1994', title: 'RINGSTORP RUN', titleAccent: null, body: t('title.collectionStory'), hint: t('title.hint') });
     expect(panel.actions.map(a => [a.label, a.lead, a.sub])).toEqual([
-      ['START RUN', '▶', undefined],
+      ['START RUN', '▶', 'LEVEL 1 · TAKE THE PACKAGE HOME'],
       ['LEVEL 2 · GODS RUN', '▶', 'SNEAK PAST THE POLICE · NO FIGHTING'],
       ['LEVEL 3 · THE KAPELL JOB', '▶', 'HARDCORE · YOU ARE D.D · ONE ARREST ENDS IT'],
+      ['LEVEL 4 · KARLSTAD RUN', '▶', 'LONG ROUTE · 19 CREWS · BUS TO LILJEDAL'],
     ]);
     expect(panel.controls).toEqual([
       { keys: ['WASD', '↑↓←→'], label: 'WALK · STEP' }, { keys: ['SPACE'], label: 'JUMP · J IN AIR KICKS' },

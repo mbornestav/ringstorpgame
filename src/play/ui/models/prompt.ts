@@ -1,6 +1,7 @@
 import { CLIP, REFILL_PRICE, type SideGame } from '../../../side/game';
 import { HEIST } from '../../../side/heist-config';
 import { t, type Key } from '../../../side/i18n';
+import { levelText } from '../../../side/levels';
 import { withKey, type UiContext } from './base';
 
 /** The "street choice" bar above the road: what E would do here, and whether it can be done yet. */
@@ -25,7 +26,7 @@ const passingBmw = (game: SideGame) =>
 
 /** Only one variant shows at a time, in this order of priority. */
 function choice(game: SideGame): Draft | null {
-  if (game.mode !== 'playing') return null;
+  if (game.mode !== 'playing' || game.busRide !== null) return null;
   const action = game.interaction;
   if (game.level === 3) {
     return action ? draft(t('top.level3'), action.label, t('h.crates', { n: game.heist.crates, max: HEIST.trunk }), t('choice2.use'), action.label, true) : null;
@@ -35,6 +36,15 @@ function choice(game: SideGame): Draft | null {
     const g2 = game.gods;
     const state = g2.hidden ? 'cargo.hidden' : g2.cargo === 'carried' ? 'cargo.carried' : g2.cargo === 'stashed' ? 'cargo.stashed' : 'cargo.none';
     return draft(t('choice2.small'), action.label, t(state), t('choice2.use'), action.label, true);
+  }
+  const rest = game.custom?.street.restStops?.find(s => Math.abs(game.player.x - s.x) < 150);
+  if (rest && action?.kind !== 'ammo' && action?.kind !== 'hail') {
+    return draft(t('level.fika'), levelText(rest.name), t(game.rested.has(rest.x) ? 'level.restUsed' : 'level.restHint'),
+      t(game.active ? 'choice.clearCrew' : 'level.rest'), t('level.rest'), action?.kind === 'rest');
+  }
+  if (game.custom?.busHome && Math.abs(game.player.x - game.stage.homeX) < 200 && action?.kind !== 'ammo' && action?.kind !== 'hail') {
+    return draft('KARLSTAD → LILJEDAL', t('level.board'), t('level.busHint'),
+      t(game.homeCrewDown ? 'level.board' : 'choice.clearCrew'), t('level.board'), action?.kind === 'bus');
   }
   if (game.dealerNearby) {
     return draft(t('choice.ddSmall'), t('choice.ddTitle', { clip: CLIP, price: REFILL_PRICE }), t('choice.ddHint', { cash: game.cash }),

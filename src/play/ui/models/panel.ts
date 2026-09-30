@@ -22,6 +22,8 @@ export interface PanelAction {
 /** One overlay panel: the title screen, a mission briefing, the pause card or a result. */
 export interface PanelModel {
   kind: PanelKind;
+  /** Keep the arrival scenery visible beneath a shallow result banner. */
+  scenic?: boolean;
   /** Changes whenever anything shown changes, including the language. */
   key: string;
   eyebrow: string;
@@ -61,7 +63,7 @@ function titlePanel(): PanelModel {
     eyebrow: t('title.eyebrow'), chip: '01', eyebrowExtra: '1994',
     title: 'RINGSTORP RUN', titleAccent: null,
     subtitle: t('title.subtitle'),
-    body: t('title.story'),
+    body: menuLevels().length ? t('title.collectionStory') : t('title.story'),
     bullets: [], stats: [],
     hint: t('title.hint'),
     controls: [
@@ -71,7 +73,7 @@ function titlePanel(): PanelModel {
       { keys: ['K'], label: t('title.dodge') },
     ],
     actions: [
-      button('start', 'title.start', 'primary'),
+      button('start', 'title.start', 'primary', menuLevels().length ? 'title.level1Hint' : undefined),
       button('start-2', 'title.level2', 'secondary', 'title.level2Hint'),
       button('start-3', 'title.level3', 'secondary', 'title.level3Hint'),
       // Levels from level files that ask to be listed (src/side/levels).
@@ -156,6 +158,14 @@ function godsVictory({ game }: UiContext): PanelModel {
 }
 
 function packageVictory({ game }: UiContext): PanelModel {
+  if (game.custom?.completion) return withKey<PanelModel>({
+    kind: 'victory-1', scenic: game.busRide !== null,
+    eyebrow: game.busRide !== null ? t('level.arrivalEyebrow') : levelText(game.custom.title),
+    title: t(game.busRide !== null ? 'level.arrivalTitle' : 'win.title'), titleAccent: 'gold',
+    body: levelText(game.custom.completion), bullets: [],
+    stats: [stat('win.time', formatTime(game.elapsed)), stat('win.crews', game.koCount), stat('win.score', padScore(game.score))],
+    hint: null, actions: [button('restart', 'win.again', 'primary'), button('menu', 'win2.menu', 'secondary')],
+  });
   const withPatch = game.healed, withSupplies = game.shopHealed;
   const story = t('win.base') + (withPatch ? t('win.withPatch') : '') + (withSupplies ? t(withPatch ? 'win.andSupplies' : 'win.withSupplies') : '')
     + (game.metDD ? t('win.dd') : '') + (game.fines ? t('win.fined', { points: game.fines * FINE }) : '') + '.';
@@ -167,10 +177,10 @@ function packageVictory({ game }: UiContext): PanelModel {
 /** Also what a lost Gods run shows, as it did in the DOM. */
 function packageDefeat({ game }: UiContext): PanelModel {
   const checkpoint = game.checkpoint !== null;
-  return outcome('defeat-1', 'lose.eyebrow', t('lose.title'), 'red', t(checkpoint ? 'lose.checkpoint' : 'lose.nocheckpoint'), [
-    stat('win.time', formatTime(game.elapsed)), stat('lose.package', t(game.hasPackage ? 'lose.carried' : 'lose.atKiosk')), stat('win.crews', game.koCount),
+  return outcome('defeat-1', 'lose.eyebrow', t('lose.title'), 'red', t(checkpoint ? game.custom ? 'level.loseCheckpoint' : 'lose.checkpoint' : 'lose.nocheckpoint'), [
+    stat('win.time', formatTime(game.elapsed)), stat('lose.package', t(game.hasPackage ? 'lose.carried' : game.custom ? 'level.parcelWaiting' : 'lose.atKiosk')), stat('win.crews', game.koCount),
   ], checkpoint
-    ? [button('continue', 'lose.continue', 'primary'), button('restart', 'lose.startOver', 'secondary')]
+    ? [button('continue', game.custom ? 'level.continue' : 'lose.continue', 'primary'), button('restart', 'lose.startOver', 'secondary')]
     : [button('restart', 'lose.retry', 'primary')], checkpoint ? null : 'lose.retryHint');
 }
 

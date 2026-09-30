@@ -8,6 +8,7 @@ import { drawLitFacade } from './facade-light';
 import { paintPanel, paintPost } from './package-art';
 import { LEVEL2_ROLES, drawLevel2Facade, level2Box } from './level2-art';
 import { LEVEL3_ROLES, drawLevel3Facade, level3Box } from './level3-art';
+import { cityBox, drawCityFacade, drawCityWater } from './karlstad-art';
 
 // The static scenery, baked into chunks as the camera approaches. The sky rows stay transparent
 // so the distant ridge and the clouds show through.
@@ -29,6 +30,7 @@ export interface FacadeBox { x0: number; x1: number; base: number; floor: number
 
 /** Where a facade sits on screen: its ground line, eaves and the top of its roof. */
 export function facadeBox(f: Facade): FacadeBox {
+  if (f.landmark) return cityBox(f);
   if (f.role && LEVEL2_ROLES.has(f.role)) return level2Box(f);
   if (f.role && LEVEL3_ROLES.has(f.role)) return level3Box(f);
   const k = f.row === 0 ? 1 : BACK_SCALE;
@@ -61,6 +63,7 @@ interface Palette { wall: string; roof: string; material: 'brick' | 'plaster' | 
 function paletteOf(f: Facade): Palette {
   const a = f.appearance;
   const door = pick(['#3f5d4c', '#2e4a63', '#7a3b2e', '#e9e4d6', '#5a4a3a', '#2d3a40'], rand(f.seed, 53));
+  if (f.authored) return { wall: a.wall, roof: a.roof, material: a.material, trim: '#efe9dc', door };
   if (f.style === 'garage') return { wall: a.wall, roof: a.roof, material: a.material, trim: '#deded6', door };
   if (a.model !== 'generic') return { wall: a.wall, roof: a.roof, material: a.material, trim: '#efe9dc', door: a.model === 'terrace' ? '#d7dcd6' : '#4a3a30' };
   const r = rand(f.seed, 17), r2 = rand(f.seed, 29);
@@ -152,6 +155,7 @@ export function chimney(c: CanvasRenderingContext2D, x: number, roofY: number, h
 
 /** A front elevation: the wall, its roof, windows and door. */
 export function drawFacade(c: CanvasRenderingContext2D, f: Facade): void {
+  if (f.landmark) { drawCityFacade(c, f); return; }
   if (f.role && LEVEL2_ROLES.has(f.role)) { drawLevel2Facade(c, f); return; }
   if (f.role && LEVEL3_ROLES.has(f.role)) { drawLevel3Facade(c, f); return; }
   if (f.role === 'kurir') { drawKurirLivs(c, f); return; }
@@ -1211,6 +1215,7 @@ export class Backdrop {
     }
     // Everything below is drawn against the padded range, so the overlap between neighbouring chunks is identical.
     const lo = x0 - pad, hi = x1 + pad;
+    drawCityWater(c, this.stage, lo, hi);
     for (const f of this.stage.facades) if (f.reference && f.row === 0 && f.x1 + 28 > lo && f.x0 - 28 < hi) drawReferenceGarden(c, f);
     for (const item of this.items) {
       if (item.x1 <= lo || item.x0 >= hi) continue;

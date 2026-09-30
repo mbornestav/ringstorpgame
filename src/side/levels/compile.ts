@@ -2,7 +2,7 @@ import { lampLights } from '../heist-stages';
 import { BAND_BOTTOM, BAND_TOP, WIDTH } from '../layout';
 import { rand, terrace, type Encounter, type Facade, type Furniture, type Stage, type Tree } from '../stage';
 import { BUILDINGS, type BuildingSpec } from './catalogue';
-import type { Lane, LevelDefinition } from './types';
+import type { BuildingDef, Lane, LevelDefinition } from './types';
 
 // Turns a level file into the Stage the renderer and the rules already run on. Crews are ordered and given the same
 // screen-lock rule as Level 1: each holds the screen further on than the last, and the home crew holds the final screen.
@@ -21,17 +21,20 @@ export function compileLevel(def: LevelDefinition): Stage {
   const s = def.street;
   let id = 9_500_000;
 
-  const facades: Facade[] = s.buildings.map(b => {
+  const facade = (b: BuildingDef): Facade => {
     const spec: BuildingSpec = BUILDINGS[b.kind];
     const appearance = { ...spec.look, ...(b.wall && { wall: b.wall }), ...(b.roof && { roof: b.roof }), ...(b.floors && { floors: b.floors }) };
     const n = ++id;
     return {
-      id: n, x0: b.from, x1: b.to, row: b.row ?? 0, dist: spec.dist + (b.row === 1 ? 20 : 0), lift: 0, appearance, style: spec.style,
+      id: n, x0: b.from, x1: b.to, row: b.row ?? 0, dist: spec.dist + (b.row === 1 ? 20 : 0), lift: 0, appearance, style: spec.style, authored: true,
+      ...(spec.landmark && { landmark: spec.landmark }),
       eavesFront: true, door: b.door ?? (spec.role ? (b.from + b.to) / 2 : null), seed: n, ...(spec.role && { role: spec.role }),
       ...(b.address && { address: b.address }),
     };
-  });
-  facades.push(...terrace(s.home));
+  };
+  const facades = s.buildings.map(facade);
+  if (s.finish) facades.push({ ...facade(s.finish), role: 'home', door: s.home });
+  else facades.push(...terrace(s.home));
   facades.sort((a, b) => b.dist - a.dist || a.x0 - b.x0);
   const shop = s.buildings.find(b => b.kind === 'shop');
   const gates = s.buildings.filter(b => (BUILDINGS[b.kind] as BuildingSpec).role && b.kind !== 'shop').map(b => b.door ?? (b.from + b.to) / 2);
@@ -72,6 +75,7 @@ export function compileLevel(def: LevelDefinition): Stage {
   });
 
   const stage: Stage = {
+    waters: s.waters?.map(r => ({ x0: r.from, x1: r.to, value: r.value })),
     route: 'direct', length: s.length, forkX: 0, homeX: s.home, marcusX: null, junctions: [],
     shopX: shop ? shop.door ?? shop.from + (shop.to - shop.from) * 0.2 : null,
     start: { x: s.start.x, y: laneY(s.start.lane, 214) }, package: { x: s.parcel.x, y: laneY(s.parcel.lane, BAND_TOP + 10) },

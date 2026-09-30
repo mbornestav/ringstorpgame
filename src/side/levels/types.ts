@@ -50,6 +50,11 @@ export interface CrewDef {
 }
 
 export interface StreetDef {
+  /** Optional bespoke destination instead of the Ringstorp terrace. */
+  finish?: BuildingDef;
+  /** One-use full heals that also become the latest retry point. */
+  restStops?: Array<{ x: number; name: LevelText }>;
+  waters?: Array<Stretch<'river' | 'harbour'>>;
   /** Street length in pixels; at least one screen (480). */
   length: number;
   /** Where the courier starts. */
@@ -78,6 +83,10 @@ export interface StreetDef {
 }
 
 export interface LevelDefinition {
+  /** Board a bus after the final fight, then arrive at the reference cabin. */
+  busHome?: 'liljedal';
+  completion?: LevelText;
+  credit?: LevelText;
   /** A short, unique, lowercase id: the URL uses it (`?level=<id>`). */
   id: string;
   /** Rules: 'brawl' is Level 1's: fetch the parcel, beat the crews, get home. */

@@ -54,9 +54,10 @@ function routeStrip(game: SideGame): RouteStrip {
   if (!game.hasPackage) markers.push({ kind: 'package', at: along(stage.package.x), state: 'open' });
   if (stage.marcusX !== null) markers.push({ kind: 'marcus', at: along(stage.marcusX), state: game.healed ? 'done' : 'open' });
   if (stage.shopX !== null) markers.push({ kind: 'shop', at: along(stage.shopX), state: game.shopHealed ? 'done' : 'open' });
+  for (const stop of game.custom?.street.restStops ?? []) markers.push({ kind: 'shop', at: along(stop.x), state: game.rested.has(stop.x) ? 'done' : 'open' });
   for (const j of stage.junctions) if (!game.decisions.has(j.id)) markers.push({ kind: 'junction', at: along(j.x), state: 'open' });
   markers.push({ kind: 'home', at: 1, state: 'open' });
-  return { player: along(game.player.x), markers, label: t('cv.metresHome', { m: Math.round(game.metresToHome) }) };
+  return { player: along(game.player.x), markers, label: t(game.custom?.busHome ? 'level.toBus' : 'cv.metresHome', { m: Math.round(game.metresToHome) }) };
 }
 
 function stepUpArrows(game: SideGame): number[] {
@@ -66,11 +67,13 @@ function stepUpArrows(game: SideGame): number[] {
   if (stage.shopX !== null && game.level === 1 && !game.shopHealed && game.hasPackage) arrows.push(stage.shopX);
   if (stage.marcusX !== null && stage.facades.some(f => f.role === 'marcus') && game.marcusAhead && game.hasPackage && Math.abs(x - stage.marcusX) < 170) arrows.push(stage.marcusX);
   if (stage.facades.some(f => f.role === 'home') && game.homeCrewDown) arrows.push(stage.homeX);
+  for (const stop of game.custom?.street.restStops ?? []) if (!game.rested.has(stop.x) && Math.abs(x - stop.x) < 170) arrows.push(stop.x);
   return arrows;
 }
 
 /** The in-canvas HUD extras: toast, GO arrow, POLIS badge, boss bar and route strip. */
 export function worldHudModel({ game }: UiContext): WorldHudModel {
+  if (game.busRide !== null) return { visible: false, interior: false, go: null, toast: null, polis: false, boss: null, route: null, arrows: [] };
   const visible = game.mode === 'playing' || game.mode === 'paused';
   const interior = game.level === 2 && game.gods.scene !== 'street' && game.mode !== 'title';
   const arrows = interior ? [] : stepUpArrows(game);
@@ -84,7 +87,7 @@ export function worldHudModel({ game }: UiContext): WorldHudModel {
   return {
     visible, interior, go, toast, arrows,
     polis: game.wanted,
-    boss: boss ? { label: t('cv.boss'), hp: boss.hp, maxHp: boss.maxHp, ratio: boss.hp / boss.maxHp } : null,
+    boss: boss ? { label: t(game.custom?.busHome ? 'level.boss' : 'cv.boss'), hp: boss.hp, maxHp: boss.maxHp, ratio: boss.hp / boss.maxHp } : null,
     route: boss || (game.level === 3 && !game.heist.driving) ? null : routeStrip(game),
   };
 }

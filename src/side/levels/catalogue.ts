@@ -1,11 +1,12 @@
 import type { BuildingAppearance } from '../../buildings';
 import type { BuildingStyle } from '../../world';
-import type { Facade } from '../stage';
+import type { CityLandmark, Facade } from '../stage';
 
 // Building kinds a level can use, each backed by art that already exists. Plain kinds are drawn by the general facade
 // painter from their look; the landmark kinds bring their own hand-drawn art (and, for the shop, the health stop).
 
 export interface BuildingSpec {
+  landmark?: CityLandmark;
   style: BuildingStyle;
   look: BuildingAppearance;
   role?: Facade['role'];
@@ -19,6 +20,15 @@ const look = (wall: string, roof: string, material: BuildingAppearance['material
   ({ wall, roof, material, roofShape, eaves: roofShape === 'flat' ? 20 : 22, rise: roofShape === 'flat' ? 0 : 12, floors, model });
 
 export const BUILDINGS = {
+  'karlstad-busstop': { style: 'block', landmark: 'busstop', look: look('#bbcabd', '#415a60', 'plaster', 'flat', 1), dist: 6, about: 'Bus shelter and the departure point for the ride to Liljedal.' },
+  'karlstad-townhall': { style: 'block', landmark: 'townhall', look: look('#e6c774', '#555e60', 'plaster', 'hipped', 3), dist: 8, about: 'Yellow civic facade with a central clock and the peace monument.' },
+  'karlstad-bridge': { style: 'block', landmark: 'stonebridge', look: look('#979187', '#68685f', 'plaster', 'flat', 1), dist: 20, about: 'Twelve stone arches of Östra bron across the Klarälven.' },
+  'karlstad-sandgrund': { style: 'block', landmark: 'sandgrund', look: look('#f0ede2', '#747d7b', 'plaster', 'flat', 1), dist: 7, about: 'White modernist gallery with orange Sandgrund lettering.' },
+  'karlstad-cathedral': { style: 'church', landmark: 'cathedral', look: look('#ebe4c8', '#536960', 'plaster', 'gabled', 3), dist: 14, about: 'Pale cathedral tower, clock and dark copper spire.' },
+  'karlstad-cityhouse': { style: 'block', landmark: 'cityhouse', look: look('#d6b58b', '#5a6160', 'plaster', 'hipped', 3), dist: 6, about: 'Pastel city facade with cornices, tall windows and shopfronts.' },
+  'karlstad-coffee': { style: 'block', landmark: 'coffee', look: look('#8d4b3f', '#6c6262', 'brick', 'flat', 4), dist: 12, about: 'Brick coffee warehouse with a purple roasting-house sign.' },
+  'karlstad-cafe': { style: 'block', landmark: 'cafe', look: look('#e9d4a6', '#5b6760', 'plaster', 'gabled', 1), dist: 4, about: 'Small cafe with a striped awning and outdoor seating.' },
+  'karlstad-park': { style: 'block', landmark: 'park', look: look('#a54336', '#5c5949', 'wood', 'gabled', 1), dist: 6, about: 'Red timber park pavilion and Mariebergsskogen entrance.' },
   // Plain buildings.
   'house': { style: 'house', look: look('#e0d8c7', '#a25f43', 'plaster', 'gabled', 2), dist: 8, about: 'Rendered two-storey house with a tiled gable roof.' },
   'red-cottage': { style: 'house', look: look('#a3372f', '#3e3a38', 'wood', 'gabled', 1), dist: 8, about: 'Falu-red wooden cottage.' },

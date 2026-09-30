@@ -25,7 +25,11 @@ const BACK_ROW = 21;
 const px = (units: number) => units * MPU * PX_PER_M;
 
 export type FacadeModel = BuildingAppearance['model'];
+export type CityLandmark = 'townhall' | 'stonebridge' | 'sandgrund' | 'cathedral' | 'cityhouse' | 'coffee' | 'cafe' | 'park' | 'busstop';
 export interface Facade {
+  landmark?: CityLandmark;
+  /** Authored levels keep their chosen colours instead of the map's procedural palette. */
+  authored?: boolean;
   id: number;
   /** Left and right edges in stage pixels. */
   x0: number;
@@ -71,6 +75,7 @@ export interface Spot { x: number; kind: 'hedge' | 'bin' | 'garage' | 'bush' | '
 export interface Junction { id: JunctionId; x: number; turn: string; street: string; straight: string }
 
 export interface Stage {
+  waters?: Run<'river' | 'harbour'>[];
   route: Route;
   /** Stage length in pixels. */
   length: number;
