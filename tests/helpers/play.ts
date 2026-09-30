@@ -2,6 +2,7 @@ import { expect, type Locator, type Page } from '@playwright/test';
 import type { UiAction } from '../../src/play/actions';
 import type { SideGame } from '../../src/side/game';
 import type { BikeRun } from '../../src/play/family/bike-run';
+import type { HideRun } from '../../src/play/family/hide-run';
 
 // The dev build exposes `window.__ringstorp` (see src/play/testing/bridge.ts); `sim` is the running SideGame.
 export interface Bridge {
@@ -9,6 +10,7 @@ export interface Bridge {
   game: { canvas: HTMLCanvasElement };
   sim: SideGame;
   bike(): BikeRun;
+  hide(): HideRun;
   click(action: UiAction): boolean;
   available(action: UiAction): boolean;
   freeze(): void;

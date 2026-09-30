@@ -51,14 +51,28 @@ const BIKE: string[] = [
   '#2b3936', '#fffbea', '#e2432f', '#2d97d0', '#f0c197', '#62853d', '#c04439', '#f2c230',
 ];
 
+/** Kurragömma's preschool yard, from frames of a whole round: the play things and the children's clothes. */
+const YARD: string[] = [
+  '#393732', '#485137', '#435255', '#793129', '#714f30', '#735848', '#587239', '#60725b',
+  '#648c4b', '#807a46', '#7e8261', '#82a055', '#9b3c2e', '#9d5343', '#9c7547', '#9c7c61',
+  '#c74a3b', '#bd7451', '#de704e', '#a1a453', '#a0ad6a', '#d7a63f', '#cca163', '#e6c241',
+  '#e7c861', '#426088', '#5a8092', '#3e7fbf', '#5ea5c6', '#91817f', '#959d82', '#949d97',
+  '#87a8b1', '#9db58f', '#adbc8b', '#98bcbc', '#7fbcd5', '#a1ccd5', '#ca8f80', '#dc89a2',
+  '#d2af83', '#cfb1a4', '#bac690', '#e1c590', '#b7c9bc', '#d2c9b9', '#e8d99a', '#d7d9bd',
+  '#c2d8d1', '#e2e3cf', '#c9dfdd', '#eff0e9',
+  // Accents: ink, sunlight white, skin (light and dark), the SpongeBob yellow, the Sonic blue, Chloe's pink, the slide blue,
+  // grass green, apple red, dark hair.
+  '#2b3936', '#fffbea', '#f3cfae', '#8d5a3b', '#f5d23a', '#2f62d9', '#f07fb0', '#6cc0ee', '#8aad55', '#e2432f', '#1f1a18',
+];
+
 /** How far (in 0–255 units) the ordered dither may push a channel: enough to shade ramps, low enough to keep flats flat. */
-const SPREAD = { day: 10, night: 9, interior: 10, bike: 10 } as const;
+const SPREAD = { day: 10, night: 9, interior: 10, bike: 10, yard: 10 } as const;
 
 export type Lighting = keyof typeof SPREAD;
 const cache = new Map<Lighting, Palette>();
 
 export function paletteFor(lighting: Lighting): { palette: Palette; spread: number } {
   let palette = cache.get(lighting);
-  if (!palette) cache.set(lighting, palette = new Palette({ day: DAY, night: NIGHT, interior: INTERIOR, bike: BIKE }[lighting]));
+  if (!palette) cache.set(lighting, palette = new Palette({ day: DAY, night: NIGHT, interior: INTERIOR, bike: BIKE, yard: YARD }[lighting]));
   return { palette, spread: SPREAD[lighting] };
 }

@@ -7,19 +7,19 @@ import { isRetro } from '../../side/pixel';
 // sprites and tileable strips (at the scene's 1.5× draw scale); a frame is a few dozen image blits plus the cyclist and the
 // apples, which are drawn live.
 
-type C = CanvasRenderingContext2D;
-type Pt = [number, number];
+export type C = CanvasRenderingContext2D;
+export type Pt = [number, number];
 const W = 960;
-const TAU = Math.PI * 2;
+export const TAU = Math.PI * 2;
 // Sprites are baked at the scale the ride is drawn at: 1.5 on the full-size canvas, 0.5 on the retro 480x270 one.
-const BAKE = isRetro() ? 0.5 : 1.5;
-const INK = '#2b3936';
-const SUN: Pt = [785, 119];
+export const BAKE = isRetro() ? 0.5 : 1.5;
+export const INK = '#2b3936';
+export const SUN: Pt = [785, 119];
 
 // ---------------------------------------------------------------- helpers
 
 /** A small seeded generator, so every bake draws the same leaves and pebbles. */
-function seeded(seed: number): () => number {
+export function seeded(seed: number): () => number {
   let s = seed >>> 0;
   return () => {
     s = (s + 0x6d2b79f5) >>> 0;
@@ -31,43 +31,43 @@ function seeded(seed: number): () => number {
 }
 
 const rgb = (hex: string): [number, number, number] => { const n = parseInt(hex.slice(1, 7), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
-function mix(a: string, b: string, t: number): string {
+export function mix(a: string, b: string, t: number): string {
   const p = rgb(a), q = rgb(b);
   return '#' + p.map((v, i) => Math.round(v + (q[i] - v) * t).toString(16).padStart(2, '0')).join('');
 }
-const rgba = (hex: string, a: number) => { const [r, g, b] = rgb(hex); return `rgba(${r}, ${g}, ${b}, ${a})`; };
+export const rgba = (hex: string, a: number) => { const [r, g, b] = rgb(hex); return `rgba(${r}, ${g}, ${b}, ${a})`; };
 
-function vgrad(c: C, y0: number, y1: number, stops: Array<[number, string]>): CanvasGradient {
+export function vgrad(c: C, y0: number, y1: number, stops: Array<[number, string]>): CanvasGradient {
   const g = c.createLinearGradient(0, y0, 0, y1); for (const [at, col] of stops) g.addColorStop(at, col); return g;
 }
-function hgrad(c: C, x0: number, x1: number, stops: Array<[number, string]>): CanvasGradient {
+export function hgrad(c: C, x0: number, x1: number, stops: Array<[number, string]>): CanvasGradient {
   const g = c.createLinearGradient(x0, 0, x1, 0); for (const [at, col] of stops) g.addColorStop(at, col); return g;
 }
-function rgrad(c: C, x: number, y: number, r: number, stops: Array<[number, string]>, x0 = x, y0 = y): CanvasGradient {
+export function rgrad(c: C, x: number, y: number, r: number, stops: Array<[number, string]>, x0 = x, y0 = y): CanvasGradient {
   const g = c.createRadialGradient(x0, y0, 0, x, y, r); for (const [at, col] of stops) g.addColorStop(at, col); return g;
 }
 
-function path(c: C, points: Pt[], close = false): void {
+export function path(c: C, points: Pt[], close = false): void {
   c.beginPath(); points.forEach(([x, y], i) => i ? c.lineTo(x, y) : c.moveTo(x, y)); if (close) c.closePath();
 }
-function stroke(c: C, color: string, width: number): void {
+export function stroke(c: C, color: string, width: number): void {
   c.strokeStyle = color; c.lineWidth = width; c.lineCap = 'round'; c.lineJoin = 'round'; c.stroke();
 }
-function line(c: C, color: string, width: number, points: Pt[]): void { path(c, points); stroke(c, color, width); }
-function oval(c: C, fill: string | CanvasGradient, x: number, y: number, rx: number, ry: number, rotation = 0): void {
+export function line(c: C, color: string, width: number, points: Pt[]): void { path(c, points); stroke(c, color, width); }
+export function oval(c: C, fill: string | CanvasGradient, x: number, y: number, rx: number, ry: number, rotation = 0): void {
   c.fillStyle = fill; c.beginPath(); c.ellipse(x, y, rx, ry, rotation, 0, TAU); c.fill();
 }
-function box(c: C, fill: string | CanvasGradient, x: number, y: number, w: number, h: number, r = 0): void {
+export function box(c: C, fill: string | CanvasGradient, x: number, y: number, w: number, h: number, r = 0): void {
   c.fillStyle = fill; c.beginPath(); if (r) c.roundRect(x, y, w, h, r); else c.rect(x, y, w, h); c.fill();
 }
 /** A soft, round contact shadow. */
-function softShadow(c: C, x: number, y: number, rx: number, ry: number, strength = 0.32): void {
+export function softShadow(c: C, x: number, y: number, rx: number, ry: number, strength = 0.32): void {
   c.save(); c.translate(x, y); c.scale(rx, ry);
   c.fillStyle = rgrad(c, 0, 0, 1, [[0, `rgba(48, 58, 34, ${strength})`], [0.6, `rgba(48, 58, 34, ${strength * 0.5})`], [1, 'rgba(48, 58, 34, 0)']]);
   c.fillRect(-1, -1, 2, 2); c.restore();
 }
 /** A closed, scalloped outline around an ellipse: foliage, bushes and clouds. */
-function lumps(c: C, cx: number, cy: number, rx: number, ry: number, count: number, rand: () => number, depth = 0.16): void {
+export function lumps(c: C, cx: number, cy: number, rx: number, ry: number, count: number, rand: () => number, depth = 0.16): void {
   const pts: Pt[] = [];
   for (let i = 0; i < count; i++) {
     const a = (i + rand() * 0.4) / count * TAU, k = 1 - rand() * depth;
@@ -84,37 +84,37 @@ function lumps(c: C, cx: number, cy: number, rx: number, ry: number, count: numb
   c.closePath();
 }
 
-interface Sprite { canvas: HTMLCanvasElement; ox: number; oy: number; w: number; h: number }
+export interface Sprite { canvas: HTMLCanvasElement; ox: number; oy: number; w: number; h: number }
 /** Bakes a drawing whose local origin is (ox, oy) inside a w × h box. */
-function bake(w: number, h: number, ox: number, oy: number, draw: (c: C) => void): Sprite {
+export function bake(w: number, h: number, ox: number, oy: number, draw: (c: C) => void): Sprite {
   const canvas = document.createElement('canvas');
   canvas.width = Math.ceil(w * BAKE); canvas.height = Math.ceil(h * BAKE);
   const c = canvas.getContext('2d')!;
   c.scale(BAKE, BAKE); c.translate(ox, oy); draw(c);
   return { canvas, ox, oy, w, h };
 }
-const put = (c: C, s: Sprite, x: number, y: number, scale = 1) =>
+export const put = (c: C, s: Sprite, x: number, y: number, scale = 1) =>
   c.drawImage(s.canvas, x - s.ox * scale, y - s.oy * scale, s.w * scale, s.h * scale);
 
 /**
  * A strip that repeats every `period` pixels. `draw` is called at −period, 0 and +period so shapes that cross the seam
  * are whole on both sides, and the bake is 2 px wider than the period so neighbouring copies overlap.
  */
-function strip(period: number, top: number, height: number, draw: (c: C) => void): Sprite {
+export function strip(period: number, top: number, height: number, draw: (c: C) => void): Sprite {
   return bake(period + 2, height, 0, -top, c => {
     c.save(); c.beginPath(); c.rect(0, top, period + 2, height); c.clip();
     for (const dx of [-period, 0, period]) { c.save(); c.translate(dx, 0); draw(c); c.restore(); }
     c.restore();
   });
 }
-function tile(c: C, s: Sprite, offset: number): void {
+export function tile(c: C, s: Sprite, offset: number): void {
   const period = s.w - 2, top = -s.oy;
   for (let x = -(((offset % period) + period) % period); x < W; x += period) c.drawImage(s.canvas, x, top, s.w, s.h);
 }
 
 // ---------------------------------------------------------------- sky and landscape
 
-function paintSky(c: C): void {
+export function paintSky(c: C): void {
   c.fillStyle = vgrad(c, 0, 400, [[0, '#6fb4d2'], [0.45, '#a9d6df'], [0.8, '#e3ecd6'], [1, '#f7ecc6']]);
   c.fillRect(0, 0, W, 400);
   c.fillStyle = rgrad(c, SUN[0], SUN[1], 420, [[0, 'rgba(255, 246, 214, 0.75)'], [0.25, 'rgba(255, 238, 196, 0.32)'], [1, 'rgba(255, 238, 196, 0)']]);
@@ -123,7 +123,7 @@ function paintSky(c: C): void {
   oval(c, '#fffbea', SUN[0], SUN[1], 30, 30);
 }
 
-function paintCloud(c: C, seed: number, w: number, h: number): void {
+export function paintCloud(c: C, seed: number, w: number, h: number): void {
   const rand = seeded(seed), puffs: Array<[number, number, number]> = [];
   for (let i = 0; i < 7; i++) {
     const t = i / 6, x = (t - 0.5) * w, bump = Math.sin(t * Math.PI);
@@ -148,7 +148,7 @@ function hillPath(c: C, period: number, f: (x: number) => number, bottom: number
   c.lineTo(period + 4, bottom); c.closePath();
 }
 
-const FAR = 1400, MID = 1200, NEAR = 900;
+export const FAR = 1400, MID = 1200, NEAR = 900;
 
 /** Kullaberg on the far horizon: a steep cliff at its seaward tip, then a long, gentle slope inland. */
 function kulla(x: number): number {
@@ -157,7 +157,7 @@ function kulla(x: number): number {
   return t < 0.1 ? Math.sin(t / 0.1 * Math.PI / 2) : Math.pow(Math.cos((t - 0.1) / 0.9 * Math.PI / 2), 1.3);
 }
 
-function paintFar(c: C): void {
+export function paintFar(c: C): void {
   // Höganäs: the sea along the horizon, Kullaberg with its lighthouse, and the town's church spire and chimney.
   c.fillStyle = vgrad(c, 276, 330, [[0, '#8fbdcb'], [0.5, '#a3cad1'], [1, '#bcd8d4']]);
   c.fillRect(0, 276, FAR, 124);
@@ -211,7 +211,7 @@ function paintFar(c: C): void {
   hillPath(c, FAR, f, 400); c.fill();
 }
 
-function paintMid(c: C): void {
+export function paintMid(c: C): void {
   const f = ridge(MID, 326, [[1, 14, 2.2], [2, 9, 0.7], [5, 4, 1.1]]);
   hillPath(c, MID, f, 400);
   c.fillStyle = vgrad(c, 300, 390, [[0, '#a9c27f'], [1, '#98b46e']]); c.fill();
@@ -241,7 +241,7 @@ function paintMid(c: C): void {
   c.fillStyle = 'rgba(232, 238, 214, 0.18)'; hillPath(c, MID, f, 400); c.fill();
 }
 
-function paintNear(c: C): void {
+export function paintNear(c: C): void {
   const f = ridge(NEAR, 360, [[1, 5, 0.9], [3, 3, 2.4]]);
   hillPath(c, NEAR, f, 402);
   c.fillStyle = vgrad(c, 350, 400, [[0, '#a2bb70'], [1, '#8eaa5c']]); c.fill();
@@ -261,7 +261,7 @@ function paintNear(c: C): void {
 
 // ---------------------------------------------------------------- trees and apples
 
-function paintApple(c: C): void {
+export function paintApple(c: C): void {
   const body = () => {
     c.beginPath(); c.moveTo(0, -6);
     c.bezierCurveTo(4, -10, 11, -8, 11, 0); c.bezierCurveTo(11, 8, 5, 12, 0, 10);
@@ -284,7 +284,7 @@ function paintApple(c: C): void {
 
 interface Canopy { x: number; y: number; rx: number; ry: number }
 
-function paintTree(c: C, seed: number): void {
+export function paintTree(c: C, seed: number): void {
   const rand = seeded(seed);
   softShadow(c, -8, 2, 78, 11, 0.36);
   // Trunk: a tapered, bark-shaded stem that forks into the crown.
@@ -348,7 +348,7 @@ function paintDapple(c: C, seed: number): void {
 
 // ---------------------------------------------------------------- the path and the verges
 
-const ROAD = 480, FORE = 600;
+export const ROAD = 480, FORE = 600;
 
 function paintRoad(c: C): void {
   c.fillStyle = vgrad(c, 396, 498, [[0, '#e3cb98'], [0.35, '#dcc08b'], [1, '#c8aa76']]);
@@ -379,12 +379,12 @@ function paintRoad(c: C): void {
   }
 }
 
-function flower(c: C, x: number, y: number, petals: string, heart: string, r: number): void {
+export function flower(c: C, x: number, y: number, petals: string, heart: string, r: number): void {
   for (let k = 0; k < 6; k++) { const a = k / 6 * TAU; oval(c, petals, x + Math.cos(a) * r, y + Math.sin(a) * r * 0.8, r * 0.8, r * 0.55, a); }
   oval(c, heart, x, y, r * 0.6, r * 0.55);
 }
 
-function paintFore(c: C): void {
+export function paintFore(c: C): void {
   const rand = seeded(67);
   c.fillStyle = vgrad(c, 494, 540, [[0, '#8aa957'], [1, '#5f8338']]);
   c.fillRect(0, 494, FORE, 46);
@@ -404,7 +404,7 @@ function paintFore(c: C): void {
 
 // ---------------------------------------------------------------- buildings
 
-function window4(c: C, x: number, y: number, w: number, h: number, frame: string, trim: string): void {
+export function window4(c: C, x: number, y: number, w: number, h: number, frame: string, trim: string): void {
   box(c, trim, x - 4, y - 4, w + 8, h + 8, 1.5);
   box(c, vgrad(c, y, y + h, [[0, '#cfe7ea'], [0.5, '#9fc6cf'], [1, '#6f97a3']]), x, y, w, h);
   // A sky reflection and a diagonal glint, with the reveal's shadow at the top and left.
@@ -465,7 +465,7 @@ function paintHome(c: C): void {
   box(c, '#6d5d45', 108, fy + 12, 4, 36); box(c, '#2f6fa3', 101, fy + 2, 18, 12, 3); box(c, '#5b9ccf', 101, fy + 2, 18, 3, 2);
 }
 
-function paintPreschool(c: C): void {
+export function paintPreschool(c: C): void {
   // One low, flat-roofed building. All facade and trim surfaces stay solid red.
   softShadow(c, 196, 114, 232, 14, 0.4);
   const facade = () => { c.beginPath(); c.rect(0, 7, 388, 107); };
@@ -521,13 +521,13 @@ function paintPreschool(c: C): void {
 
 const lerp = (a: Pt, b: Pt, t: number): Pt => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
 /** Two-bone IK: the knee (or elbow) between `root` and `end`, bent toward +x. */
-function joint(root: Pt, end: Pt, upper: number, lower: number): Pt {
+export function joint(root: Pt, end: Pt, upper: number, lower: number): Pt {
   const dx = end[0] - root[0], dy = end[1] - root[1], d = Math.min(Math.hypot(dx, dy), upper + lower - 0.01);
   const base = Math.atan2(dy, dx), a = Math.acos(Math.max(-1, Math.min(1, (upper * upper + d * d - lower * lower) / (2 * upper * d))));
   return [root[0] + Math.cos(base - a) * upper, root[1] + Math.sin(base - a) * upper];
 }
 /** A limb as an outlined, round-capped tube. */
-function limb(c: C, points: Pt[], width: number, fill: string, outline = INK): void {
+export function limb(c: C, points: Pt[], width: number, fill: string, outline = INK): void {
   line(c, outline, width + 3.2, points); line(c, fill, width, points);
 }
 
@@ -676,7 +676,7 @@ const layerFor = (canvas: HTMLCanvasElement, old?: CanvasRenderingContext2D): Ca
  * Retro: the cyclist and the apples are drawn on a layer of their own, which is stamped one pixel in each direction as a
  * dark silhouette before it goes back on the frame, so they read as outlined sprites against the scenery.
  */
-function outlined(c: C, draw: (target: C) => void): void {
+export function outlined(c: C, draw: (target: C) => void): void {
   if (!isRetro()) { draw(c); return; }
   const art = layerFor(c.canvas, layers?.art), ink = layerFor(c.canvas, layers?.ink);
   layers = { art, ink };
@@ -699,7 +699,7 @@ interface Art {
 }
 let art: Art | null = null;
 
-function paintLight(c: C): void {
+export function paintLight(c: C): void {
   // Soft rays from the sun, then a gentle vignette that keeps the eye on the path.
   c.save(); c.globalCompositeOperation = 'lighter';
   for (const [a, w] of [[2.05, 0.07], [2.3, 0.05], [2.6, 0.08], [2.9, 0.04]] as const) {

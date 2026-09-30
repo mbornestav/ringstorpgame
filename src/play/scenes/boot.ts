@@ -15,6 +15,7 @@ export class BootScene extends Phaser.Scene {
       this.scene.start('World');
       this.scene.launch('UI');
     } else if (params.get('game') === 'carl-otto') this.scene.start('Bike');
+    else if (params.get('game') === 'kurragomma') this.scene.start('Hide');
     else this.scene.start('Hub');
   }
 }

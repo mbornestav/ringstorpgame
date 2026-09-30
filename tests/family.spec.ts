@@ -99,3 +99,55 @@ test('bike controls work by touch at a small landscape viewport', async ({ brows
   expect(await page.evaluate(() => window.__ringstorp.bike().x)).toBeGreaterThan(before + 5);
   errors(); await context.close();
 });
+
+test('Kurragömma: counts to ten, finds friends by key and button, opens a surprise, and ends at the door', async ({ page }) => {
+  await hub(page); await press(page, 'choose-carl');
+  await expect(page.getByRole('heading', { name: 'Kurragömma' })).toBeAttached();
+  await press(page, 'start-hide');
+  await expect(page.locator('#hide-panel-title')).toHaveText('Kurragömma');
+  await press(page, 'hide-primary');
+  await expect.poll(() => page.evaluate(() => window.__ringstorp.hide().mode)).toBe('counting');
+  await page.keyboard.press('Space');
+  await expect.poll(() => page.evaluate(() => window.__ringstorp.hide().mode)).toBe('seeking');
+  // Walk with the real keyboard.
+  const startX = await page.evaluate(() => window.__ringstorp.hide().x);
+  await page.keyboard.down('ArrowRight'); await page.waitForTimeout(300); await page.keyboard.up('ArrowRight');
+  expect(await page.evaluate(() => window.__ringstorp.hide().x)).toBeGreaterThan(startX + 20);
+  // Stand at a friend's place and look with Space.
+  const name = await page.evaluate(() => { const g = window.__ringstorp.hide(); const s = g.spots.find(s => s.friend)!; g.x = s.x; window.__ringstorp.step(1 / 60, 2); window.__ringstorp.thaw(); return s.friend!.name; });
+  await page.keyboard.press('Space');
+  await expect(page.locator('#hide-status')).toContainText(`${name} hittad!`);
+  // At an empty place, the big Titta! button opens the surprise.
+  await page.evaluate(() => { const g = window.__ringstorp.hide(); const s = g.spots.find(s => s.surprise)!; g.x = s.x; window.__ringstorp.step(1 / 60, 2); window.__ringstorp.thaw(); });
+  await press(page, 'hide-look');
+  await expect.poll(() => page.evaluate(() => window.__ringstorp.hide().spots.filter(s => s.surprise && s.opened).length)).toBe(1);
+  // Find the rest; they all run to the door.
+  await page.evaluate(() => { const g = window.__ringstorp.hide(); for (const s of g.spots.filter(s => s.friend && !s.opened)) { g.x = s.x; g.look(); } window.__ringstorp.step(1 / 60, 900); });
+  await expect(page.locator('#hide-panel-title')).toHaveText('Du hittade alla!');
+  await canvas(page).screenshot({ path: 'test-results/carl-hide-won.png' });
+  await press(page, 'hide-primary');
+  await expect.poll(() => page.evaluate(() => window.__ringstorp.hide().mode)).toBe('counting');
+  await press(page, 'hide-menu');
+  await expect(page.getByRole('heading', { name: 'Vad vill du spela?' })).toBeAttached();
+});
+
+test('Kurragömma: a tap on a hiding place walks there and looks, on a small touch screen', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true });
+  const page = await context.newPage();
+  const errors = watchErrors(page);
+  await page.goto('/?game=kurragomma');
+  await page.waitForFunction(() => window.__ringstorp); await page.evaluate(() => window.__ringstorp.ready);
+  await press(page, 'hide-primary');
+  await page.evaluate(() => { window.__ringstorp.hide().skipCount(); });
+  // The nearest place to the right of the start, and where it is on screen (world 960 wide fills the canvas).
+  const target = await page.evaluate(() => {
+    const g = window.__ringstorp.hide(), s = g.spots[0], cam = Math.max(0, Math.min(2560 - 960, g.x - 960 * 0.42));
+    return { x: s.x, screen: (s.x - cam) / 960 };
+  });
+  const box = (await canvas(page).boundingBox())!;
+  await page.touchscreen.tap(box.x + target.screen * box.width, box.y + box.height * 0.75);
+  await expect.poll(() => page.evaluate(() => window.__ringstorp.hide().spots[0].opened), { timeout: 10_000 }).toBe(true);
+  await canvas(page).screenshot({ path: 'test-results/carl-hide-mobile.png' });
+  errors(); await context.close();
+});
+

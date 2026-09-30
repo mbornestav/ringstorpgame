@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { getLang, setLang } from '../../side/i18n';
 import { sessionOf } from '../scenes/shared';
 import { drawRide, drawRunPreview } from './art';
+import { drawYardPreview } from './yard-art';
 import { FamilySurface } from './surface';
 import { familyText as t } from './text';
 import { isRetro } from '../../side/pixel';
@@ -13,13 +14,14 @@ export class HubScene extends FamilySurface {
 
   create(): void {
     this.section = 'all';
-    for (const key of ['family-bike-preview', 'family-run-preview']) {
+    for (const key of ['family-bike-preview', 'family-run-preview', 'family-hide-preview']) {
       if (this.textures.exists(key)) continue;
       // Retro: small previews, magnified as pixel art (two screen pixels per preview pixel).
       const k = isRetro() ? 0.33 : 1;
       const texture = this.textures.createCanvas(key, Math.round(960 * k), Math.round(375 * k))!;
       const c = texture.context; c.save(); c.scale(k, k); c.translate(0, -125);
       if (key === 'family-run-preview') drawRunPreview(c);
+      else if (key === 'family-hide-preview') drawYardPreview(c);
       else drawRide(c, { distance: 900, x: 430, y: 459, apples: [], invulnerable: 0, elapsed: 0.35 });
       c.restore(); texture.refresh();
     }
@@ -52,16 +54,10 @@ export class HubScene extends FamilySurface {
         this.section = 'carl'; this.rebuild(); this.root.querySelector<HTMLButtonElement>('[data-family="start-bike"]')?.focus();
       });
     } else {
-      this.panel(84, 254, 1272, 417, 0xe9e9da, 24);
-      const image = this.add.image(84, 278, 'family-bike-preview').setOrigin(0).setDisplaySize(650, 254);
-      this.layer.add(image);
-      this.label(t('bikeHint'), 115, 560, 23, '#547054', 580);
-      this.label(t('first'), 784, 279, 20, '#8e5c34', undefined, true);
-      this.label(t('bikeTitle'), 784, 309, 52, '#25473f', undefined, true);
-      this.label(t('bikeDescription'), 784, 381, 23, '#546653', 525);
-      this.button('start-bike', t('start'), 784, 573, 244, () => this.scene.start('Bike'));
-      this.button('all-games', t('back'), 84, 701, 196, () => { this.section = 'all'; this.rebuild(); });
-      this.mirror('h2', t('bikeTitle')); this.mirror('p', t('bikeDescription')); this.mirror('p', t('bikeHint'));
+      // Carl-Otto's games side by side: the bike ride and hide-and-seek.
+      this.card(84, 'family-bike-preview', t('first'), t('bikeTitle'), t('bikeBlurb'), t('start'), 'start-bike', () => this.scene.start('Bike'));
+      this.card(740, 'family-hide-preview', t('second'), t('hideTitle'), t('hideBlurb'), t('countStart'), 'start-hide', () => this.scene.start('Hide'));
+      this.button('all-games', t('back'), 84, 740, 196, () => { this.section = 'all'; this.rebuild(); });
     }
     this.label(t('footer'), this.section === 'all' ? 84 : 820, 770, 16, '#78806b', undefined, true);
   }

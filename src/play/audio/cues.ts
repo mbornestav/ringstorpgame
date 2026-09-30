@@ -24,10 +24,21 @@ const NOTES: Record<string, Note[]> = {
   siren: [[650, 0.42, 0], [980, 0.42, 0.44], [650, 0.42, 0.88], [980, 0.42, 1.32]],
   victory: [[392, 0.12, 0], [523, 0.12, 0.12], [659, 0.12, 0.24], [784, 0.45, 0.36]],
   defeat: [[270, 0.18, 0], [210, 0.18, 0.18], [150, 0.3, 0.36]],
+  // Kurragömma: counting, "nu kommer jag", giggles from a hiding place, a find, and what the empty places hide.
+  tick: [[660, 0.06, 0]],
+  ready: [[523, 0.1, 0], [659, 0.1, 0.1], [784, 0.22, 0.2]],
+  giggle: [[1046, 0.05, 0], [1175, 0.05, 0.07], [1046, 0.05, 0.14], [1318, 0.07, 0.21]],
+  found: [[523, 0.08, 0], [659, 0.08, 0.08], [784, 0.08, 0.16], [1046, 0.26, 0.24]],
+  meow: [[900, 0.22, 0], [700, 0.3, 0.18]],
+  snuffle: [[180, 0.05, 0], [210, 0.05, 0.08], [180, 0.05, 0.16], [210, 0.05, 0.24]],
+  prrrt: [[95, 0.55, 0]],
+  twinkle: [[1568, 0.08, 0], [2093, 0.08, 0.08], [2637, 0.16, 0.16]],
+  boing: [[330, 0.28, 0]],
+  cheer: [[784, 0.08, 0], [988, 0.12, 0.08]],
 };
 
-const SAWTOOTH = new Set(['hit', 'hurt', 'smash', 'thud', 'shot', 'brake', 'lift', 'crash', 'tear']);
-const GLIDES = new Set(['swing', 'dodge', 'shot', 'brake']);
+const SAWTOOTH = new Set(['hit', 'hurt', 'smash', 'thud', 'shot', 'brake', 'lift', 'crash', 'tear', 'snuffle', 'prrrt']);
+const GLIDES = new Set(['swing', 'dodge', 'shot', 'brake', 'meow', 'prrrt', 'boing']);
 const QUIET = new Set(['warn', 'brake']);
 
 export interface Cue {

@@ -122,6 +122,17 @@ A ride file in `src/play/family/rides/` looks like `till-forskolan.ride.ts`:
 
 Play a ride with `?game=carl-otto&ride=<id>`. The chooser starts `till-forskolan`. Listing more rides there needs a small change to `src/play/family/hub-scene.ts`.
 
+## Kurragömma: the friends and the places
+
+Carl-Otto's hide-and-seek game keeps everything about people and places in `src/play/family/games/kurragomma.ts`:
+
+- `FRIENDS`: each friend's `name`, `look` (skin, hair colour, hair `style` of `short`, `long`, `pigtails`, `curly` or `bun`, `top`, `bottom`, `shoes`, optional `extra` of glasses, cap, bow or freckles, `tee` for a t-shirt, a shirt `print` of `sponge`, `hedgehog`, `star` or `dino`, and `size` to make someone a little smaller or bigger) and what they shout at the door (`cheer`).
+- `PLACES`: the nine hiding places across the yard and what a friend says when found there.
+- `SURPRISES`: what the empty places hold, and their lines.
+- `TUNING`: counting speed, how often friends giggle, when the teacher gives a hint, Carl-Otto's walking speed.
+
+Each round hides the five friends in five of the nine places at random. Carl-Otto's own look is `CARL_OTTO` in `src/play/family/kids.ts`.
+
 ## What still needs code
 
 - **Level 2 (the Gods run) and Level 3 (the Kapell job) style levels.** Their rules depend on their own street, the tower's floors, the lift, the patrols and the truck yard, so a level file can only use Level 1's rules.

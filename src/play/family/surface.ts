@@ -106,6 +106,8 @@ export abstract class FamilySurface extends Phaser.Scene {
     proxy.addEventListener('focus', () => ring.setVisible(true));
     proxy.addEventListener('blur', () => ring.setVisible(false));
     proxy.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation(); });
+    // A button activates on Space when the key comes up; keep that keyup from Phaser, whose key capture would cancel it.
+    proxy.addEventListener('keyup', e => { if (e.key === ' ') e.stopPropagation(); });
     this.root.append(proxy);
     this.targets.set(id, { x, y, width, height });
   }

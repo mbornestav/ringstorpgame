@@ -6,7 +6,7 @@ const sv = {
   ringstorp: 'Ringstorp Run', runTag: 'ARKADÄVENTYR · 3 BANOR',
   runDescription: 'Ett paket, ett hemligt uppdrag och ett kapelljobb. Hitta din väg genom Ringstorp.',
   runAction: 'Välj bana', carl: 'Carl-Ottos spel', carlTag: 'SMÅ ÄVENTYR · STOR UPPTÄCKARLUST',
-  carlDescription: 'På med den blå hjälmen! Följ med Carl-Otto på en cykeltur till förskolan i Höganäs.',
+  carlDescription: 'På med den blå hjälmen! Cykla till förskolan och lek kurragömma med kompisarna i Höganäs.',
   carlAction: 'Upptäck spelen', back: 'Alla spel', first: 'SPEL 1',
   bikeTitle: 'Till förskolan', bikeDescription: 'Det är en fin morgon i Höganäs. Hjälp Carl-Otto att cykla till den röda förskolan och väja för äpplena som faller från träden.',
   bikeInstructions: 'Cykeln rullar av sig själv. Styr med piltangenterna eller WASD. På en pekskärm använder du pilknapparna.',
@@ -19,6 +19,16 @@ const sv = {
   steer: 'STYR', pauseHint: 'ESC · PAUS', up: 'Styr uppåt', down: 'Styr nedåt',
   moveLeft: 'Styr åt vänster', moveRight: 'Styr åt höger',
   footer: 'EN LITEN SAMLING ÄVENTYR I HELSINGBORG OCH HÖGANÄS', menu: 'Välj spel',
+  second: 'SPEL 2', hideTitle: 'Kurragömma',
+  bikeBlurb: 'Cykla till förskolan och väj för äpplena som faller.', hideBlurb: 'Hitta alla fem kompisar på förskolans gård.',
+  hideDescription: 'Kompisarna har gömt sig på förskolans gård. Kan Carl-Otto hitta alla fem? De är inte så bra på att gömma sig…',
+  hideInstructions: 'Gå med piltangenterna eller A och D. Tryck mellanslag vid ett gömställe för att titta. På en pekskärm trycker du där du vill titta.',
+  hideHint: 'Lyssna efter fnitter – och titta efter fötter som sticker ut!',
+  countStart: 'Börja räkna', skipCount: 'MELLANSLAG · SLUTA RÄKNA', here: 'Nu kommer jag!', look: 'Titta!', hihi: 'hihi!',
+  foundAll: 'Du hittade alla!', foundAllBody: 'Alla kompisar är hittade. Bra letat, Carl-Otto!', tookTime: 'Det tog {time}.',
+  seekAgain: 'Leta igen', foundStatus: '{name} hittad! {n} kvar.', foundLast: '{name} hittad! Alla är hittade!',
+  friends: 'KOMPISAR', seekKeys: 'GÅ ◀ ▶ / A D     TITTA · MELLANSLAG     ESC · PAUS', hidePaused: 'Paus i leken',
+  hidePausedBody: 'Kompisarna väntar i sina gömställen.',
 };
 
 const en: Record<keyof typeof sv, string> = {
@@ -26,7 +36,7 @@ const en: Record<keyof typeof sv, string> = {
   ringstorp: 'Ringstorp Run', runTag: 'ARCADE ADVENTURES · 3 LEVELS',
   runDescription: 'A package, a secret assignment and a kapell job. Find your way through Ringstorp.', runAction: 'Choose a level',
   carl: 'Carl-Ottos spel', carlTag: 'LITTLE ADVENTURES · BIG CURIOSITY',
-  carlDescription: 'Blue helmet on! Join Carl-Otto on a bike ride to preschool in Höganäs.', carlAction: 'Explore the games',
+  carlDescription: 'Blue helmet on! Ride to preschool and play hide and seek with friends in Höganäs.', carlAction: 'Explore the games',
   back: 'All games', first: 'GAME 1', bikeTitle: 'Off to preschool',
   bikeDescription: 'It’s a lovely morning in Höganäs. Help Carl-Otto cycle to the red preschool and dodge the apples falling from the trees.',
   bikeInstructions: 'The bike rolls along by itself. Steer with the arrow keys or WASD. On a touchscreen, use the arrow buttons.',
@@ -38,6 +48,16 @@ const en: Record<keyof typeof sv, string> = {
   home: 'Home', preschool: 'Preschool', left: 'm left', hearts: 'Hearts', avoided: 'apples avoided',
   steer: 'STEER', pauseHint: 'ESC · PAUSE', up: 'Steer up', down: 'Steer down', moveLeft: 'Steer left', moveRight: 'Steer right',
   footer: 'A LITTLE COLLECTION OF ADVENTURES IN HELSINGBORG AND HÖGANÄS', menu: 'Choose a game',
+  second: 'GAME 2', hideTitle: 'Hide and seek',
+  bikeBlurb: 'Ride to preschool and dodge the falling apples.', hideBlurb: 'Find all five friends in the preschool yard.',
+  hideDescription: 'The friends are hiding in the preschool yard. Can Carl-Otto find all five? They’re not very good at hiding…',
+  hideInstructions: 'Walk with the arrow keys or A and D. Press space at a hiding place to look. On a touchscreen, tap where you want to look.',
+  hideHint: 'Listen for giggles – and look out for feet sticking out!',
+  countStart: 'Start counting', skipCount: 'SPACE · STOP COUNTING', here: 'Ready or not, here I come!', look: 'Look!', hihi: 'hee hee!',
+  foundAll: 'You found everyone!', foundAllBody: 'All the friends are found. Great seeking, Carl-Otto!', tookTime: 'It took {time}.',
+  seekAgain: 'Play again', foundStatus: '{name} found! {n} to go.', foundLast: '{name} found! Everyone is found!',
+  friends: 'FRIENDS', seekKeys: 'WALK ◀ ▶ / A D     LOOK · SPACE     ESC · PAUSE', hidePaused: 'A little break',
+  hidePausedBody: 'Your friends are waiting in their hiding places.',
 };
 
 export const familyText = (key: keyof typeof sv): string => (getLang() === 'sv' ? sv : en)[key];
