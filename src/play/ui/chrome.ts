@@ -4,6 +4,7 @@ import { COLOR, CSS, UI_H, UI_W, textStyle } from '../theme';
 import { box } from './kit/draw';
 import { Button } from './kit/button';
 import { KeyChip } from './kit/chip';
+import { familyText } from '../family/text';
 import type { ControlHint, FooterModel, HudModel, MastheadModel } from './models';
 
 const TOP = 60;
@@ -21,6 +22,7 @@ export class Chrome extends Phaser.GameObjects.Container {
   private readonly level: Phaser.GameObjects.Text;
   readonly lang: Button;
   readonly sound: Button;
+  readonly chooser: Button;
   private readonly strip: Phaser.GameObjects.Container;
   private readonly credit: Phaser.GameObjects.Text;
   private stripKey = '';
@@ -48,10 +50,13 @@ export class Chrome extends Phaser.GameObjects.Container {
     this.sound = new Button(scene, { id: 'sound', label: '', kind: 'icon', height: 40 });
     this.lang.onPress = () => this.session.dispatch('lang');
     this.sound.onPress = () => this.session.dispatch('sound');
+    this.chooser = new Button(scene, { id: 'chooser', label: familyText('menu'), kind: 'icon', height: 40 });
+    this.chooser.setPosition(325, 10);
+    this.chooser.onPress = () => this.session.dispatch('chooser');
 
     this.strip = scene.add.container(0, UI_H - 46);
     this.credit = scene.add.text(UI_W - MARGIN, UI_H - 5, '', { ...textStyle('small', CSS.dim), fontSize: '11px' }).setOrigin(1, 1);
-    this.add([this.backdrop, this.brandMark, mark, this.brand, this.sub, this.dot, this.streetLabel, this.street, this.level, this.lang, this.sound, this.strip, this.credit]);
+    this.add([this.backdrop, this.brandMark, mark, this.brand, this.sub, this.dot, this.streetLabel, this.street, this.level, this.lang, this.sound, this.chooser, this.strip, this.credit]);
     scene.add.existing(this);
   }
 
@@ -59,6 +64,7 @@ export class Chrome extends Phaser.GameObjects.Container {
   setFocus(id: string | null): void {
     this.lang.setFocused(id === 'lang');
     this.sound.setFocused(id === 'sound');
+    this.chooser.setFocused(id === 'chooser');
   }
 
   update(head: MastheadModel, hud: HudModel, foot: FooterModel, controls: ControlHint[]): void {
@@ -67,6 +73,7 @@ export class Chrome extends Phaser.GameObjects.Container {
       this.mastheadKey = key;
       this.brand.setText(head.brand);
       this.sub.setText(head.sub);
+      this.chooser.set({ id: 'chooser', label: familyText('menu'), kind: 'icon', height: 40 });
       this.lang.set({ id: 'lang', label: head.lang.label, kind: 'icon', height: 40 });
       this.sound.set({ id: 'sound', label: head.sound.label, kind: 'icon', height: 40 });
       this.sound.setPosition(UI_W - MARGIN - this.sound.width, 10);

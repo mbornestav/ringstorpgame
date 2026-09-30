@@ -1,7 +1,7 @@
 /** Everything the player can ask the UI to do. The same ids were `data-action` values in the DOM panels. */
 export type UiAction =
   | 'start' | 'restart' | 'start-2' | 'answer' | 'start-3' | 'answer-3' | 'back' | 'menu'
-  | 'resume' | 'continue' | 'pause' | 'interact' | 'sound' | 'lang'
+  | 'resume' | 'continue' | 'pause' | 'interact' | 'sound' | 'lang' | 'chooser'
   | 'phone' | 'phone-call' | 'phone-away' | 'phone-cancel'
   | `floor-${number}`;
 

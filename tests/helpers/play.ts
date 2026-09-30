@@ -1,12 +1,14 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import type { UiAction } from '../../src/play/actions';
 import type { SideGame } from '../../src/side/game';
+import type { BikeRun } from '../../src/play/family/bike-run';
 
 // The dev build exposes `window.__ringstorp` (see src/play/testing/bridge.ts); `sim` is the running SideGame.
 export interface Bridge {
   ready: Promise<void>;
   game: { canvas: HTMLCanvasElement };
   sim: SideGame;
+  bike(): BikeRun;
   click(action: UiAction): boolean;
   available(action: UiAction): boolean;
   freeze(): void;
@@ -27,8 +29,10 @@ declare global { interface Window { __ringstorp: Bridge } }
 
 /** Loads the game and waits for its scenes. Startup loads fonts and artwork first, so the bridge appears a moment after the page. */
 export async function open(page: Page, query = '', lang?: 'en' | 'sv'): Promise<void> {
-  if (lang) await page.addInitScript(l => localStorage.setItem('ringstorp-lang', l), lang);
-  await page.goto(`/${query}`);
+  await page.addInitScript(l => { if (l || !localStorage.getItem('ringstorp-lang')) localStorage.setItem('ringstorp-lang', l ?? 'en'); }, lang);
+  const params = new URLSearchParams(query);
+  params.set('game', 'ringstorp');
+  await page.goto(`/?${params}`);
   await page.waitForFunction(() => window.__ringstorp, null, { timeout: 30_000 });
   await page.evaluate(() => window.__ringstorp.ready);
 }

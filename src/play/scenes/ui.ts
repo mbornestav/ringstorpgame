@@ -54,7 +54,7 @@ export class UIScene extends Phaser.Scene {
 
   /** Every button that can be pressed by pointer, whether or not it is showing. */
   private controls(): Button[] {
-    return [...this.panels.actions, this.chrome.lang, this.chrome.sound, this.prompt.button, this.phone.launcher, this.phone.action, this.phone.cancel, this.phone.pocket];
+    return [...this.panels.actions, this.chrome.lang, this.chrome.sound, this.chrome.chooser, this.prompt.button, this.phone.launcher, this.phone.action, this.phone.cancel, this.phone.pocket];
   }
 
   /**
@@ -77,6 +77,7 @@ export class UIScene extends Phaser.Scene {
 
   update(time: number): void {
     const session = sessionOf(this);
+    if (session.section === 'hub') { this.scene.stop('World'); this.scene.start('Hub'); return; }
     const masthead = mastheadModel(session), hud = hudModel(session), footer = footerModel(session), controls = controlsModel(session);
     const panel = panelModel(session), prompt = promptModel(session), phone = phoneModel(session), world = worldHudModel(session);
     this.chrome.update(masthead, hud, footer, controls);

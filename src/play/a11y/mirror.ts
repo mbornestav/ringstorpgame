@@ -1,5 +1,6 @@
 import type { UiAction } from '../actions';
 import type { Session } from '../session';
+import { familyText } from '../family/text';
 import type { HudModel, MastheadModel, PanelModel, PhoneModel, PromptModel, WorldHudModel, ControlHint, FooterModel } from '../ui/models';
 
 export interface MirrorState {
@@ -33,6 +34,7 @@ export class A11yMirror {
   private readonly status: HTMLElement;
   private readonly lang: HTMLButtonElement;
   private readonly sound: HTMLButtonElement;
+  private readonly chooser: HTMLButtonElement;
   private readonly level: HTMLElement;
   private readonly street: HTMLElement;
   private readonly life: HTMLElement;
@@ -80,6 +82,7 @@ export class A11yMirror {
     const head = make('div', { role: 'group', id: 'a11y-masthead' }, root);
     this.lang = make('button', { type: 'button', 'data-action': 'lang' }, head);
     this.sound = make('button', { type: 'button', 'data-action': 'sound' }, head);
+    this.chooser = make('button', { type: 'button', 'data-action': 'chooser' }, head);
     this.level = make('p', { id: 'a11y-level' }, root);
     this.street = make('p', { id: 'a11y-street' }, root);
     this.life = make('p', { id: 'a11y-life' }, root);
@@ -146,6 +149,7 @@ export class A11yMirror {
     this.lang.setAttribute('aria-label', m.lang.aria);
     this.lang.lang = m.lang.lang;
     set(this.sound, m.sound.label);
+    set(this.chooser, familyText('menu'));
     this.sound.setAttribute('aria-label', m.sound.aria);
     set(this.level, hud.levelLine);
     set(this.street, hud.streetLine);

@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import './page.css';
-import { getLang, onLangChange, t } from '../side/i18n';
+import { getLang, onLangChange, setLang, t } from '../side/i18n';
 import { SideGame } from '../side/game';
 import { setArtFont, setArtMode } from '../side/pixel';
 import { loadLogos } from './art/logos';
@@ -10,8 +10,12 @@ import { Session } from './session';
 import { BootScene } from './scenes/boot';
 import { UIScene } from './scenes/ui';
 import { WorldScene } from './scenes/world';
+import { HubScene } from './family/hub-scene';
+import { BikeScene } from './family/bike-scene';
 
 const params = new URLSearchParams(location.search);
+// New visitors meet the Swedish collection; an existing language choice is respected.
+try { if (!localStorage.getItem('ringstorp-lang')) setLang('sv'); } catch { setLang('sv'); }
 // The Phaser build draws smooth vector art. `?look=pixel` (development) shows the original pixel art through the same pipeline.
 setArtMode(params.get('look') === 'pixel' ? 'pixel' : 'smooth');
 
@@ -59,11 +63,11 @@ async function boot(): Promise<void> {
     setArtFont(FONT.display);
     // `?artlab=1` (development only) shows the art lab instead of the game.
     const lab = import.meta.env.DEV && params.has('artlab') ? (await import('./testing/artlab')).ArtLabScene : null;
-    game = new Phaser.Game(gameConfig(lab ? [lab] : [BootScene, WorldScene, UIScene], {
+    game = new Phaser.Game(gameConfig(lab ? [lab] : [BootScene, WorldScene, UIScene, HubScene, BikeScene], {
       preBoot: g => { g.registry.set('session', session); },
     }));
   } catch (error) {
-    fail(`The game could not start: ${error instanceof Error ? error.message : String(error)}`);
+    fail(`${t('error.start')}: ${error instanceof Error ? error.message : String(error)}`);
     return;
   }
   if (import.meta.env.DEV) void import('./testing/bridge').then(({ installBridge }) => installBridge(game, session));

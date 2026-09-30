@@ -535,7 +535,7 @@ describe('controls strip', () => {
     expect(controlsModel(ctx(g)).map(c => c.keys)).toEqual(['A D / ← →', 'W S / ↑ ↓', 'SHIFT', 'K', 'E', 'ESC', 'M']);
     expect(controlsModel(ctx(g))[4].label).toBe(t('ctl.work'));
     setLang('sv');
-    expect(controlsModel(ctx(g))[4].label).toBe('SKÄR / TA (HÅLL) · LASTA');
+    expect(controlsModel(ctx(g))[4].label).toBe('HÅLL E: SKÄR / TA · TRYCK E: LASTA');
   });
 });
 
@@ -564,7 +564,7 @@ describe('masthead and footer', () => {
       credit: `ORIGINAL PIXEL ART · MAP DATA ${MAP_ATTRIBUTION.toUpperCase()}`, bestLabel: 'BEST RUN', best: '01234',
     });
     setLang('sv');
-    expect(footerModel(ctx(g))).toMatchObject({ credit: `EGEN PIXELKONST · KARTDATA ${MAP_ATTRIBUTION.toUpperCase()}`, bestLabel: 'BÄSTA OMGÅNG' });
+    expect(footerModel(ctx(g))).toMatchObject({ credit: `EGEN GRAFIK · KARTDATA ${MAP_ATTRIBUTION.toUpperCase()}`, bestLabel: 'BÄSTA POÄNG' });
   });
 });
 

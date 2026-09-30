@@ -10,13 +10,15 @@ The original DOM version is kept at `/legacy.html` (entry `src/side/main.ts`) wi
 index.html ─ src/play/main.ts        fonts + brand logos load first, then Phaser.Game (WebGL, 1440×810, FIT)
   Session (src/play/session.ts)      one SideGame + the UI-only state (title page, phone receipt, mute) and the
                                      single command bus: dispatch(UiAction). Pure, unit-tested without Phaser.
-  BootScene → WorldScene + UIScene   run side by side; SideGame.mode is the state machine, not scene swaps
+  BootScene → HubScene               collection chooser: Ringstorp Run / Carl-Ottos spel
+    Ringstorp → WorldScene + UIScene run side by side; SideGame.mode is the mission state machine
+    Carl-Otto → BikeScene            separate bicycle simulation and illustrated world
 ```
 
 - **`WorldScene`** owns the cadence: `Controls.poll()` → `SideGame.update(dt)` → sound cues → `WorldView.update()`. It also turns a click on the lift's floor buttons into `floor-N`.
 - **`UIScene`** builds the pure models (`src/play/ui/models/*`: panel, HUD, prompt, phone, controls, world HUD) once per frame, hands them to the widgets, and mirrors them into the hidden DOM.
 - **Widgets** (`src/play/ui/`): `Chrome` (top and bottom bars), `HudCards`, `WorldHud` (toast, GO, POLIS, boss bar, route strip), `PromptBar`, `PanelHost` (title, briefings, pause, results), `PhoneDrawer`. The kit (`ui/kit/`) has `Button`, `Chip`, `KeyChip` and vector drawing helpers, so no symbol depends on a font having it.
-- **Accessibility**: `src/play/a11y/mirror.ts` keeps a visually hidden copy of the interface in real DOM (`#a11y`). Screen readers get headings, live regions and buttons, and its buttons are the only elements that hold DOM focus (Tab, Enter and Space work). The canvas draws a focus ring on the control the DOM has focused.
+- **Accessibility**: `src/play/a11y/mirror.ts` keeps a visually hidden copy of the Ringstorp Run interface in real DOM (`#a11y`). The collection and bike scenes use `src/play/family/surface.ts` for the same canvas-button/DOM-proxy pattern. Screen readers get headings, live regions and buttons, and its buttons are the only elements that hold DOM focus (Tab, Enter and Space work). The canvas draws a focus ring on the control the DOM has focused.
 - **Input**: `input/keymap.ts` is a pure port of the original key handling (tested as a table); `input/controls.ts` feeds it from Phaser's keyboard. Phaser 4 re-runs its key queue on every DOM key event within a frame, so each handled key is marked consumed (`event.stopPropagation()`); without that, one Escape toggles pause twice on a slow frame.
 - **Audio**: the original oscillator synth (`audio/cues.ts` is the data, `audio/sfx.ts` plays it) on Phaser's AudioContext, muted through `game.sound.mute`. The mute preference keeps its original key, `ringstorp-muted`.
 

@@ -3,6 +3,8 @@ import type { UiAction } from '../actions';
 import type { Session } from '../session';
 import type { UIScene } from '../scenes/ui';
 import type { WorldScene } from '../scenes/world';
+import type { FamilySurface } from '../family/surface';
+import type { BikeScene } from '../family/bike-scene';
 import { controlsModel, footerModel, hudModel, mastheadModel, panelModel, phoneModel, promptModel, worldHudModel } from '../ui/models';
 
 /** Development-only handle for browser tests and screenshots. Never referenced from production code paths. */
@@ -10,7 +12,7 @@ export function installBridge(game: Phaser.Game, session: Session): void {
   const world = () => game.scene.getScene('World') as WorldScene;
   const ui = () => game.scene.getScene('UI') as UIScene;
   const ready = new Promise<void>(resolve => {
-    const check = () => { if (game.scene.isActive('World') && world().view) resolve(); else setTimeout(check, 16); };
+    const check = () => { if ((game.scene.isActive('World') && world().view) || game.scene.isActive('Hub') || game.scene.isActive('Bike')) resolve(); else setTimeout(check, 16); };
     check();
   });
   const bridge = {
@@ -18,18 +20,23 @@ export function installBridge(game: Phaser.Game, session: Session): void {
     game,
     session,
     sim: session.game,
+    bike: () => (game.scene.getScene('Bike') as BikeScene).run,
     click: (action: UiAction) => session.dispatch(action),
     available: (action: UiAction) => session.available(action),
     /** Stops the scene advancing by itself. */
-    freeze: () => { world().frozen = true; },
-    thaw: () => { world().frozen = false; },
+    freeze: () => { if (game.scene.isActive('Bike')) (game.scene.getScene('Bike') as BikeScene).frozen = true; else world().frozen = true; },
+    thaw: () => { if (game.scene.isActive('Bike')) (game.scene.getScene('Bike') as BikeScene).frozen = false; else world().frozen = false; },
     /** Advances the game by hand: `n` frames of `dt` seconds. Implies freeze. */
-    step: (dt = 1 / 60, n = 1) => { world().frozen = true; for (let i = 0; i < n; i++) world().step(dt); },
+    step: (dt = 1 / 60, n = 1) => {
+      const target = game.scene.isActive('Bike') ? game.scene.getScene('Bike') as BikeScene : world();
+      target.frozen = true; for (let i = 0; i < n; i++) target.step(dt);
+    },
     /** The current frame as a PNG data URL (the game is created with preserveDrawingBuffer in dev). */
     render: () => game.canvas.toDataURL('image/png'),
     /** Where a control is on the page, in CSS pixels, for a real mouse click; null when it is not showing. */
     bounds: (id: string) => {
-      const b = ui().boundsOf(id);
+      const family = ['Hub', 'Bike'].find(key => game.scene.isActive(key));
+      const b = family ? (game.scene.getScene(family) as FamilySurface).boundsOf(id) : ui().boundsOf(id);
       if (!b) return null;
       const canvas = game.canvas.getBoundingClientRect(), k = canvas.width / game.scale.gameSize.width;
       return { x: canvas.left + b.x * k, y: canvas.top + b.y * k, width: b.width * k, height: b.height * k };

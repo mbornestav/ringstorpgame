@@ -1,4 +1,12 @@
-# Ringstorp Run
+# Spel från Ringstorp
+
+The home screen is a Swedish game chooser with two sections. **Ringstorp Run** contains the three original missions described below. **Carl-Ottos spel** starts with **Till förskolan**, a short bicycle ride for a little boy in a blue helmet. He pedals automatically; steer with **WASD / arrow keys** or the on-screen arrows to avoid falling apples. Rings mark where apples will fall. Three hearts, a pause button, retry and a clear final stretch lead to a low, solid-red preschool. The boy, white garages and garden fence are original vector interpretations of the supplied reference photos.
+
+New visitors start in Swedish. The language choice is remembered. **Välj spel** returns from Ringstorp Run to the collection, and **Alla spel** returns from the bike ride. `?game=ringstorp` links directly to the original level chooser; `?game=carl-otto` opens the bike instructions.
+
+The new Phaser scenes live in `src/play/family/`. `bike-run.ts` is the plain TypeScript simulation; `art.ts` draws the scenery and cyclist. Distance, speed and spawn timing are kept there for later tuning. `npm test` covers the ride rules and `npx playwright test tests/family.spec.ts` checks the chooser, keyboard/touch controls, pause, retry and arrival.
+
+## Ringstorp Run
 
 A self-contained, desktop browser side-scrolling arcade brawler on the real streets between Pålsjö and Ringstorp in Helsingborg. The route, the buildings along it, the street names, side streets, lamps, signs and bus stops come from OpenStreetMap. The artwork is original, drawn in code as smooth vector graphics. No map service, account or server is needed to play.
 
@@ -37,7 +45,7 @@ Pick **LEVEL 3 · THE KAPELL JOB** on the title screen. You are **D.D**, and it'
 
 ## Language
 
-The **SV / EN** button in the header switches the whole game between English and Swedish. The choice is saved in the browser. All text lives in `src/side/i18n.ts`; game state stores keys, so text is translated when it's shown. Signs painted into the street (Kurir Livs, ICA, POLIS, HEM 55B, HUNDFÖRBUD) stay Swedish in both languages.
+The chooser's language button and Ringstorp Run's **SV / EN** button switch between English and Swedish. The choice is saved in the browser. Ringstorp Run's text lives in `src/side/i18n.ts`; the collection and bike game use `src/play/family/text.ts`. Game state stores keys, so text is translated when it's shown. Signs painted into the scenery (Kurir Livs, ICA, POLIS, HEM 55B, HUNDFÖRBUD, FÖRSKOLAN) stay Swedish in both languages.
 
 ## Run
 

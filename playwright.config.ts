@@ -2,7 +2,7 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests',
-  testMatch: ['browser.spec.ts', 'visual.spec.ts', 'legacy.spec.ts', 'phaser.spec.ts'],
+  testMatch: ['browser.spec.ts', 'visual.spec.ts', 'legacy.spec.ts', 'phaser.spec.ts', 'family.spec.ts'],
   // The pilot's docs say to run with a dev server already up; reuse it when it is, start one otherwise.
   webServer: {
     command: 'npm run dev:test',

@@ -11,6 +11,7 @@ type Listener = () => void;
  * test bridge. It does not import Phaser, so it can be exercised in plain Vitest.
  */
 export class Session {
+  section: 'ringstorp' | 'hub' = 'ringstorp';
   titleView: TitleView = 'main';
   /** Set once a refill has just been paid for, until the phone is next opened. */
   phoneReceipt = false;
@@ -50,7 +51,7 @@ export class Session {
       case 'continue': return mode === 'defeat' && g.checkpoint !== null;
       case 'pause': return mode === 'playing' || mode === 'paused';
       case 'interact': return mode === 'playing' && !g.phoneOpen;
-      case 'sound': case 'lang': return true;
+      case 'sound': case 'lang': case 'chooser': return true;
       case 'phone': return mode === 'playing' && g.hasPhone;
       case 'phone-call': return mode === 'playing' && g.phoneOpen;
       case 'phone-cancel': return mode === 'playing' && g.phoneOpen;
@@ -73,6 +74,7 @@ export class Session {
       case 'answer-3': this.clearInput(); this.titleView = 'main'; g.startHeist(); this.reset(); break;
       case 'back': this.showBriefing('main'); break;
       case 'menu': this.clearInput(); this.titleView = 'main'; g.toTitle(); this.reset(); break;
+      case 'chooser': this.clearInput(); this.titleView = 'main'; g.toTitle(); this.section = 'hub'; break;
       case 'resume': case 'pause': g.togglePause(); break;
       case 'continue': this.clearInput(); g.continueFromCheckpoint(); break;
       case 'interact': if (source === 'pointer') this.clearInput(); g.interact(); break;
