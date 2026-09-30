@@ -1,4 +1,5 @@
 import type { BikeRun } from './bike-run';
+import { isRetro } from '../../side/pixel';
 
 // Carl-Otto's ride, drawn as a storybook illustration in the 960 × 540 world. The sun sits high on the right, so every
 // shape is lit from the upper right and shaded towards the lower left. Everything that does not animate is baked once into
@@ -9,7 +10,8 @@ type C = CanvasRenderingContext2D;
 type Pt = [number, number];
 const W = 960;
 const TAU = Math.PI * 2;
-const BAKE = 1.5;
+// Sprites are baked at the scale the ride is drawn at: 1.5 on the full-size canvas, 0.5 on the retro 480x270 one.
+const BAKE = isRetro() ? 0.5 : 1.5;
 const INK = '#2b3936';
 const SUN: Pt = [785, 119];
 

@@ -5,3 +5,6 @@ import { setArtMode } from '../side/pixel';
 // as hi-res vector art and `?look=pixel` the original pixel art, both through the same pipeline (for comparison).
 const look = new URLSearchParams(location.search).get('look');
 setArtMode(look === 'pixel' || look === 'smooth' ? look : 'retro');
+
+/** The retro build's CRT finish (src/play/crt.ts); `?crt=off` shows the bare pixels. */
+export const CRT = look !== 'pixel' && look !== 'smooth' && new URLSearchParams(location.search).get('crt') !== 'off';

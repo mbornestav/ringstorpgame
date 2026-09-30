@@ -5,6 +5,8 @@ import { FONT } from '../fonts';
 import { fontPx } from '../theme';
 import { isRetro } from '../../side/pixel';
 import { keyGlyphs } from '../ui/text';
+import { CRT } from '../look';
+import { addCrt } from '../crt';
 
 /** Shared canvas controls and their keyboard/screen-reader counterparts. */
 export abstract class FamilySurface extends Phaser.Scene {
@@ -14,8 +16,8 @@ export abstract class FamilySurface extends Phaser.Scene {
 
   protected setup(): void {
     this.cameras.main.setOrigin(0, 0).setZoom(RENDER_SCALE / 3);
-    // Retro: the whole scene (illustration and interface) is sampled once per logical pixel, as pixel art.
-    if (isRetro()) { this.cameras.main.setRoundPixels(true); this.cameras.main.filters.internal.addBlocky({ size: RENDER_SCALE }); }
+    if (isRetro()) this.cameras.main.setRoundPixels(true);
+    if (CRT) addCrt(this);
     this.root = document.getElementById('a11y')!;
     const offLang = onLangChange(() => this.rebuild());
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { offLang(); this.root.replaceChildren(); this.targets.clear(); });

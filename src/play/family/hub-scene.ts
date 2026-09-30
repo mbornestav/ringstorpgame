@@ -4,6 +4,7 @@ import { sessionOf } from '../scenes/shared';
 import { drawRide, drawRunPreview } from './art';
 import { FamilySurface } from './surface';
 import { familyText as t } from './text';
+import { isRetro } from '../../side/pixel';
 
 export class HubScene extends FamilySurface {
   private section: 'all' | 'carl' = 'all';
@@ -14,8 +15,10 @@ export class HubScene extends FamilySurface {
     this.section = 'all';
     for (const key of ['family-bike-preview', 'family-run-preview']) {
       if (this.textures.exists(key)) continue;
-      const texture = this.textures.createCanvas(key, 960, 375)!;
-      const c = texture.context; c.save(); c.translate(0, -125);
+      // Retro: small previews, magnified as pixel art (two screen pixels per preview pixel).
+      const k = isRetro() ? 0.33 : 1;
+      const texture = this.textures.createCanvas(key, Math.round(960 * k), Math.round(375 * k))!;
+      const c = texture.context; c.save(); c.scale(k, k); c.translate(0, -125);
       if (key === 'family-run-preview') drawRunPreview(c);
       else drawRide(c, { distance: 900, x: 430, y: 459, apples: [], invulnerable: 0, elapsed: 0.35 });
       c.restore(); texture.refresh();

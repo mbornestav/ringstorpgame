@@ -4,6 +4,9 @@ import { drawRide } from './art';
 import { BikeRun } from './bike-run';
 import { FamilySurface } from './surface';
 import { familyText as t } from './text';
+import { isRetro } from '../../side/pixel';
+
+const WORLD_DIV = isRetro() ? 3 : 1;
 
 export class BikeScene extends FamilySurface {
   run = new BikeRun();
@@ -23,8 +26,9 @@ export class BikeScene extends FamilySurface {
   create(): void {
     this.run = new BikeRun(); this.frozen = false; this.held.clear(); this.touches.clear(); this.lastMode = ''; this.statusKey = '';
     if (this.textures.exists('bike-world')) this.textures.remove('bike-world');
-    this.texture = this.textures.createCanvas('bike-world', 1440, 810)!;
-    this.add.image(0, 0, 'bike-world').setOrigin(0);
+    // Retro: the ride is drawn at 480x270 and magnified, the same pixel size as Ringstorp Run.
+    this.texture = this.textures.createCanvas('bike-world', 1440 / WORLD_DIV, 810 / WORLD_DIV)!;
+    this.add.image(0, 0, 'bike-world').setOrigin(0).setDisplaySize(1440, 810);
     this.setup();
     const down = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -144,7 +148,7 @@ export class BikeScene extends FamilySurface {
   }
 
   private paint(): void {
-    const c = this.texture.context; c.save(); c.scale(1.5, 1.5); drawRide(c, this.run); c.restore(); this.texture.refresh();
+    const c = this.texture.context; c.save(); c.scale(1.5 / WORLD_DIV, 1.5 / WORLD_DIV); drawRide(c, this.run); c.restore(); this.texture.refresh();
   }
 
   step(dt: number): void {

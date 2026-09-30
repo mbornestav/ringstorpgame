@@ -6,6 +6,8 @@ import { panelHit } from '../../side/interior-layout';
 import { RENDER_SCALE } from '../config';
 import { CanvasWorldView, type WorldView } from '../world/world-view';
 import { sessionOf } from './shared';
+import { CRT } from '../look';
+import { addCrt } from '../crt';
 
 /** Owns the simulation cadence: input in, `SideGame.update`, sound out, then the view. */
 export class WorldScene extends Phaser.Scene {
@@ -27,6 +29,7 @@ export class WorldScene extends Phaser.Scene {
 
     // World objects live in logical 480x270 coordinates; the camera zooms them up to the canvas.
     this.cameras.main.setOrigin(0, 0).setZoom(RENDER_SCALE);
+    if (CRT) addCrt(this);
 
     // The lift's floor buttons are part of the picture, so they are found by position rather than as objects.
     const buttonAt = (pointer: Phaser.Input.Pointer): number | null => {

@@ -12,6 +12,8 @@ import { PromptBar } from '../ui/prompt';
 import { WorldHud } from '../ui/world-hud';
 import { controlsModel, footerModel, hudModel, mastheadModel, panelModel, phoneModel, promptModel, worldHudModel } from '../ui/models';
 import { sessionOf } from './shared';
+import { CRT } from '../look';
+import { addCrt } from '../crt';
 
 /** Visible on screen: itself and every container above it is shown and not faded out. */
 function shown(object: Phaser.GameObjects.GameObject): boolean {
@@ -41,8 +43,9 @@ export class UIScene extends Phaser.Scene {
   create(): void {
     const session = sessionOf(this);
     this.cameras.main.setOrigin(0, 0).setZoom(RENDER_SCALE / 3);
-    // Retro: sample the interface once per logical pixel, so text, corners and icons land on the world's pixel grid.
-    if (isRetro()) { this.cameras.main.setRoundPixels(true); this.cameras.main.filters.internal.addBlocky({ size: RENDER_SCALE }); }
+    // Retro: whole-pixel positions keep the pixel fonts crisp; the CRT finish softens them like a screen would.
+    if (isRetro()) this.cameras.main.setRoundPixels(true);
+    if (CRT) addCrt(this, 0);
     // Back to front. The panels sit under the chrome, so the language and sound buttons stay bright and reachable.
     this.worldHud = new WorldHud(this);
     this.panels = new PanelHost(this, session);
