@@ -8,6 +8,7 @@ import { familyText as t } from './text';
 import { isRetro } from '../../side/pixel';
 import { paletteFor } from '../../side/palettes';
 import { addRetroImage } from '../world/retro-shader';
+import { musicOf } from '../audio/music';
 
 const WORLD_DIV = isRetro() ? 3 : 1;
 
@@ -36,12 +37,14 @@ export class BikeScene extends FamilySurface {
     if (isRetro()) addRetroImage(this, 'bike-world', 0, 0, 1440, 810, () => paletteFor('bike'));
     else this.add.image(0, 0, 'bike-world').setOrigin(0);
     this.setup();
+    musicOf(this.game).play('bike');
     const down = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       const key = e.key.toLowerCase();
-      if (!['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'escape', 'enter', ' '].includes(key)) return;
+      if (!['w', 'a', 's', 'd', 'm', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'escape', 'enter', ' '].includes(key)) return;
       e.stopPropagation();
       if ((key === 'enter' || key === ' ') && document.activeElement instanceof HTMLButtonElement) return;
+      if (key === 'm') { if (!e.repeat) this.toggleSound(); return; }
       if (!e.repeat && key === 'escape') {
         if (this.run.mode === 'riding') this.run.pause(); else if (this.run.mode === 'paused') this.run.resume();
         this.changed();
@@ -87,7 +90,7 @@ export class BikeScene extends FamilySurface {
     this.status = this.mirror('p', '', 'bike-status'); this.status.setAttribute('role', 'status'); this.status.setAttribute('aria-live', 'polite');
     this.statusKey = '';
     if (this.run.mode === 'riding') {
-      this.panel(28, 739, 690, 47, 0xfff8e5, 16, 0.92);
+      this.panel(28, 739, 900, 47, 0xfff8e5, 16, 0.92);
       this.label(`${t('steer')}  ↑ ↓ ← → / WASD     ${t('pauseHint')}`, 49, 750, 20, '#3e5948', undefined, true);
       this.pad();
     } else this.overlay();
@@ -164,6 +167,7 @@ export class BikeScene extends FamilySurface {
     this.run.update(dt, x, y);
     if (this.run.mode !== this.lastMode) this.changed();
     this.updateHud(); this.paint();
+    musicOf(this.game).setDucked(this.run.mode !== 'riding');
   }
 
   update(_time: number, delta: number): void { if (!this.frozen) this.step(Math.min(0.05, delta / 1000)); }

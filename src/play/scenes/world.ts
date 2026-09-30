@@ -8,6 +8,9 @@ import { CanvasWorldView, type WorldView } from '../world/world-view';
 import { sessionOf } from './shared';
 import { CRT } from '../look';
 import { addCrt } from '../crt';
+import { musicOf } from '../audio/music';
+import type { TrackId } from '../audio/songs';
+import type { SideGame } from '../../side/game';
 
 /** Owns the simulation cadence: input in, `SideGame.update`, sound out, then the view. */
 export class WorldScene extends Phaser.Scene {
@@ -65,6 +68,17 @@ export class WorldScene extends Phaser.Scene {
     g.update(dt);
     if (this.game.sound.mute !== session.muted) this.sfx.setMuted(session.muted);
     for (const event of g.events.splice(0)) this.sfx.play(event);
+    this.music(session.game);
     this.view.update(g, dt);
+  }
+
+  /** The title theme on the title and results screens, each level's own track while playing, quieter while paused. */
+  private music(g: SideGame): void {
+    const m = musicOf(this.game);
+    const level: TrackId = g.custom ? (g.custom.night ? 'heist' : 'street') : g.level === 3 ? 'heist' : g.level === 2 ? 'gods' : 'street';
+    const results = g.mode === 'victory' || g.mode === 'defeat';
+    // After a run the victory or defeat jingle plays first, then the title theme comes back.
+    m.play(g.mode === 'playing' || g.mode === 'paused' ? level : 'title', results ? 2.4 : 0);
+    m.setDucked(g.mode === 'paused' || g.phoneOpen);
   }
 }

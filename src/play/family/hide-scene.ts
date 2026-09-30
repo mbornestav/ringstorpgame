@@ -13,6 +13,7 @@ import { paintHead } from './kids';
 import { FamilySurface } from './surface';
 import { familyText as t } from './text';
 import { GROUND, TEACHER_X, drawYard } from './yard-art';
+import { musicOf } from '../audio/music';
 
 // Carl-Ottos spel 2: Kurragömma. The yard is drawn like the ride (480 × 270 in the retro build, through the palette
 // shader); the interface is canvas buttons with DOM counterparts, as everywhere in the collection. Speech bubbles float
@@ -59,14 +60,16 @@ export class HideScene extends FamilySurface {
     this.pool = Array.from({ length: 10 }, () => ({ g: this.add.graphics().setDepth(40), text: this.add.text(0, 0, '', this.style(24, '#25473f')).setDepth(41) }));
     this.big = this.add.text(720, 300, '', { ...this.style(120, '#fff7df', true), stroke: '#25473f', strokeThickness: 12 }).setOrigin(0.5).setDepth(42);
     this.setup();
+    musicOf(this.game).play('hide');
 
     const down = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       const key = e.key.toLowerCase();
-      if (!['a', 'd', 'e', 'arrowleft', 'arrowright', 'escape', 'enter', ' '].includes(key)) return;
+      if (!['a', 'd', 'e', 'm', 'arrowleft', 'arrowright', 'escape', 'enter', ' '].includes(key)) return;
       e.stopPropagation();
       if ((key === 'enter' || key === ' ') && document.activeElement instanceof HTMLButtonElement) return;
       if (e.repeat && key !== 'arrowleft' && key !== 'arrowright' && key !== 'a' && key !== 'd') return;
+      if (key === 'm') { this.toggleSound(); return; }
       if (key === 'escape') { this.togglePause(); return; }
       if (key === 'enter' || key === ' ' || key === 'e') { this.primary(); return; }
       this.held.add(key); this.autoLook = null;
@@ -151,7 +154,7 @@ export class HideScene extends FamilySurface {
     if (g.mode === 'seeking') this.button('hide-pause', t('pause'), 1001, 45, 145, () => this.togglePause(), true);
     this.status = this.mirror('p', '', 'hide-status'); this.status.setAttribute('role', 'status'); this.status.setAttribute('aria-live', 'polite');
     if (g.mode === 'seeking') {
-      this.panel(28, 739, 760, 47, 0xfff8e5, 16, 0.92);
+      this.panel(28, 739, 1000, 47, 0xfff8e5, 16, 0.92);
       this.label(t('seekKeys'), 49, 750, 20, '#3e5948', undefined, true);
       this.pad();
       if (g.near) this.button('hide-look', t('look'), 1150, 560, 250, () => { this.run.look(); this.changed(); });
@@ -231,6 +234,7 @@ export class HideScene extends FamilySurface {
     if (g.mode !== this.lastMode || g.near !== this.lastNear || g.runners.length !== this.lastFound) this.changed();
     this.paint();
     this.drawBubbles();
+    musicOf(this.game).setDucked(g.mode === 'paused');
   }
 
   update(_time: number, delta: number): void { if (!this.frozen) this.step(Math.min(0.05, delta / 1000)); }

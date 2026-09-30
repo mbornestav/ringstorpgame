@@ -6,6 +6,7 @@ import { drawYardPreview } from './yard-art';
 import { FamilySurface } from './surface';
 import { familyText as t } from './text';
 import { isRetro } from '../../side/pixel';
+import { musicOf } from '../audio/music';
 
 export class HubScene extends FamilySurface {
   private section: 'all' | 'carl' = 'all';
@@ -26,8 +27,10 @@ export class HubScene extends FamilySurface {
       c.restore(); texture.refresh();
     }
     this.setup();
+    musicOf(this.game).play('hub');
     const down = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && this.section === 'carl') { e.stopPropagation(); this.section = 'all'; this.rebuild(); }
+      if (e.key.toLowerCase() === 'm' && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey) { e.stopPropagation(); this.toggleSound(); }
     };
     this.input.keyboard?.on('keydown', down);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.input.keyboard?.off('keydown', down));
@@ -39,6 +42,7 @@ export class HubScene extends FamilySurface {
     this.rect(0, 0, 1440, 810, 0xf5f1df);
     this.rect(0, 0, 1440, 10, 0x365c49);
     this.label(t('collection'), 84, 43, 21, '#5d735c', undefined, true);
+    this.button('family-sound', this.muted ? t('soundOff') : t('soundOn'), 1018, 30, 170, () => this.toggleSound(), true);
     this.button('family-lang', getLang() === 'sv' ? 'English' : 'Svenska', 1205, 30, 151, () => setLang(getLang() === 'sv' ? 'en' : 'sv'), true);
     const title = this.section === 'all' ? t('choose') : t('carl');
     this.label(title, 80, 101, 66, '#25473f', undefined, true);

@@ -7,6 +7,7 @@ import type { FamilySurface } from '../family/surface';
 import type { BikeScene } from '../family/bike-scene';
 import type { HideScene } from '../family/hide-scene';
 import { controlsModel, footerModel, hudModel, mastheadModel, panelModel, phoneModel, promptModel, worldHudModel } from '../ui/models';
+import { musicOf } from '../audio/music';
 
 /** Development-only handle for browser tests and screenshots. Never referenced from production code paths. */
 export function installBridge(game: Phaser.Game, session: Session): void {
@@ -51,6 +52,7 @@ export function installBridge(game: Phaser.Game, session: Session): void {
       panel: panelModel(session), hud: hudModel(session), prompt: promptModel(session), phone: phoneModel(session),
       controls: controlsModel(session), masthead: mastheadModel(session), footer: footerModel(session), world: worldHudModel(session),
     }),
+    music: () => { const m = musicOf(game); return { track: m.track, position: m.position, muted: game.sound.mute }; },
     audio: () => ({ recent: [...world().sfx.recent], muted: session.muted, mute: game.sound.mute }),
     state: () => {
       const g = session.game;

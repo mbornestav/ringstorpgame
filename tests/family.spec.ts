@@ -151,3 +151,33 @@ test('Kurragömma: a tap on a hiding place walks there and looks, on a small tou
   errors(); await context.close();
 });
 
+
+test('music follows the game: chooser, title, each level, pause, and Carl-Otto’s games; M mutes it', async ({ page }) => {
+  await hub(page);
+  const track = () => page.evaluate(() => window.__ringstorp.music().track);
+  await expect.poll(track).toBe('hub');
+  await press(page, 'choose-ringstorp');
+  await expect.poll(track).toBe('title');
+  await press(page, 'start');
+  await expect.poll(track).toBe('street');
+  await page.keyboard.press('Escape');
+  await expect.poll(() => page.evaluate(() => window.__ringstorp.sim.mode)).toBe('paused');
+  expect(await track()).toBe('street');
+  await page.evaluate(() => { window.__ringstorp.click('menu'); window.__ringstorp.click('start-2'); window.__ringstorp.click('answer'); });
+  await expect.poll(track).toBe('gods');
+  await page.evaluate(() => { window.__ringstorp.click('menu'); window.__ringstorp.click('start-3'); window.__ringstorp.click('answer-3'); });
+  await expect.poll(track).toBe('heist');
+  await press(page, 'chooser');
+  await expect.poll(track).toBe('hub');
+  await press(page, 'choose-carl'); await press(page, 'start-bike');
+  await expect.poll(track).toBe('bike');
+  // The music keeps moving once the page has had a click.
+  const at = await page.evaluate(() => window.__ringstorp.music().position);
+  await expect.poll(() => page.evaluate(() => window.__ringstorp.music().position), { timeout: 5000 }).not.toBe(at);
+  const muted = await page.evaluate(() => window.__ringstorp.music().muted);
+  await page.keyboard.press('m');
+  await expect.poll(() => page.evaluate(() => window.__ringstorp.music().muted)).toBe(!muted);
+  await page.keyboard.press('m');
+  await press(page, 'bike-menu'); await press(page, 'choose-carl'); await press(page, 'start-hide');
+  await expect.poll(track).toBe('hide');
+});

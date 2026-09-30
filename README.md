@@ -45,6 +45,10 @@ Pick **LEVEL 3 · THE KAPELL JOB** on the title screen. You are **D.D**, and it'
 4. **Goran is your partner and lookout.** He follows you, cuts and hauls from another trailer once you've started, and **whistles and hides when police get close**. **If either of you is arrested, the whole job is over**: no checkpoints, and a 500 kr fine.
 5. **The way back**: more crates means more money and a bigger chance of a chase (**30 % + 8 % per crate + 5 % per noisy cut**). Police cars come up behind you in waves; out-drive them and swap lanes to shake them off, but if they box you in at a crawl you're arrested. Each crate pays **120 kr** on arrival, less **40 kr** for each dent.
 
+## Music
+
+Every screen has its own chiptune track, played live by the game's synth (no audio files): an upbeat theme on the title and results, a driving track for the package run, a sneaky one for the Gods run, a tense night track for the Kapell job, and gentle, bouncy and tiptoeing tunes for the chooser, the bike ride and Kurragömma. The sound button (**M**) turns music and effects off together; the chooser has a **Ljud** button too. The tracks are written note by note in `src/play/audio/songs.ts`.
+
 ## Making new levels
 
 New street levels (fetch the parcel, beat the crews, get home) and new Carl-Otto rides are data files, not code: see **[docs/level-book.md](docs/level-book.md)**. Copy `src/side/levels/_template.level.ts`, fill it in, and play it with `?level=<id>`; `npm test` checks it. `src/side/levels/sample.level.ts` is a complete example (`?level=sample`).

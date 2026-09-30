@@ -24,6 +24,7 @@ export interface Bridge {
     phone: { visible: boolean; lcd: { status: string } };
     world: { toast: { text: string } | null };
   };
+  music(): { track: string | null; position: number; muted: boolean };
   audio(): { recent: string[]; muted: boolean; mute: boolean };
   state(): { mode: string; level: number; x: number; y: number; z: number; hp: number; camera: number; elapsed: number; hasPackage: boolean; titleView: string; muted: boolean };
 }

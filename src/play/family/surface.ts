@@ -7,6 +7,7 @@ import { isRetro } from '../../side/pixel';
 import { keyGlyphs } from '../ui/text';
 import { CRT } from '../look';
 import { addCrt } from '../crt';
+import { sessionOf } from '../scenes/shared';
 
 /** Shared canvas controls and their keyboard/screen-reader counterparts. */
 export abstract class FamilySurface extends Phaser.Scene {
@@ -15,6 +16,8 @@ export abstract class FamilySurface extends Phaser.Scene {
   private targets = new Map<string, { x: number; y: number; width: number; height: number }>();
 
   protected setup(): void {
+    // The sound preference is shared with Ringstorp Run; apply it here too, since these scenes can open first.
+    this.game.sound.mute = sessionOf(this).muted;
     this.cameras.main.setOrigin(0, 0).setZoom(RENDER_SCALE / 3);
     if (isRetro()) this.cameras.main.setRoundPixels(true);
     if (CRT) addCrt(this);
@@ -34,6 +37,15 @@ export abstract class FamilySurface extends Phaser.Scene {
   }
 
   protected abstract build(): void;
+
+  /** Sound on or off (music and effects), remembered with the rest of the collection's preferences. */
+  protected toggleSound(): void {
+    const session = sessionOf(this);
+    session.setMuted(!session.muted);
+    this.game.sound.mute = session.muted;
+    this.rebuild();
+  }
+  protected get muted(): boolean { return sessionOf(this).muted; }
 
   protected rect(x: number, y: number, w: number, h: number, color: number, radius = 0, alpha = 1): Phaser.GameObjects.Graphics {
     const g = this.add.graphics().fillStyle(color, alpha);

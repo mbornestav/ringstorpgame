@@ -16,7 +16,7 @@ const sv = {
   won: 'Framme vid förskolan!', wonBody: 'Bra cyklat, Carl-Otto! Parkera cykeln – nu väntar en dag med lek.',
   lost: 'Hoppsan, ett äpple!', lostBody: 'Vi tar en ny cykeltur! Håll utkik efter ringarna på marken och styr undan.',
   home: 'Hemma', preschool: 'Förskolan', left: 'm kvar', hearts: 'Hjärtan', avoided: 'äpplen undvikna',
-  steer: 'STYR', pauseHint: 'ESC · PAUS', up: 'Styr uppåt', down: 'Styr nedåt',
+  steer: 'STYR', pauseHint: 'ESC · PAUS     M · LJUD', soundOn: 'Ljud: på', soundOff: 'Ljud: av', up: 'Styr uppåt', down: 'Styr nedåt',
   moveLeft: 'Styr åt vänster', moveRight: 'Styr åt höger',
   footer: 'EN LITEN SAMLING ÄVENTYR I HELSINGBORG OCH HÖGANÄS', menu: 'Välj spel',
   second: 'SPEL 2', hideTitle: 'Kurragömma',
@@ -27,7 +27,7 @@ const sv = {
   countStart: 'Börja räkna', skipCount: 'MELLANSLAG · SLUTA RÄKNA', here: 'Nu kommer jag!', look: 'Titta!', hihi: 'hihi!',
   foundAll: 'Du hittade alla!', foundAllBody: 'Alla kompisar är hittade. Bra letat, Carl-Otto!', tookTime: 'Det tog {time}.',
   seekAgain: 'Leta igen', foundStatus: '{name} hittad! {n} kvar.', foundLast: '{name} hittad! Alla är hittade!',
-  friends: 'KOMPISAR', seekKeys: 'GÅ ◀ ▶ / A D     TITTA · MELLANSLAG     ESC · PAUS', hidePaused: 'Paus i leken',
+  friends: 'KOMPISAR', seekKeys: 'GÅ ◀ ▶ / A D     TITTA · MELLANSLAG     ESC · PAUS     M · LJUD', hidePaused: 'Paus i leken',
   hidePausedBody: 'Kompisarna väntar i sina gömställen.',
 };
 
@@ -46,7 +46,7 @@ const en: Record<keyof typeof sv, string> = {
   won: 'You made it to preschool!', wonBody: 'Well done, Carl-Otto! Park your bike – a day of play is waiting.',
   lost: 'Oops, an apple!', lostBody: 'Let’s try another ride! Watch the rings on the ground and steer clear.',
   home: 'Home', preschool: 'Preschool', left: 'm left', hearts: 'Hearts', avoided: 'apples avoided',
-  steer: 'STEER', pauseHint: 'ESC · PAUSE', up: 'Steer up', down: 'Steer down', moveLeft: 'Steer left', moveRight: 'Steer right',
+  steer: 'STEER', pauseHint: 'ESC · PAUSE     M · SOUND', soundOn: 'Sound: on', soundOff: 'Sound: off', up: 'Steer up', down: 'Steer down', moveLeft: 'Steer left', moveRight: 'Steer right',
   footer: 'A LITTLE COLLECTION OF ADVENTURES IN HELSINGBORG AND HÖGANÄS', menu: 'Choose a game',
   second: 'GAME 2', hideTitle: 'Hide and seek',
   bikeBlurb: 'Ride to preschool and dodge the falling apples.', hideBlurb: 'Find all five friends in the preschool yard.',
@@ -56,7 +56,7 @@ const en: Record<keyof typeof sv, string> = {
   countStart: 'Start counting', skipCount: 'SPACE · STOP COUNTING', here: 'Ready or not, here I come!', look: 'Look!', hihi: 'hee hee!',
   foundAll: 'You found everyone!', foundAllBody: 'All the friends are found. Great seeking, Carl-Otto!', tookTime: 'It took {time}.',
   seekAgain: 'Play again', foundStatus: '{name} found! {n} to go.', foundLast: '{name} found! Everyone is found!',
-  friends: 'FRIENDS', seekKeys: 'WALK ◀ ▶ / A D     LOOK · SPACE     ESC · PAUSE', hidePaused: 'A little break',
+  friends: 'FRIENDS', seekKeys: 'WALK ◀ ▶ / A D     LOOK · SPACE     ESC · PAUSE     M · SOUND', hidePaused: 'A little break',
   hidePausedBody: 'Your friends are waiting in their hiding places.',
 };
 
