@@ -1,6 +1,6 @@
 # Spel från Ringstorp
 
-The home screen is a Swedish game chooser with two sections. **Ringstorp Run** contains the three original missions described below. **Carl-Ottos spel** starts with **Till förskolan**, a short bicycle ride for a little boy in a blue helmet. He pedals automatically; steer with **WASD / arrow keys** or the on-screen arrows to avoid falling apples. Rings mark where apples will fall. Three hearts, a pause button, retry and a clear final stretch lead to a low, solid-red preschool. The boy, white garages and garden fence are original vector interpretations of the supplied reference photos.
+The home screen is a Swedish game chooser with two sections. **Ringstorp Run** contains the three original missions described below. **Carl-Ottos spel** is set in Höganäs and starts with **Till förskolan**, a short bicycle ride for a little boy in a blue helmet. He pedals automatically; steer with **WASD / arrow keys** or the on-screen arrows to avoid falling apples. Rings mark where apples will fall. Three hearts, a pause button, retry and a clear final stretch lead to a low, solid-red preschool. The boy, white garages and garden fence are original vector interpretations of the supplied reference photos.
 
 New visitors start in Swedish. The language choice is remembered. **Välj spel** returns from Ringstorp Run to the collection, and **Alla spel** returns from the bike ride. `?game=ringstorp` links directly to the original level chooser; `?game=carl-otto` opens the bike instructions.
 

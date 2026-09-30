@@ -147,31 +147,64 @@ function hillPath(c: C, period: number, f: (x: number) => number, bottom: number
 
 const FAR = 1400, MID = 1200, NEAR = 900;
 
+/** Kullaberg on the far horizon: a steep cliff at its seaward tip, then a long, gentle slope inland. */
+function kulla(x: number): number {
+  const t = (x - 110) / 640;
+  if (t <= 0 || t >= 1) return 0;
+  return t < 0.1 ? Math.sin(t / 0.1 * Math.PI / 2) : Math.pow(Math.cos((t - 0.1) / 0.9 * Math.PI / 2), 1.3);
+}
+
 function paintFar(c: C): void {
-  const f = ridge(FAR, 300, [[1, 12, 0.4], [3, 7, 1.9], [7, 3, 0.2]]);
-  hillPath(c, FAR, f, 400);
-  c.fillStyle = vgrad(c, 270, 360, [[0, '#a8c6b3'], [1, '#b6ceae']]); c.fill();
+  // Höganäs: the sea along the horizon, Kullaberg with its lighthouse, and the town's church spire and chimney.
+  c.fillStyle = vgrad(c, 276, 330, [[0, '#8fbdcb'], [0.5, '#a3cad1'], [1, '#bcd8d4']]);
+  c.fillRect(0, 276, FAR, 124);
+  box(c, 'rgba(255, 255, 255, 0.5)', 0, 276, FAR, 1);
   const rand = seeded(11);
-  // A distant tree line along the ridge, and far-off red farmhouses with a white church.
-  for (let x = 0; x < FAR; x += 9 + rand() * 18) {
-    if (rand() < 0.35) continue;
-    const r = 5 + rand() * 7;
-    oval(c, rand() < 0.5 ? '#98b9a4' : '#8fb29f', x, f(x) - r * 0.4, r, r * 0.8);
+  for (let i = 0; i < 90; i++) {
+    const x = rand() * FAR, y = 279 + rand() * 24, near = Math.max(0, 1 - Math.abs(x - 1100) / 500);
+    box(c, `rgba(255, 252, 235, ${0.25 + near * 0.5})`, x, y, 4 + rand() * 12, 0.8);
   }
-  for (const [hx, kind] of [[190, 'farm'], [520, 'church'], [930, 'farm'], [1180, 'farm']] as const) {
-    const y = f(hx) + 6;
-    if (kind === 'church') {
-      box(c, '#e7e6dc', hx - 12, y - 12, 26, 12); box(c, '#e7e6dc', hx + 10, y - 28, 9, 28);
-      path(c, [[hx + 9, y - 28], [hx + 14.5, y - 40], [hx + 20, y - 28]], true); c.fillStyle = '#8f9e9a'; c.fill();
-      path(c, [[hx - 14, y - 12], [hx - 1, y - 20], [hx + 12, y - 12]], true); c.fillStyle = '#a3a7a0'; c.fill();
-    } else {
-      box(c, '#c98f7f', hx - 14, y - 9, 28, 9);
-      path(c, [[hx - 16, y - 9], [hx, y - 17], [hx + 16, y - 9]], true); c.fillStyle = '#8f8f88'; c.fill();
-      box(c, '#e9e3d5', hx - 14, y - 9, 2, 9); box(c, '#e9e3d5', hx + 12, y - 9, 2, 9);
-    }
+  for (const [sx, sy] of [[880, 286], [1290, 283]] as const) {
+    path(c, [[sx, sy], [sx + 1, sy - 11], [sx + 7, sy]], true); c.fillStyle = '#f4f3ea'; c.fill();
+    path(c, [[sx - 4, sy], [sx + 9, sy], [sx + 7, sy + 2], [sx - 2, sy + 2]], true); c.fillStyle = '#6f8a93'; c.fill();
   }
-  // Haze lifts the far hills into the sky.
-  c.fillStyle = vgrad(c, 260, 400, [[0, 'rgba(236, 240, 222, 0.35)'], [1, 'rgba(236, 240, 222, 0.1)']]);
+  const f = (x: number) => ridge(FAR, 302, [[2, 3, 0.4], [5, 2, 1.9]])(x) - kulla(x) * 72;
+  hillPath(c, FAR, f, 400);
+  c.fillStyle = vgrad(c, 228, 360, [[0, '#93b3a6'], [0.4, '#a3c1ae'], [1, '#b6ceae']]); c.fill();
+  // Beech woods on Kullaberg's slopes, a light-coloured cliff face at the tip, and a tree line inland.
+  for (let x = 118; x < 740; x += 5 + rand() * 7) {
+    const r = 4 + rand() * 5;
+    oval(c, rand() < 0.5 ? '#8fb29f' : '#86aa97', x, f(x) + r * 0.5, r, r * 0.8);
+  }
+  path(c, [[110, 302], [113, 286], [146, 244], [158, 236], [150, 262], [132, 302]], true); c.fillStyle = '#c4c2ae'; c.fill();
+  line(c, 'rgba(120, 118, 100, 0.4)', 1, [[118, 296], [140, 258]]);
+  for (let x = 760; x < FAR; x += 10 + rand() * 20) {
+    if (rand() < 0.4) continue;
+    const r = 4 + rand() * 5;
+    oval(c, rand() < 0.5 ? '#98b9a4' : '#8fb29f', x, f(x) - r * 0.3, r, r * 0.75);
+  }
+  // Kullens fyr: a squat white tower with its lantern on the headland.
+  const lx = 184, ly = f(lx) + 4;
+  c.save(); c.translate(lx, ly); c.scale(1.4, 1.4);
+  box(c, '#f1efe4', -4, -13, 8, 13); box(c, '#cfcdbf', -4, -13, 2.5, 13); box(c, '#d9d6c8', -6, -3, 12, 3);
+  box(c, '#5d6a68', -3, -17, 6, 4, 1); path(c, [[-4, -17], [0, -21], [4, -17]], true); c.fillStyle = '#4c5856'; c.fill();
+  oval(c, 'rgba(255, 246, 200, 0.95)', 0, -15, 1.6, 1.4);
+  c.restore();
+  // The town: low rooftops, the brick church with its tall spire, and the old works chimney.
+  for (let x = 860; x < 1280; x += 16 + rand() * 12) {
+    const y = f(x) + 5, w = 12 + rand() * 8;
+    box(c, rand() < 0.5 ? '#d9d2c2' : '#cfa08e', x, y - 7, w, 7);
+    path(c, [[x - 1.5, y - 7], [x + w / 2, y - 12], [x + w + 1.5, y - 7]], true); c.fillStyle = rand() < 0.6 ? '#9b7d70' : '#8f9592'; c.fill();
+  }
+  const cx = 1030, cy = f(cx) + 4;
+  box(c, '#b98676', cx - 16, cy - 14, 26, 14); path(c, [[cx - 18, cy - 14], [cx - 3, cy - 22], [cx + 12, cy - 14]], true); c.fillStyle = '#8e8f86'; c.fill();
+  box(c, '#b07c6c', cx + 9, cy - 30, 9, 30); box(c, '#c9998a', cx + 15, cy - 30, 3, 30);
+  path(c, [[cx + 8, cy - 30], [cx + 13.5, cy - 56], [cx + 19, cy - 30]], true); c.fillStyle = '#7f9790'; c.fill();
+  const kx = 1200, ky = f(kx) + 4;
+  path(c, [[kx - 3, ky], [kx - 2, ky - 40], [kx + 2, ky - 40], [kx + 3, ky]], true); c.fillStyle = '#b48a78'; c.fill();
+  box(c, '#cfd6d3', kx - 2, ky - 43, 4, 3);
+  // Haze lifts the far land into the sky.
+  c.fillStyle = vgrad(c, 250, 400, [[0, 'rgba(236, 240, 222, 0.35)'], [1, 'rgba(236, 240, 222, 0.1)']]);
   hillPath(c, FAR, f, 400); c.fill();
 }
 

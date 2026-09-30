@@ -43,7 +43,7 @@ Light comes from the afternoon sun at the upper right of the screen, and the smo
 
 ## Carl-Otto's ride
 
-`src/play/family/art.ts` draws the bike ride as a storybook illustration lit from the sun on the upper right. Everything static (sky, clouds, the three parallax hill strips, the gravel path, the foreground grass, the apple trees and their dappled shade, the house, the preschool, the apple and the light/vignette overlay) is baked once at 1.5× into sprites and tileable strips; a frame blits those and draws only the cyclist (two-bone IK legs on the pedals) and the apples live, about 0.3 ms of JS. The hub's two preview cards are drawn by the same module.
+`src/play/family/art.ts` draws the bike ride, set in Höganäs (the sea on the horizon, Kullaberg with Kullens fyr, the town's church spire and works chimney), as a storybook illustration lit from the sun on the upper right. Everything static (sky, clouds, the three parallax hill strips, the gravel path, the foreground grass, the apple trees and their dappled shade, the house, the preschool, the apple and the light/vignette overlay) is baked once at 1.5× into sprites and tileable strips; a frame blits those and draws only the cyclist (two-bone IK legs on the pedals) and the apples live, about 0.3 ms of JS. The hub's two preview cards are drawn by the same module.
 
 ## Brand artwork
 
