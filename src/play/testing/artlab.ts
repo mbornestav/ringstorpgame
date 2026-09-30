@@ -5,11 +5,13 @@ import { godsStage } from '../../side/gods-stage';
 import { roadBackStage, roadOutStage, yardStage } from '../../side/heist-stages';
 import { HEIGHT, WIDTH } from '../../side/layout';
 import { setArtMode } from '../../side/pixel';
+import { paletteFor } from '../../side/palettes';
+import { addRetroImage } from '../world/retro-shader';
 import { stageFor, type Stage } from '../../side/stage';
 import { drawIllustratedActor } from '../../phaser/illustrated-actors';
 import { RENDER_SCALE } from '../config';
 
-// Development-only lab for the smooth art: `/play.html?artlab=1&stage=shop|homes|gods|road&x=<camera>&mode=smooth|pixel`.
+// Development-only lab for the art: `/?artlab=1&stage=shop|homes|gods|road&x=<camera>&mode=retro|smooth|pixel`.
 // It bakes real stage chunks and a row of fighters, shows them through the same zoomed camera the game uses, and reports
 // bake times and texture sizes on `window.__artlab`, so the look and the cost can be judged before the rollout.
 
@@ -39,24 +41,32 @@ export class ArtLabScene extends Phaser.Scene {
 
   create(): void {
     const q = new URLSearchParams(location.search);
-    const smooth = q.get('mode') !== 'pixel';
+    const mode = q.get('mode') === 'pixel' || q.get('mode') === 'smooth' ? q.get('mode') as 'pixel' | 'smooth' : 'retro';
+    const smooth = mode !== 'pixel', retro = mode === 'retro';
     const which = q.get('stage') ?? 'shop';
-    const S = smooth ? RENDER_SCALE : 1;
-    setArtMode(smooth ? 'smooth' : 'pixel');
+    const S = mode === 'smooth' ? RENDER_SCALE : 1;
+    setArtMode(mode);
     const stage = stageOf(which);
     // `at=<role>` (kurir, statoil, bildeve, ...) centres on that landmark; otherwise `x` or a per-stage default.
     const landmark = stage.facades.find(f => f.role === q.get('at'));
     const camX = Number(q.get('x') ?? (landmark ? landmark.x0 - 20 : which === 'shop' ? (stage.shopX ?? 1000) - 220 : which === 'homes' ? 700 : 300));
-    const stats: Stats = { mode: smooth ? 'smooth' : 'pixel', scale: S, bakeMs: [], textureBytes: 0, chunks: [] };
-    const filter = smooth ? Phaser.Textures.FilterMode.LINEAR : Phaser.Textures.FilterMode.NEAREST;
+    const stats: Stats = { mode, scale: S, bakeMs: [], textureBytes: 0, chunks: [] };
+    const filter = mode === 'smooth' ? Phaser.Textures.FilterMode.LINEAR : Phaser.Textures.FilterMode.NEAREST;
+    // Retro composes one 480x270 frame, as the game does, and shows it through the palette shader.
+    const frame = document.createElement('canvas');
+    frame.width = WIDTH; frame.height = HEIGHT;
+    const fc = frame.getContext('2d')!;
+    const canvases = new Map<string, HTMLCanvasElement>();
     const add = (key: string, canvas: HTMLCanvasElement) => {
-      const texture = this.textures.addCanvas(key, canvas)!;
-      texture.setFilter(filter);
       stats.textureBytes += canvas.width * canvas.height * 4;
+      if (retro) { canvases.set(key, canvas); return key; }
+      this.textures.addCanvas(key, canvas)!.setFilter(filter);
       return key;
     };
-    const place = (key: string, x: number, y: number, depth: number, factor = 1) =>
+    const place = (key: string, x: number, y: number, depth: number, factor = 1) => {
+      if (retro) { fc.drawImage(canvases.get(key)!, Math.round(x - camX * factor), y); return; }
       this.add.image(x, y, key).setOrigin(0, 0).setScale(1 / S).setScrollFactor(factor, 0).setDepth(depth);
+    };
 
     // Sky and clouds, then the distant layer, the street chunks and the fighters, back to front.
     place(add('sky', bakeSky(S)), 0, 0, 0, 0);
@@ -87,13 +97,18 @@ export class ArtLabScene extends Phaser.Scene {
       ['police', POSES.grab(), 1, camX + 380, 238, false],
       ['dd', POSES.loiter(2), -1, camX + 440, 210, false],
     ];
-    if (q.get('cast') !== '0') cast.forEach(([look, pose, facing, x, y, parcel], n) => {
+    if (q.get('cast') !== '0') [...cast].sort((a, b) => a[4] - b[4]).forEach(([look, pose, facing, x, y, parcel], n) => {
       const key = add(`actor-${n}`, actorCanvas(LOOKS[look], pose, facing, S, smooth, parcel));
-      this.add.image(x - 64, y - 84, key).setOrigin(0, 0).setScale(1 / S).setDepth(200 + y);
+      if (retro) place(key, x - 64, y - 84, 0);
+      else this.add.image(x - 64, y - 84, key).setOrigin(0, 0).setScale(1 / S).setDepth(200 + y);
     });
 
     // The game's camera: origin top-left and zoomed, so world units are logical pixels. Snapped to the device grid.
-    this.cameras.main.setOrigin(0, 0).setZoom(RENDER_SCALE).setScroll(Math.round(camX * RENDER_SCALE) / RENDER_SCALE, 0);
+    this.cameras.main.setOrigin(0, 0).setZoom(RENDER_SCALE);
+    if (retro) {
+      this.textures.addCanvas('artlab-frame', frame)!.setFilter(filter);
+      addRetroImage(this, 'artlab-frame', 0, 0, WIDTH, HEIGHT, () => paletteFor(stage.night ? 'night' : 'day'));
+    } else this.cameras.main.setScroll(Math.round(camX * RENDER_SCALE) / RENDER_SCALE, 0);
     (window as unknown as { __artlab: unknown }).__artlab = { stats, parity: (i: number) => parity(stage, i, RENDER_SCALE), seam: (i: number) => seam(stage, i, RENDER_SCALE), camX };
   }
 }

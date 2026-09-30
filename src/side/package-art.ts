@@ -1,3 +1,20 @@
+import { isRetro } from './pixel';
+
+/** Bold 5×7 marks for the retro badges: the 3×5 art font is too thin to read at badge size. */
+const MARKS: Record<string, string[]> = {
+  '?': ['.###.', '##.##', '...##', '..##.', '..##.', '.....', '..##.'],
+  '!': ['.##', '.##', '.##', '.##', '.##', '...', '.##'],
+};
+function boldMark(c: CanvasRenderingContext2D, ch: string, cx: number, cy: number, colour: string, shadow?: string): void {
+  const rows = MARKS[ch] ?? MARKS['?'], x0 = Math.round(cx - rows[0].length / 2), y0 = Math.round(cy - 3.5);
+  const plot = (dx: number, dy: number, col: string) => {
+    c.fillStyle = col;
+    rows.forEach((row, r) => { for (let k = 0; k < row.length; k++) if (row[k] === '#') c.fillRect(x0 + k + dx, y0 + r + dy, 1, 1); });
+  };
+  if (shadow) plot(1, 1, shadow);
+  plot(0, 0, colour);
+}
+
 // Smooth-mode art for the parcel and the pick-up markers: a taped cardboard box with a lit top and a soft shading, and the
 // floating markers (the question mark over the parcel) as designed badges rather than a font glyph. Pixel mode never
 // calls these.
@@ -75,6 +92,7 @@ export function paintQuestionBadge(c: CanvasRenderingContext2D, x: number, y: nu
   c.beginPath(); c.ellipse(x - 1.2, y - r * 0.45, r * 0.62, r * 0.32, -0.25, 0, Math.PI * 2);
   c.fillStyle = 'rgba(255, 255, 255, 0.28)'; c.fill();
   // The question mark, with a dark drop shadow.
+  if (isRetro()) { boldMark(c, '?', x, y, '#fffaf0', '#7a1c1c'); c.restore(); return; }
   c.font = `700 ${r * 1.55}px "Barlow Condensed", "Arial Narrow", Arial, sans-serif`;
   c.textAlign = 'center'; c.textBaseline = 'middle';
   c.fillStyle = 'rgba(80, 12, 12, 0.55)'; c.fillText('?', x + 0.4, y + 0.9);
@@ -93,6 +111,7 @@ export function paintAlert(c: CanvasRenderingContext2D, x: number, y: number, ma
   body.addColorStop(0, '#324049'); body.addColorStop(1, '#141c21');
   c.fillStyle = body; c.fill();
   c.strokeStyle = colour; c.lineWidth = 0.6; c.stroke();
+  if (isRetro()) { boldMark(c, mark, x, y - h / 2, colour); c.restore(); return; }
   c.font = `700 ${h * 0.95}px "Barlow Condensed", "Arial Narrow", Arial, sans-serif`;
   c.textAlign = 'center'; c.textBaseline = 'middle';
   c.fillStyle = colour; c.fillText(mark, x, y - h / 2 + 0.4);

@@ -4,7 +4,7 @@ import type { Effect, Officer, SideEnemy, SideGame, SidePlayer } from './game';
 import type { Buddy } from './yard';
 import { PORTRAIT_H, PORTRAIT_W, drawCar, drawPortrait } from './vehicles';
 import { BAND_TOP, HEIGHT, WIDTH } from './layout';
-import { beginArt, disc, ellipse, isSmooth, rand, rect, rgrad, seg, text, textWidth } from './pixel';
+import { beginArt, disc, ellipse, isRetro, isSmooth, rand, rect, rgrad, seg, text, textWidth } from './pixel';
 import { t } from './i18n';
 import { drawProp, drawRoom } from './interior';
 import { ARCHETYPE } from './gods-cast';
@@ -45,6 +45,8 @@ export class SideRenderer {
   view = 0;
   /** The Phaser build draws its own HUD over this canvas and turns the in-canvas one off. */
   showHud = true;
+  /** The light of the last frame drawn, which picks the retro palette. */
+  lighting: 'day' | 'night' | 'interior' = 'day';
 
   constructor(canvas: HTMLCanvasElement, scale = 1) {
     this.canvas = canvas;
@@ -120,6 +122,7 @@ export class SideRenderer {
     this.place();
     if (night) nightAtmosphere(c); else this.drawAtmosphere();
     if (game.transition > 0) rect(c, 0, 0, WIDTH, HEIGHT, `rgba(12, 30, 35, ${game.transition / 0.35})`);
+    this.lighting = night ? 'night' : 'day';
     if (this.showHud && (game.mode === 'playing' || game.mode === 'paused')) this.drawHud(game, cam);
     this.view = cam;
   }
@@ -489,6 +492,7 @@ export class SideRenderer {
     this.place();
     this.drawAtmosphere();
     if (game.transition > 0) rect(c, 0, 0, WIDTH, HEIGHT, `rgba(12, 30, 35, ${game.transition / 0.35})`);
+    this.lighting = 'interior';
     if (this.showHud && (game.mode === 'playing' || game.mode === 'paused')) this.drawHud(game, 0, true);
     this.view = 0;
   }
@@ -587,6 +591,8 @@ export class SideRenderer {
 
   private drawAtmosphere(): void {
     const c = this.c;
+    // Retro frames keep their colour flat: a full-screen wash would only turn into dither everywhere.
+    if (isRetro()) return;
     if (isSmooth()) { this.blit(this.grade ??= this.bakeGrade(), 0, 0); return; }
     const haze = c.createLinearGradient(0, 0, 0, HEIGHT);
     haze.addColorStop(0, 'rgba(255, 214, 160, 0.14)');

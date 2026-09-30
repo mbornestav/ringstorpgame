@@ -4,11 +4,17 @@
 
 export type RGB = [number, number, number];
 
-export type ArtMode = 'pixel' | 'smooth';
+// 'retro' is the smooth art drawn at one device pixel per logical pixel, then snapped to a palette (see retro.ts): the
+// detailed shading and lighting of the smooth build, shown as chunky pixel art. It takes every smooth-only branch.
+export type ArtMode = 'pixel' | 'smooth' | 'retro';
 let smooth = false;
+let retro = false;
 /** A page runs in one mode. The legacy game and the pilot never call this and stay pixel-exact. */
-export function setArtMode(mode: ArtMode): void { smooth = mode === 'smooth'; }
+export function setArtMode(mode: ArtMode): void { smooth = mode !== 'pixel'; retro = mode === 'retro'; }
 export const isSmooth = (): boolean => smooth;
+export const isRetro = (): boolean => retro;
+/** A stroke width for smooth-only art: in retro mode never thinner than one pixel, so hairlines stay solid lines. */
+export const px = (w: number): number => retro ? Math.max(1, w) : w;
 
 const scales = new WeakMap<CanvasRenderingContext2D, number>();
 /** Prepares `c` to be drawn on in logical coordinates at `scale` device pixels per logical pixel. */
@@ -166,7 +172,7 @@ function capRatio(): number {
 const fontFor = (scale: number): string => `700 ${(5 * scale) / capRatio()}px ${artFont}`;
 
 export const textWidth = (text: string, scale = 1): number => {
-  if (!smooth) return (text.length * 4 - 1) * scale;
+  if (!smooth || retro) return (text.length * 4 - 1) * scale;
   const s = scratchContext();
   s.font = fontFor(scale);
   return s.measureText(text.toUpperCase()).width;
@@ -175,7 +181,7 @@ export const textWidth = (text: string, scale = 1): number => {
 /** Text with its top-left at (x, y): 3x5 pixel glyphs in pixel mode (diacritics on an extra row above), a real font in smooth mode. */
 export function text(c: CanvasRenderingContext2D, value: string, x: number, y: number, color: string, scale = 1, maxWidth?: number): void {
   c.fillStyle = color;
-  if (smooth) {
+  if (smooth && !retro) {
     c.font = fontFor(scale);
     c.textBaseline = 'alphabetic';
     c.textAlign = 'left';
@@ -231,7 +237,7 @@ function makeGrainTile(): HTMLCanvasElement {
  * neighbouring chunks agree where they overlap. Does nothing in pixel mode.
  */
 export function grain(c: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, alpha: number): void {
-  if (!smooth) return;
+  if (!smooth || retro) return;
   const pattern = c.createPattern(grainTile ??= makeGrainTile(), 'repeat');
   if (!pattern) return;
   pattern.setTransform(new DOMMatrix().scale(1 / scaleOf(c)));

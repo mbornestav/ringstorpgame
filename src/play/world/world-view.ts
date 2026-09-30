@@ -2,7 +2,9 @@ import Phaser from 'phaser';
 import type { SideGame } from '../../side/game';
 import { SideRenderer } from '../../side/render';
 import { HEIGHT, WIDTH } from '../../side/layout';
-import { isSmooth } from '../../side/pixel';
+import { isRetro, isSmooth } from '../../side/pixel';
+import { paletteFor } from '../../side/palettes';
+import { addRetroImage } from './retro-shader';
 import { RENDER_SCALE } from '../config';
 
 /**
@@ -19,23 +21,27 @@ export interface WorldView {
 }
 
 /**
- * The world as one canvas that Phaser shows as a texture. The renderer draws in logical 480x270 coordinates onto a canvas
- * `RENDER_SCALE` times larger, so in smooth mode everything is anti-aliased vector art at the screen's own resolution, and
- * in pixel mode (`?look=pixel`) it is the original 480x270 picture magnified with nearest-neighbour filtering.
+ * The world as one canvas that Phaser shows as a texture. The renderer draws in logical 480x270 coordinates. In retro mode
+ * (the default) it draws the detailed art at 480x270, snaps it to a palette and Phaser magnifies it with nearest-neighbour
+ * filtering; in smooth mode (`?look=smooth`) it draws onto a canvas `RENDER_SCALE` times larger as anti-aliased vector art;
+ * pixel mode (`?look=pixel`) is the original 480x270 pixel art.
  */
 export class CanvasWorldView implements WorldView {
   private renderer: SideRenderer | null = null;
   private texture: Phaser.Textures.CanvasTexture | null = null;
-  private image: Phaser.GameObjects.Image | null = null;
+  private image: Phaser.GameObjects.Image | Phaser.GameObjects.Shader | null = null;
 
   create(scene: Phaser.Scene): void {
-    const smooth = isSmooth();
+    const hires = isSmooth() && !isRetro();
     const canvas = document.createElement('canvas');
-    this.renderer = new SideRenderer(canvas, RENDER_SCALE);
+    this.renderer = new SideRenderer(canvas, hires ? RENDER_SCALE : 1);
     this.renderer.showHud = false;
     this.texture = scene.textures.addCanvas('world-canvas', canvas);
-    this.texture?.setFilter(smooth ? Phaser.Textures.FilterMode.LINEAR : Phaser.Textures.FilterMode.NEAREST);
-    this.image = scene.add.image(0, 0, 'world-canvas').setOrigin(0, 0).setDisplaySize(WIDTH, HEIGHT);
+    this.texture?.setFilter(hires ? Phaser.Textures.FilterMode.LINEAR : Phaser.Textures.FilterMode.NEAREST);
+    const renderer = this.renderer;
+    this.image = isRetro()
+      ? addRetroImage(scene, 'world-canvas', 0, 0, WIDTH, HEIGHT, () => paletteFor(renderer.lighting))
+      : scene.add.image(0, 0, 'world-canvas').setOrigin(0, 0).setDisplaySize(WIDTH, HEIGHT);
   }
 
   update(game: SideGame, dt: number): void {
