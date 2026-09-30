@@ -24,7 +24,7 @@ const wall = (x0: number, x1: number, extra: Partial<Facade> = {}) => facade(x0,
 const boxes = (x0: number, x1: number) => facade(x0, x1, 'containers', 'block', industrial, { dist: 12 });
 
 /** Lamp heads and the pools they throw on the ground. */
-function lampLights(furniture: Furniture[]): Light[] {
+export function lampLights(furniture: Furniture[]): Light[] {
   const out: Light[] = [];
   for (const f of furniture) {
     if (f.kind === 'lamp' && !f.near) {

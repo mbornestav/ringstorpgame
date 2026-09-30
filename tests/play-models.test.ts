@@ -561,7 +561,7 @@ describe('masthead and footer', () => {
   it('credits the map data in capitals and shows the best run in five digits', () => {
     const g = new SideGame(); g.bestScore = 1234;
     expect(footerModel(ctx(g))).toEqual({
-      credit: `ORIGINAL PIXEL ART · MAP DATA ${MAP_ATTRIBUTION.toUpperCase()}`, bestLabel: 'BEST RUN', best: '01234',
+      credit: `ORIGINAL PIXEL ART · MAP DATA ${MAP_ATTRIBUTION.toUpperCase()}`, attribution: MAP_ATTRIBUTION.toUpperCase(), bestLabel: 'BEST RUN', best: '01234',
     });
     setLang('sv');
     expect(footerModel(ctx(g))).toMatchObject({ credit: `EGEN GRAFIK · KARTDATA ${MAP_ATTRIBUTION.toUpperCase()}`, bestLabel: 'BÄSTA POÄNG' });

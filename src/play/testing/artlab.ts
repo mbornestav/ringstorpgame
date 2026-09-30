@@ -8,6 +8,7 @@ import { setArtMode } from '../../side/pixel';
 import { paletteFor } from '../../side/palettes';
 import { addRetroImage } from '../world/retro-shader';
 import { stageFor, type Stage } from '../../side/stage';
+import { compileLevel, levelById } from '../../side/levels';
 import { drawIllustratedActor } from '../../phaser/illustrated-actors';
 import { RENDER_SCALE } from '../config';
 
@@ -46,7 +47,9 @@ export class ArtLabScene extends Phaser.Scene {
     const which = q.get('stage') ?? 'shop';
     const S = mode === 'smooth' ? RENDER_SCALE : 1;
     setArtMode(mode);
-    const stage = stageOf(which);
+    // `level=<id>` previews a level file's street instead of a built-in one.
+    const file = q.get('level') ? levelById(q.get('level')!) : undefined;
+    const stage = file ? compileLevel(file) : stageOf(which);
     // `at=<role>` (kurir, statoil, bildeve, ...) centres on that landmark; otherwise `x` or a per-stage default.
     const landmark = stage.facades.find(f => f.role === q.get('at'));
     const camX = Number(q.get('x') ?? (landmark ? landmark.x0 - 20 : which === 'shop' ? (stage.shopX ?? 1000) - 220 : which === 'homes' ? 700 : 300));

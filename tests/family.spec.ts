@@ -1,6 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
 import { canvas, press, watchErrors } from './helpers/play';
-import { RIDE_LENGTH } from '../src/play/family/bike-run';
 
 let check: () => void;
 test.beforeEach(({ page }) => { check = watchErrors(page); });
@@ -62,10 +61,11 @@ test('the bike ride steers, pauses, loses hearts, retries and arrives at the red
   await expect(page.locator('#bike-panel-title')).toHaveText('Hoppsan, ett äpple!');
   await press(page, 'ride-primary');
   expect(await page.evaluate(() => window.__ringstorp.bike().hearts)).toBe(3);
-  await page.evaluate(length => {
-    const g = window.__ringstorp.bike(); g.distance = length - 3; g.apples = [];
+  // The ride's length comes from its ride file, which only the game (through Vite) can load.
+  await page.evaluate(() => {
+    const g = window.__ringstorp.bike(); g.distance = g.def.length - 3; g.apples = [];
     window.__ringstorp.step(1 / 60, 5);
-  }, RIDE_LENGTH);
+  });
   await expect(page.locator('#bike-panel-title')).toHaveText('Framme vid förskolan!');
   await canvas(page).screenshot({ path: 'test-results/carl-preschool.png' });
   await press(page, 'bike-menu');

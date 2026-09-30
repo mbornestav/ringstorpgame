@@ -331,6 +331,15 @@ test('renders a non-blank frame in every level', async ({ page }) => {
   }
 });
 
+test('a level file plays from its URL with its own street and texts', async ({ page }) => {
+  await open(page, '?level=sample');
+  await page.evaluate(() => window.__ringstorp.step(1 / 60, 30));
+  expect(await page.evaluate(() => window.__ringstorp.sim.custom?.id)).toBe('sample');
+  expect((await ui(page)).hud.objective.text).toBe('Pick up the parcel · the kiosk');
+  const shot = await canvas(page).screenshot();
+  expect(shot.length).toBeGreaterThan(40_000);
+});
+
 test('Level 2: fetch the Gods from floor 8, carry them home past the police and get paid', async ({ page }) => {
   test.setTimeout(90_000);
   await open(page);

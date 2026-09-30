@@ -43,11 +43,13 @@ export function mastheadModel({ muted }: UiContext): MastheadModel {
   };
 }
 
-export interface FooterModel { credit: string; bestLabel: string; best: string }
+/** `attribution` alone is the short credit, for when the full line does not fit (the retro footer). */
+export interface FooterModel { credit: string; attribution: string; bestLabel: string; best: string }
 
 export function footerModel({ game }: UiContext): FooterModel {
   return {
     credit: t('footer.credit', { attribution: MAP_ATTRIBUTION.toUpperCase() }),
+    attribution: MAP_ATTRIBUTION.toUpperCase(),
     bestLabel: t('footer.best'),
     best: padScore(game.bestScore),
   };

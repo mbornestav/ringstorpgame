@@ -11,7 +11,7 @@ export class BootScene extends Phaser.Scene {
 
   create(): void {
     const params = new URLSearchParams(location.search);
-    if (params.get('game') === 'ringstorp' || ['1', '2', '3'].includes(params.get('start') ?? '')) {
+    if (params.get('game') === 'ringstorp' || params.has('level') || ['1', '2', '3'].includes(params.get('start') ?? '')) {
       this.scene.start('World');
       this.scene.launch('UI');
     } else if (params.get('game') === 'carl-otto') this.scene.start('Bike');

@@ -1,7 +1,8 @@
 import { FRONTAGE_Y } from './layout';
 import type { FacadeBox } from './backdrop';
 import { drawLogo } from './logos';
-import { disc, mix, poly, rand, rect, shade, text, textWidth } from './pixel';
+import { disc, isSmooth, mix, poly, rand, rect, shade, text, textWidth } from './pixel';
+import { paintStatoilMark, paintStatoilSign } from './statoil-mark';
 import type { Facade } from './stage';
 
 // Level 3 landmarks, seen at night: the Statoil station, the Bildeve Volvo dealership, warehouses,
@@ -37,9 +38,9 @@ function ground(c: CanvasRenderingContext2D, b: FacadeBox): void {
   rect(c, b.x0, b.floor, b.x1 - b.x0, 1, '#a3a5a4');
 }
 
-/** The Statoil drop: the real orange mark when the artwork is loaded, otherwise a yellow teardrop. */
-function drop(c: CanvasRenderingContext2D, x: number, y: number, r: number): void {
-  if (drawLogo(c, 'statoil-drop', x - r * 1.25, y - r * 1.75, r * 2.5)) return;
+/** The Statoil drop: the real ring-drop mark in the smooth and retro builds, a yellow teardrop in pixel mode. */
+function drop(c: CanvasRenderingContext2D, x: number, y: number, r: number, background = NAVY): void {
+  if (isSmooth()) { paintStatoilMark(c, x, y - r * 0.2, r * 1.15, background); return; }
   disc(c, x, y + r * 0.5, r, YELLOW);
   poly(c, [[x, y - r * 1.5], [x - r * 0.75, y - r * 0.1], [x + r * 0.75, y - r * 0.1]], YELLOW);
   disc(c, x, y + r * 0.6, r * 0.45, NAVY);
@@ -94,12 +95,13 @@ function drawStatoil(c: CanvasRenderingContext2D, f: Facade, b: FacadeBox): void
     text(c, 'MILES', ix + 18, b.floor - 43, '#3a2a10');
   }
   ground(c, b);
-  // The price pylon at the forecourt entrance, in front of the canopy, when the sign artwork is loaded.
+  // The pylon at the forecourt entrance, in front of the canopy: the square Statoil sign on a post.
   const px = x0 + 8, top = b.floor - 96;
-  if (drawLogo(c, 'statoil-sign', px, top, 30)) {
-    rect(c, px + 13, top + 32, 4, b.floor - top - 32, '#8f9598');
-    rect(c, px + 13, top + 32, 1, b.floor - top - 32, '#c9cdcf');
-    rect(c, px - 1, top - 1, 32, 1, '#0b1f52');
+  if (isSmooth()) {
+    rect(c, px + 13, top + 30, 4, b.floor - top - 30, '#8f9598');
+    rect(c, px + 13, top + 30, 1, b.floor - top - 30, '#c9cdcf');
+    rect(c, px - 1, top - 1, 32, 32, '#0b1f52');
+    paintStatoilSign(c, px, top, 30);
   }
   void f;
 }

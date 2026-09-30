@@ -66,6 +66,8 @@ const EN = {
   'junction.kurir.turn': 'Kurir Livs · health refill', 'junction.kurir.straight': 'Ringstorpsvägen · home',
   // ---- toasts
   'msg.start': 'Pick up the package at Pålsjö kiosk',
+  /** A message a level file supplies in its own words. */
+  'msg.level': '{text}',
   'msg.shopDone': 'KURIR LIVS · SUPPLIES ALREADY COLLECTED', 'msg.healthFull': 'HEALTH IS FULL · SAVE THE SUPPLIES',
   'msg.shopRefill': 'KURIR LIVS · HEALTH REFILLED',
   'msg.turnRomares': 'ROMARES VÄG · VIA MARCUS A', 'msg.turnKurir': 'KURIRGATAN · VIA KURIR LIVS',
@@ -232,6 +234,7 @@ const SV: Record<Key, string> = {
   'junction.romares.turn': 'Marcus A · hälsa + kontrollpunkt', 'junction.romares.straight': 'Johan Banérs gata · hem',
   'junction.kurir.turn': 'Kurir Livs · fyll på hälsa', 'junction.kurir.straight': 'Ringstorpsvägen · hem',
   'msg.start': 'Hämta paketet vid Pålsjö kiosk',
+  'msg.level': '{text}',
   'msg.shopDone': 'KURIR LIVS · FÖRNÖDENHETERNA ÄR REDAN HÄMTADE', 'msg.healthFull': 'FULL HÄLSA · SPARA FÖRNÖDENHETERNA',
   'msg.shopRefill': 'KURIR LIVS · HÄLSAN PÅFYLLD',
   'msg.turnRomares': 'ROMARES VÄG · VIA MARCUS A', 'msg.turnKurir': 'KURIRGATAN · VIA KURIR LIVS',

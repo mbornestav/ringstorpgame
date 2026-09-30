@@ -138,8 +138,11 @@ export class PanelHost extends Phaser.GameObjects.Container {
   private actionRows(card: Phaser.GameObjects.Container, m: PanelModel, x: number, y: number, width: number, hintBelow = false): number {
     const plain = m.actions.filter(a => !a.sub), picks = m.actions.filter(a => a.sub);
     let cx = x, cy = y, rowH = 0;
+    // More than two level picks (level files listed on the title screen) share the width in two columns.
+    const grid = picks.length > 2 ? Math.floor((width - 16) / 2) : 0;
     const add = (a: PanelAction) => {
-      const b = new Button(this.scene, { id: a.id, label: a.label, lead: a.lead === '▶' ? 'play' : a.lead === '↻' ? 'again' : a.lead === '✚' ? 'plus' : null, kind: a.kind, sub: a.sub });
+      const pick = grid > 0 && !!a.sub;
+      const b = new Button(this.scene, { id: a.id, label: a.label, lead: a.lead === '▶' ? 'play' : a.lead === '↻' ? 'again' : a.lead === '✚' ? 'plus' : null, kind: a.kind, sub: a.sub, ...(pick && { width: grid, size: 'sm' as const }) });
       if (cx > x && cx + b.width > x + width) { cx = x; cy += rowH + 16; rowH = 0; }
       b.setPosition(cx, cy);
       b.onPress = () => this.session.dispatch(a.id as UiAction, 'pointer');

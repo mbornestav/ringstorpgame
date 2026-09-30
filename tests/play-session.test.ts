@@ -19,6 +19,19 @@ describe('Session', () => {
     expect(s.game.mode).toBe('playing');
   });
 
+  it('starts a level file from the title, and restarts that same level', () => {
+    const s = fresh();
+    expect(s.available('level-no-such-level')).toBe(false);
+    expect(s.dispatch('level-sample')).toBe(true);
+    expect(s.game.custom?.id).toBe('sample');
+    expect(s.game.stage.length).toBe(s.game.custom!.street.length);
+    s.game.mode = 'defeat';
+    s.dispatch('restart');
+    expect(s.game.mode).toBe('playing');
+    expect(s.game.custom?.id).toBe('sample');
+    expect(s.available('level-sample')).toBe(false);
+  });
+
   it('reaches Level 2 and Level 3 only through their briefings', () => {
     const s = fresh();
     expect(s.available('answer')).toBe(false);

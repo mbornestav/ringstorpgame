@@ -1,6 +1,7 @@
 import { SideGame } from '../side/game';
 import { getLang, setLang } from '../side/i18n';
-import { floorOf, type ActionSource, type TitleView, type UiAction } from './actions';
+import { floorOf, levelOf, type ActionSource, type TitleView, type UiAction } from './actions';
+import { levelById } from '../side/levels';
 import { readMuted, writeMuted } from './preferences';
 
 type Listener = () => void;
@@ -40,6 +41,8 @@ export class Session {
     const g = this.game, mode = g.mode;
     const floor = floorOf(action);
     if (floor !== null) return g.level === 2 && mode === 'playing';
+    const level = levelOf(action);
+    if (level !== null) return mode === 'title' && this.titleView === 'main' && !!levelById(level);
     switch (action) {
       case 'start': case 'restart': return mode !== 'playing';
       case 'start-2': case 'start-3': return mode === 'title' && this.titleView === 'main';
@@ -64,8 +67,9 @@ export class Session {
   dispatch(action: UiAction, source: ActionSource = 'pointer'): boolean {
     if (!this.available(action)) return false;
     const g = this.game;
-    const floor = floorOf(action);
+    const floor = floorOf(action), level = levelOf(action);
     if (floor !== null) g.gods.pressFloor(floor);
+    else if (level !== null) { this.clearInput(); g.startLevel(levelById(level)!); this.reset(); }
     else switch (action) {
       case 'start': case 'restart': this.restart(); break;
       case 'start-2': this.showBriefing('gods'); break;
@@ -108,7 +112,8 @@ export class Session {
     const g = this.game;
     this.clearInput();
     // In the Gods run, restarting retries the same assignment; after a delivery it moves on to the next.
-    if (g.level === 3) g.startHeist();
+    if (g.custom) g.startLevel(g.custom);
+    else if (g.level === 3) g.startHeist();
     else if (g.level === 2) g.startGods(g.gods.assignment + (g.mode === 'victory' ? 1 : 0));
     else g.start();
     this.reset();

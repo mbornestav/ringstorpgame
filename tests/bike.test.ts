@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BIKE_BOUNDS, BikeRun, RIDE_LENGTH } from '../src/play/family/bike-run';
+import { RIDES } from '../src/play/family/rides';
 
 function advance(g: BikeRun, seconds: number, x = 0, y = 0): void {
   for (let i = 0; i < Math.round(seconds * 60); i++) g.update(1 / 60, x, y);
@@ -46,5 +47,26 @@ describe('Carl-Otto’s bike ride', () => {
     const g = new BikeRun(() => 0.5); g.start(); g.distance = RIDE_LENGTH - 300;
     advance(g, 5); expect(g.mode).toBe('won'); expect(g.progress).toBe(1); expect(g.metresLeft).toBe(0);
     expect(g.apples).toEqual([]); g.start(); expect(g.mode).toBe('riding'); expect(g.elapsed).toBe(0);
+  });
+});
+
+describe('ride files', () => {
+  it('every ride in src/play/family/rides is well formed', () => {
+    expect(RIDES.length).toBeGreaterThan(0);
+    for (const r of RIDES) {
+      expect(r.length, r.id).toBeGreaterThan(960);
+      expect(r.speed, r.id).toBeGreaterThan(0);
+      expect(r.apples.every[0], r.id).toBeLessThanOrEqual(r.apples.every[1]);
+      expect(r.apples.aimed, r.id).toBeGreaterThanOrEqual(0); expect(r.apples.aimed, r.id).toBeLessThanOrEqual(1);
+      expect(r.apples.clearEnd, r.id).toBeLessThan(r.length);
+      expect(r.scenery.trees.until, r.id).toBeLessThan(r.length);
+      expect(r.title.sv && r.title.en, r.id).toBeTruthy();
+    }
+  });
+
+  it('a ride takes its length and pace from its file', () => {
+    const short = { ...RIDES[0], id: 'short', length: 1200, speed: 200 };
+    const g = new BikeRun(() => 0.5, short); g.start(); advance(g, 7);
+    expect(g.mode).toBe('won');
   });
 });

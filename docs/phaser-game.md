@@ -22,6 +22,15 @@ index.html ─ src/play/main.ts        fonts + brand logos load first, then Phas
 - **Input**: `input/keymap.ts` is a pure port of the original key handling (tested as a table); `input/controls.ts` feeds it from Phaser's keyboard. Phaser 4 re-runs its key queue on every DOM key event within a frame, so each handled key is marked consumed (`event.stopPropagation()`); without that, one Escape toggles pause twice on a slow frame.
 - **Audio**: the original oscillator synth (`audio/cues.ts` is the data, `audio/sfx.ts` plays it) on Phaser's AudioContext, muted through `game.sound.mute`. The mute preference keeps its original key, `ringstorp-muted`.
 
+## The retro look
+
+The game is shown as 480×270 pixel art by default, in art mode **retro**: the detailed smooth art below, drawn at one pixel per logical pixel and then finished as a 16-bit console picture. `src/play/look.ts` chooses the mode before any other module loads (the theme, HUD layout and game config read it); `?look=smooth` and `?look=pixel` show the other two modes.
+
+- **Palette snap** (`src/play/world/retro-shader.ts`, palettes in `src/side/palettes.ts`, maths in `src/side/retro.ts`): a fragment shader samples the 480×270 world canvas per logical pixel, pushes each pixel by a 4×4 Bayer threshold and replaces it with the nearest palette colour (at most 64: day, night, interior and the bike ride each have one). The palettes were seeded from real frames by `scripts/extract-palette.mjs` and tuned by hand. Doing this on the CPU cost 6–9 ms a frame; the shader costs nothing measurable.
+- **Sprite outlines**: `SideRenderer.outlined` draws the actors onto their own layer and stamps a dark silhouette of it one pixel in each direction before putting it back, so figures, cars and parcels read as outlined sprites. Carl-Otto and the apples get the same (`outlined` in `src/play/family/art.ts`).
+- **Pixel interface**: Tiny5 for all text and numbers and Press Start 2P for the big titles (the © comes from Press Start 2P too), at sizes snapped to 24, 48 or 72 UI px by `fontPx` so one font pixel is one logical pixel. Windows and buttons are `retroBox` in `ui/kit/draw.ts`: a hard drop shadow, a dark outline, an inset coloured border and a top bevel. UI cameras round to whole pixels, and the game runs with `antialias: false`, so text and textures are sampled nearest-neighbour.
+- **CRT finish** (`src/play/crt.ts`): a camera filter on every scene softens the picture sideways, adds a scanline on each logical row, a faint aperture-grille tint, a little bloom and (on the world cameras) a vignette. `?crt=off` turns it off.
+
 ## The smooth look
 
 `src/side/pixel.ts` is the one place the art is drawn through (`rect`, `disc`, `ellipse`, `seg`, `poly`, `text`). It has two modes, chosen once per page:
@@ -47,7 +56,7 @@ Light comes from the afternoon sun at the upper right of the screen, and the smo
 
 ## Brand artwork
 
-ICA on the Kurir Livs plate, Statoil (drop and price pylon) and Bildeve on the dealership come from the supplied images. `scripts/prepare-logos.mjs <folder>` turns them into the small transparent PNGs in `src/play/assets/logos/` (it needs Chrome, through Playwright). `src/play/art/logos.ts` loads them before anything is baked; without them the art code falls back to its own lettering.
+ICA on the Kurir Livs plate and Bildeve on the dealership come from the supplied images. `scripts/prepare-logos.mjs <folder>` turns them into the small transparent PNGs in `src/play/assets/logos/` (it needs Chrome, through Playwright). `src/play/art/logos.ts` loads them before anything is baked; without them the art code falls back to its own lettering. The Statoil mark (the ring-drop on the canopy and the square sign on the pylon) is drawn as paths from the supplied reference, in `src/side/statoil-mark.ts`, so it keeps its proportions at any size.
 
 ## Fonts
 
@@ -66,7 +75,7 @@ In development the page exposes `window.__ringstorp` (`src/play/testing/bridge.t
 
 URL options (development): `?start=1|2|3` skips the menus, `?seed=N` seeds the random generator, `?look=pixel`, `?scale=2|3|4`.
 
-**Art lab**: `/?artlab=1&stage=shop|homes|gods|road|yard|back|marcus|both&x=<camera>&mode=smooth|pixel&cast=0` bakes real stage chunks and shows them with sample fighters through the same camera as the game (`at=<role>` centres on a landmark such as `kurir`, `statoil`, `bildeve`). `window.__artlab.parity(i)` compares a smooth chunk's outline with the pixel version, and `.seam(i)` compares the overlap of neighbouring chunks.
+**Art lab**: `/?artlab=1&stage=shop|homes|gods|road|yard|back|marcus|both&x=<camera>&mode=retro|smooth|pixel&cast=0` bakes real stage chunks and shows them with sample fighters through the same camera as the game (`at=<role>` centres on a landmark such as `kurir`, `statoil`, `bildeve`). `window.__artlab.parity(i)` compares a smooth chunk's outline with the pixel version, and `.seam(i)` compares the overlap of neighbouring chunks.
 
 Tests: `tests/browser.spec.ts` drives the game with the real keyboard and mouse and reads the interface from the hidden DOM (`#a11y-*`). `tests/play-*.test.ts`, `tests/architecture.test.ts` cover the pure modules and keep `src/side` (the simulation) and the pure `src/play` modules free of Phaser.
 

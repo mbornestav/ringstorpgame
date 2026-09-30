@@ -1,5 +1,4 @@
 import Phaser from 'phaser';
-import { isRetro } from '../../side/pixel';
 import { COLOR, CSS, RADIUS, UI_H, UI_W, textStyle, fontPx } from '../theme';
 import { box, glyph } from './kit/draw';
 import type { RouteMarker, WorldHudModel } from './models';
@@ -17,7 +16,7 @@ const STRIP_W = 820;
 const STRIP_X = Math.round((UI_W - STRIP_W) / 2);
 // The walking lanes end at y 744, so the strip is slim and sits as low as the controls row below it allows.
 // Retro: higher, to leave two rows of key hints below it.
-const STRIP_Y = UI_H - (isRetro() ? 124 : 84);
+const STRIP_Y = UI_H - 84;
 
 /** What the old canvas drew over the game: the message toast, GO arrow, POLIS badge, boss bar and route strip. */
 export class WorldHud extends Phaser.GameObjects.Container {
@@ -31,6 +30,7 @@ export class WorldHud extends Phaser.GameObjects.Container {
   private readonly bar: Phaser.GameObjects.Graphics;
   private readonly barLabel: Phaser.GameObjects.Text;
   private readonly routeLabel: Phaser.GameObjects.Text;
+  private readonly bottom: Phaser.GameObjects.Container;
   private toastKey = '';
 
   constructor(scene: Phaser.Scene) {
@@ -48,9 +48,13 @@ export class WorldHud extends Phaser.GameObjects.Container {
     this.bar = scene.add.graphics();
     this.barLabel = scene.add.text(STRIP_X + 24, STRIP_Y - 4, '', { ...textStyle('label', CSS.gold), fontSize: fontPx(19) });
     this.routeLabel = scene.add.text(STRIP_X + STRIP_W - 24, STRIP_Y + 18, '', { ...textStyle('small', CSS.paper), fontSize: fontPx(16) }).setOrigin(1, 0.5);
-    this.add([this.toastG, this.toastText, ...(this.portrait ? [this.portrait] : []), this.goG, this.goText, this.polis, this.bar, this.barLabel, this.routeLabel]);
+    this.bottom = scene.add.container(0, 0, [this.bar, this.barLabel, this.routeLabel]);
+    this.add([this.toastG, this.toastText, ...(this.portrait ? [this.portrait] : []), this.goG, this.goText, this.polis, this.bottom]);
     scene.add.existing(this);
   }
+
+  /** Raises the route strip and boss bar by `px`, clear of a second row of key hints. */
+  setLift(px: number): void { this.bottom.setY(-px); }
 
   /** `seconds` is the scene's own running clock, for blinking; the models leave animation to us. */
   update(m: WorldHudModel, seconds: number): void {

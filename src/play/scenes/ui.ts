@@ -88,6 +88,7 @@ export class UIScene extends Phaser.Scene {
     const panel = panelModel(session), prompt = promptModel(session), phone = phoneModel(session), world = worldHudModel(session);
     this.chrome.update(masthead, hud, footer, controls);
     this.cards.update(hud, UI_W);
+    this.worldHud.setLift(this.chrome.stripRows > 1 ? 36 : 0);
     this.worldHud.update(world, time / 1000);
     this.prompt.update(prompt);
     this.phone.update(phone);

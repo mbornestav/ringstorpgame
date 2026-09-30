@@ -1,6 +1,7 @@
 import { DD_CONTACT, DD_NUMBER, FINE } from '../../../side/game';
 import { t, type Key } from '../../../side/i18n';
-import type { UiAction } from '../../actions';
+import { levelAction, type UiAction } from '../../actions';
+import { levelText, menuLevels } from '../../../side/levels';
 import { formatTime, splitLead } from '../text';
 import { padScore, withKey, type UiContext } from './base';
 
@@ -73,6 +74,8 @@ function titlePanel(): PanelModel {
       button('start', 'title.start', 'primary'),
       button('start-2', 'title.level2', 'secondary', 'title.level2Hint'),
       button('start-3', 'title.level3', 'secondary', 'title.level3Hint'),
+      // Levels from level files that ask to be listed (src/side/levels).
+      ...menuLevels().map((l): PanelAction => ({ id: levelAction(l.id), label: levelText(l.title).toUpperCase(), lead: '▶', kind: 'secondary', ...(l.subtitle && { sub: levelText(l.subtitle).toUpperCase() }) })),
     ],
   });
 }

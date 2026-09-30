@@ -46,7 +46,7 @@ describe('retro palette maths', () => {
   });
 
   it('every game palette fits the shader', () => {
-    for (const lighting of ['day', 'night', 'interior'] as const) {
+    for (const lighting of ['day', 'night', 'interior', 'bike'] as const) {
       const { palette, spread } = paletteFor(lighting);
       expect(palette.colours.length).toBeLessThanOrEqual(MAX_COLOURS);
       expect(spread).toBeGreaterThan(0);

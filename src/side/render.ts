@@ -19,6 +19,13 @@ import type { Facade, Stage } from './stage';
 export { WIDTH, HEIGHT } from './layout';
 
 const FLASH = '#fff3ca';
+/** The retro sprite outline: the palettes' ink. */
+const OUTLINE = '#1c2126';
+function layer(): CanvasRenderingContext2D {
+  const canvas = document.createElement('canvas');
+  canvas.width = WIDTH; canvas.height = HEIGHT;
+  return canvas.getContext('2d')!;
+}
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
 interface Spark extends Effect { t: number; seed: number }
@@ -30,7 +37,10 @@ interface Spark extends Effect { t: number; seed: number }
  */
 export class SideRenderer {
   readonly canvas: HTMLCanvasElement;
-  private readonly c: CanvasRenderingContext2D;
+  /** Where the art goes: the frame, or the actor layer while the retro outline pass collects actors. */
+  private c: CanvasRenderingContext2D;
+  private readonly frame: CanvasRenderingContext2D;
+  private layers: { actors: CanvasRenderingContext2D; ink: CanvasRenderingContext2D } | null = null;
   private readonly backdrops = new Map<Stage, Backdrop>();
   private readonly sky: HTMLCanvasElement;
   private readonly nightSky: HTMLCanvasElement;
@@ -55,7 +65,7 @@ export class SideRenderer {
     canvas.height = HEIGHT * this.S;
     const context = canvas.getContext('2d', { alpha: false });
     if (!context) throw new Error('Canvas 2D is unavailable');
-    this.c = context;
+    this.c = this.frame = context;
     context.imageSmoothingEnabled = isSmooth();
     if (isSmooth()) context.imageSmoothingQuality = 'high';
     beginArt(context, this.S);
@@ -264,11 +274,11 @@ export class SideRenderer {
     if (dd && dd.carId === null && dd.timer <= 0) {
       this.shadow(dd.x - cam, dd.y, 0, 9);
       actors.push({ y: dd.y, x: dd.x, draw: () => {
-        drawFighter(c, dd.x - cam, dd.y, 0, dd.state === 'leaving' || dd.x > p.x ? -1 : 1, LOOKS.dd, dd.state === 'ready' ? POSES.loiter(this.elapsed) : POSES.walk(dd.walk));
+        drawFighter(this.c, dd.x - cam, dd.y, 0, dd.state === 'leaving' || dd.x > p.x ? -1 : 1, LOOKS.dd, dd.state === 'ready' ? POSES.loiter(this.elapsed) : POSES.walk(dd.walk));
         const label = 'D.D', x = Math.round(dd.x - cam) - 9;
-        if (isSmooth()) paintPanel(c, x - 3, dd.y - 60, 25, 11, '#1d3a38', '#6f8f72', 2.5);
-        else rect(c, x - 3, dd.y - 60, 25, 11, '#152b2b');
-        text(c, label, x, dd.y - 57, '#d1df9a');
+        if (isSmooth()) paintPanel(this.c, x - 3, dd.y - 60, 25, 11, '#1d3a38', '#6f8f72', 2.5);
+        else rect(this.c, x - 3, dd.y - 60, 25, 11, '#152b2b');
+        text(this.c, label, x, dd.y - 57, '#d1df9a');
       } });
     }
     for (const e of enemies) actors.push({ y: e.y, x: e.x, draw: () => this.drawEnemy(e, cam) });
@@ -277,24 +287,49 @@ export class SideRenderer {
     const run = game.gods;
     if (game.level === 2 && run.cargo === 'stashed' && run.stashX !== null) actors.push({ y: BAND_TOP + 1, x: run.stashX, draw: () => this.drawPackage(run.stashX! - cam, BAND_TOP + 8) });
     // A car covers anyone standing behind its tyre line.
-    for (const car of game.cars) if (car.x > cam - 90 && car.x < cam + WIDTH + 90) actors.push({ y: car.y + 0.5, x: car.x, draw: () => drawCar(c, car, car.x - cam, this.elapsed) });
+    for (const car of game.cars) if (car.x > cam - 90 && car.x < cam + WIDTH + 90) actors.push({ y: car.y + 0.5, x: car.x, draw: () => drawCar(this.c, car, car.x - cam, this.elapsed) });
     if (heist && heist.phase === 'yard') {
       for (const tr of heist.yard.trucks) {
         if (tr.x + 110 < cam || tr.x - 120 > cam + WIDTH) continue;
-        actors.push({ y: tr.y, x: tr.x, draw: () => drawTruck(c, { x: tr.x - cam, y: tr.y, facing: 1, tone: tr.tone, cut: tr.cut, crates: tr.crates, wheel: 0, moving: false, lights: false, elapsed: this.elapsed }) });
+        actors.push({ y: tr.y, x: tr.x, draw: () => drawTruck(this.c, { x: tr.x - cam, y: tr.y, facing: 1, tone: tr.tone, cut: tr.cut, crates: tr.crates, wheel: 0, moving: false, lights: false, elapsed: this.elapsed }) });
       }
       const b = heist.yard.goran;
       actors.push({ y: b.y, x: b.x, draw: () => this.drawBuddy(b, cam) });
     }
     if (heist && heist.phase === 'pickup') {
       const x = heist.pickupX;
-      actors.push({ y: 252, x, draw: () => { this.shadow(x - cam, 252, 0, 9); drawFighter(c, x - cam, 252, 0, -1, LOOKS.goran, POSES.walk(this.elapsed * 8)); } });
+      actors.push({ y: 252, x, draw: () => { this.shadow(x - cam, 252, 0, 9); drawFighter(this.c, x - cam, 252, 0, -1, LOOKS.goran, POSES.walk(this.elapsed * 8)); } });
     }
     if (!(heist && heist.driving)) actors.push({ y: p.y + 0.1, x: p.x, draw: () => this.drawPlayer(game, p, cam) });
     if (game.level === 1 && !game.hasPackage) actors.push({ y: game.stage.package.y, x: game.stage.package.x, draw: () => this.drawPackage(game.stage.package.x - cam, game.stage.package.y) });
     actors.sort((a, b) => a.y - b.y || a.x - b.x);
-    for (const a of actors) a.draw();
+    this.outlined(() => { for (const a of actors) a.draw(); });
     c.globalAlpha = 1;
+  }
+
+  /**
+   * Retro: draws the actors onto their own layer, then stamps a dark silhouette of that layer one pixel left, right, up and
+   * down before putting the layer back on the frame, so every figure, car and parcel reads with a 1-pixel outline as sprites
+   * do. Elsewhere it simply draws them.
+   */
+  private outlined(draw: () => void): void {
+    if (!isRetro()) { draw(); return; }
+    const frame = this.frame;
+    this.layers ??= { actors: layer(), ink: layer() };
+    const { actors, ink } = this.layers;
+    actors.setTransform(1, 0, 0, 1, 0, 0); actors.clearRect(0, 0, WIDTH, HEIGHT);
+    actors.setTransform(frame.getTransform());
+    this.c = actors;
+    try { draw(); } finally { this.c = frame; }
+    ink.globalCompositeOperation = 'copy';
+    ink.drawImage(actors.canvas, 0, 0);
+    ink.globalCompositeOperation = 'source-in';
+    ink.fillStyle = OUTLINE; ink.fillRect(0, 0, WIDTH, HEIGHT);
+    ink.globalCompositeOperation = 'source-over';
+    frame.save(); frame.setTransform(1, 0, 0, 1, 0, 0);
+    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) frame.drawImage(ink.canvas, dx, dy);
+    frame.drawImage(actors.canvas, 0, 0);
+    frame.restore();
   }
 
   private shadow(x: number, y: number, z: number, size: number): void {
@@ -478,17 +513,17 @@ export class SideRenderer {
         const look = n.id === 'dd' ? LOOKS.dd : ARCHETYPE.get(n.id)!.look;
         this.shadow(n.x, n.y, 0, 9);
         actors.push({ y: n.y, draw: () => {
-          drawFighter(c, n.x, n.y, 0, n.facing, look, POSES.loiter(this.elapsed + i * 1.7));
+          drawFighter(this.c, n.x, n.y, 0, n.facing, look, POSES.loiter(this.elapsed + i * 1.7));
           const prop = ARCHETYPE.get(n.id)?.prop;
-          if (prop) drawProp(c, prop, n.x, n.y, n.facing, this.elapsed);
-          if (n.id === 'dd') { if (isSmooth()) paintPanel(c, n.x - 12, n.y - 60, 25, 11, '#1d3a38', '#6f8f72', 2.5); else rect(c, n.x - 12, n.y - 60, 25, 11, '#152b2b'); text(c, 'D.D', n.x - 9, n.y - 57, '#d1df9a'); }
+          if (prop) drawProp(this.c, prop, n.x, n.y, n.facing, this.elapsed);
+          if (n.id === 'dd') { if (isSmooth()) paintPanel(this.c, n.x - 12, n.y - 60, 25, 11, '#1d3a38', '#6f8f72', 2.5); else rect(this.c, n.x - 12, n.y - 60, 25, 11, '#152b2b'); text(this.c, 'D.D', n.x - 9, n.y - 57, '#d1df9a'); }
         } });
       });
     }
     this.shadow(p.x, p.y, p.z, 9);
     actors.push({ y: p.y + 0.1, draw: () => this.drawPlayer(game, p, 0) });
     actors.sort((a, b) => a.y - b.y);
-    for (const a of actors) a.draw();
+    this.outlined(() => { for (const a of actors) a.draw(); });
     this.place();
     this.drawAtmosphere();
     if (game.transition > 0) rect(c, 0, 0, WIDTH, HEIGHT, `rgba(12, 30, 35, ${game.transition / 0.35})`);

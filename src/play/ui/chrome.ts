@@ -26,6 +26,8 @@ export class Chrome extends Phaser.GameObjects.Container {
   readonly chooser: Button;
   private readonly strip: Phaser.GameObjects.Container;
   private readonly credit: Phaser.GameObjects.Text;
+  /** How many rows the key hints take (retro wraps them), so the route strip can sit clear of them. */
+  stripRows = 1;
   private stripKey = '';
   private mastheadKey = '';
 
@@ -97,7 +99,8 @@ export class Chrome extends Phaser.GameObjects.Container {
       this.dot.fillStyle(COLOR.yellow, 0.25).fillCircle(x0 + 6, 31, 10);
       this.streetLabel.setPosition(x0 + 22, 22);
       this.street.setPosition(tight ? x0 + 22 : x0 + 22 + this.streetLabel.width + 10, isRetro() ? 19 : 20);
-      this.credit.setText(`${foot.bestLabel} ${foot.best}  ·  ${foot.credit}`);
+      // Retro: the pixel font is wide, so the footer keeps only the map credit and leaves the line to the key hints.
+      this.credit.setText(isRetro() ? foot.attribution : `${foot.bestLabel} ${foot.best}  ·  ${foot.credit}`);
     }
     this.layoutStrip(controls);
   }
@@ -129,13 +132,12 @@ export class Chrome extends Phaser.GameObjects.Container {
     let x = 0, row = 0;
     for (let i = 0; i < items.length; i += 2) {
       const chip = items[i], label = items[i + 1], w = chip.width + 8 + label.width;
-      // The bottom row shares its line with the credit.
-      const limit = row === 0 ? UI_W - MARGIN * 2 : this.credit.x - this.credit.width - MARGIN - 24;
-      if (x > 0 && x + w > limit) { row++; x = 0; }
+      if (x > 0 && x + w > this.credit.x - this.credit.width - MARGIN - 24) { row++; x = 0; }
       chip.setPosition(x, row * 36);
       label.setPosition(x + chip.width + 8, row * 36 + 2);
       x += w + 18;
     }
     this.strip.setScale(1).setPosition(MARGIN, UI_H - 4 - (row + 1) * 36);
+    this.stripRows = row + 1;
   }
 }

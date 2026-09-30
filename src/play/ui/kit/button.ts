@@ -97,6 +97,12 @@ export class Button extends Phaser.GameObjects.Container {
     this.title.setStyle({ ...textStyle(small ? 'label' : 'display', this.textColor()), ...(sub && { fontSize: fontPx(34) }), ...(this.spec.size === 'sm' && { fontSize: fontPx(27) }) }).setText(keyGlyphs(label.toUpperCase()));
     this.sub.setText(sub ?? '').setVisible(!!sub);
     const iconSpace = (lead ? 40 : 0) + keySpace;
+    // A fixed-width button shortens its second line to fit, word by word.
+    if (sub && this.spec.width) {
+      const room = this.spec.width - PAD_X * 2 - iconSpace;
+      let words = sub.split(' ');
+      while (this.sub.width > room && words.length > 1) { words = words.slice(0, -1); this.sub.setText(`${words.join(' ').replace(/[\s·,.-]+$/, '')}…`); }
+    }
     const w = this.spec.width ?? Math.max(small ? 96 : this.spec.size === 'sm' ? 120 : 160, Math.ceil(Math.max(this.title.width + iconSpace, this.sub.width + iconSpace)) + PAD_X * 2);
     const h = this.spec.height ?? (sub ? 84 : small ? 48 : this.spec.size === 'sm' ? 52 : 68);
     this.setSize(w, h);

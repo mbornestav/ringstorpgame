@@ -8,6 +8,7 @@ import { GodsRun, type GodsAction } from './gods-run';
 import { godsStage } from './gods-stage';
 import { HeistRun, type HeistAction } from './heist-run';
 import { roadOutStage } from './heist-stages';
+import { compileLevel, levelText, type LevelDefinition } from './levels';
 
 export type { EnemyKind } from './stage';
 export type EnemyState = 'idle' | 'walk' | 'windup' | 'strike' | 'recover' | 'hurt' | 'down' | 'rise' | 'ko';
@@ -176,6 +177,8 @@ export class SideGame {
   mode: Mode = 'title';
   /** 1 is the package run with its crews; 2 is the stealth run carrying Gods. */
   level: 1 | 2 | 3 = 1;
+  /** A level from a level file (src/side/levels), played by the Level 1 rules; null for the built-in levels. */
+  custom: LevelDefinition | null = null;
   /** Held Shift: quieter and slower. Levels 2 and 3 use it. */
   sneaking = false;
   /** Held E: cutting a tarpaulin or taking a crate in Level 3. */
@@ -259,14 +262,15 @@ export class SideGame {
     this.reset();
   }
 
-  reset(route: Route = 'direct'): void {
+  reset(route: Route = 'direct', stage: Stage = stageFor(route)): void {
     this.level = 1;
+    this.custom = null;
     this.sneaking = false;
     this.using = false;
     this.gods.reset();
     this.heist.reset();
     this.route = route;
-    this.stage = stageFor(route);
+    this.stage = stage;
     const { start } = this.stage;
     this.player = {
       x: start.x, y: start.y, z: 0, vx: 0, vz: 0, facing: 1, hp: 5, maxHp: 5, flash: 0, walk: 0,
@@ -324,6 +328,15 @@ export class SideGame {
     this.enemies = [];
     this.gods.begin(assignment);
     this.mode = 'playing';
+    this.events.push('start');
+  }
+
+  /** Starts a level from a level file: its own street, crews and texts, under the Level 1 rules. */
+  startLevel(def: LevelDefinition): void {
+    this.reset('direct', compileLevel(def));
+    this.custom = def;
+    this.mode = 'playing';
+    if (def.intro) this.say('msg.level', { text: levelText(def.intro) });
     this.events.push('start');
   }
 
@@ -500,12 +513,13 @@ export class SideGame {
   get objective(): string {
     if (this.level === 2) return this.gods.objective;
     if (this.level === 3) return this.heist.objective;
-    if (!this.hasPackage) return t('obj.package');
+    const own = this.custom?.objectives;
+    if (!this.hasPackage) return own?.parcel ? levelText(own.parcel) : t('obj.package');
     if (this.marcusAhead) return t('obj.marcus');
-    if (this.stage.shopX !== null && !this.shopHealed && this.player.x < this.stage.shopX + 90) return t('obj.shop');
+    if (this.stage.shopX !== null && !this.shopHealed && this.player.x < this.stage.shopX + 90 && (!this.custom || own?.shop)) return own?.shop ? levelText(own.shop) : t('obj.shop');
     if (this.crewSprung && !this.homeCrewDown) return t('obj.crewHome');
-    if (this.active) return t('obj.crew', { street: this.street ?? 'Pålsjö' });
-    return t('obj.home');
+    if (this.active) return own?.crew ? levelText(own.crew) : t('obj.crew', { street: this.street ?? 'Pålsjö' });
+    return own?.home ? levelText(own.home) : t('obj.home');
   }
 
   get street(): string | undefined { return streetAt(this.stage, this.player.x); }

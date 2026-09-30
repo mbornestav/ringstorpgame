@@ -8,6 +8,7 @@ import { loadLogos } from './art/logos';
 import { gameConfig } from './config';
 import { FONT, loadFonts } from './fonts';
 import { Session } from './session';
+import { levelById } from '../side/levels';
 import { BootScene } from './scenes/boot';
 import { UIScene } from './scenes/ui';
 import { WorldScene } from './scenes/world';
@@ -53,6 +54,12 @@ const start = params.get('start');
 if (start === '1') session.dispatch('start');
 else if (start === '2') { session.dispatch('start-2'); session.dispatch('answer'); }
 else if (start === '3') { session.dispatch('start-3'); session.dispatch('answer-3'); }
+// `?level=<id>` plays a level file directly, whether or not it is on the menu.
+const level = params.get('level');
+if (level) {
+  const def = levelById(level);
+  if (def) { sim.startLevel(def); } else console.warn(`No level "${level}" in src/side/levels`);
+}
 
 async function boot(): Promise<void> {
   let game: Phaser.Game;

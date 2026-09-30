@@ -1,11 +1,8 @@
 // Turns the supplied brand images into the small transparent PNGs the smooth art uses (src/play/assets/logos/).
 //
-//   node scripts/prepare-logos.mjs <folder holding ica.png, statoil.png, bildeve.png>
+//   node scripts/prepare-logos.mjs <folder holding ica.png, bildeve.png>
 //
 // ica.png       red ICA wordmark on white          -> ica.png (background removed, trimmed, 256 px wide)
-// statoil.png   collage; the left half is a Statoil price pylon
-//                                                  -> statoil-drop.png (the orange drop with the blue keyed out)
-//                                                  -> statoil-sign.png (blue head of the pylon with "Alltid öppet")
 // bildeve.png   blue italic wordmark with alpha    -> bildeve.png (trimmed, 320 px wide)
 //
 // It runs the image work in Chrome (through Playwright), so it needs no image library. Re-run it only if the sources change.
@@ -76,34 +73,8 @@ const results = await page.evaluate(async sources => {
     done['bildeve.png'] = png(scaled(c, bounds(data, c.width, c.height, (d, i) => d[i + 3] > 20), 320));
   }
 
-  // Statoil: the pylon in the left half of the collage.
-  {
-    const { c, x } = pixels(await load(sources.statoil));
-    // The head of the pylon: blue panel with the drop and name, and the grey "Alltid öppet" strip under it.
-    const sign = document.createElement('canvas'); sign.width = 294; sign.height = 316;
-    sign.getContext('2d').drawImage(c, 106, 52, 294, 316, 0, 0, 294, 316);
-    done['statoil-sign.png'] = png(scaled(sign, { x: 0, y: 0, w: 294, h: 316 }, 240));
-    // The orange drop, lifted off the blue: alpha from how orange a pixel is, colour un-mixed from the blue behind it.
-    const blue = x.getImageData(120, 130, 12, 12).data; let br = 0, bg = 0, bb = 0;
-    for (let i = 0; i < blue.length; i += 4) { br += blue[i]; bg += blue[i + 1]; bb += blue[i + 2]; }
-    const n = blue.length / 4; br /= n; bg /= n; bb /= n;
-    const region = x.getImageData(150, 40, 200, 185);
-    for (let i = 0; i < region.data.length; i += 4) {
-      const r = region.data[i], b = region.data[i + 2];
-      const a = Math.max(0, Math.min(1, (r - b + 40) / 100));
-      if (a > 0.02) {
-        region.data[i] = Math.max(0, Math.min(255, (r - (1 - a) * br) / a));
-        region.data[i + 1] = Math.max(0, Math.min(255, (region.data[i + 1] - (1 - a) * bg) / a));
-        region.data[i + 2] = Math.max(0, Math.min(255, (b - (1 - a) * bb) / a));
-      }
-      region.data[i + 3] = Math.round(a * 255);
-    }
-    const drop = document.createElement('canvas'); drop.width = region.width; drop.height = region.height;
-    drop.getContext('2d').putImageData(region, 0, 0);
-    done['statoil-drop.png'] = png(scaled(drop, bounds(region, region.width, region.height, (d, i) => d[i + 3] > 20), 128));
-  }
   return done;
-}, { ica: dataUrl('ica.png'), statoil: dataUrl('statoil.png'), bildeve: dataUrl('bildeve.png') });
+}, { ica: dataUrl('ica.png'), bildeve: dataUrl('bildeve.png') });
 await browser.close();
 
 for (const [name, url] of Object.entries(results)) {

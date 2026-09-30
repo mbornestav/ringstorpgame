@@ -2,6 +2,7 @@ import { CLIP, FINE, type SideGame } from '../../../side/game';
 import { HEIST } from '../../../side/heist-config';
 import { t } from '../../../side/i18n';
 import { ROUTE_NAMES } from '../../../side/routes';
+import { levelText } from '../../../side/levels';
 import { formatTime } from '../text';
 import { meter, padScore, withKey, type Meter, type UiContext } from './base';
 
@@ -133,7 +134,14 @@ function streetLine({ game }: UiContext): string {
 
 function levelLine({ game, titleView }: UiContext): string {
   const title = game.mode === 'title';
+  if (game.custom && !title) return levelText(game.custom.title).toUpperCase();
   return t(game.level === 3 || (title && titleView === 'heist') ? 'top.level3' : game.level === 2 || (title && titleView === 'gods') ? 'top.level2' : 'top.level1');
+}
+
+/** A level file's route: its first and last street names. */
+function customRoute(names: string[]): string {
+  const first = names[0] ?? '', last = names[names.length - 1] ?? first;
+  return first === last ? first : `${first} → ${last}`;
 }
 
 /** Level 1 scores its own points; the other levels show the cash in your pocket. */
@@ -156,7 +164,7 @@ export function hudModel(ctx: UiContext): HudModel {
       label: t('hud.objective'),
       text: game.objective,
       steps: level === 3 ? heistSteps(game) : level === 2 ? godsSteps(game) : packageSteps(game),
-      routeName: level === 3 ? 'Kurirgatan → Industrivägen' : level === 2 ? 'Kurirgatan → Ringstorpsvägen' : ROUTE_NAMES[game.route],
+      routeName: game.custom ? customRoute(game.custom.street.names.map(n => n.value)) : level === 3 ? 'Kurirgatan → Industrivägen' : level === 2 ? 'Kurirgatan → Ringstorpsvägen' : ROUTE_NAMES[game.route],
     },
     score: { label: t('hud.score'), time: formatTime(game.elapsed), value: scoreValue(game) },
     best: padScore(game.bestScore),

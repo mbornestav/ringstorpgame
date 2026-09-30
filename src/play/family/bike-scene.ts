@@ -2,9 +2,12 @@ import Phaser from 'phaser';
 import { getLang } from '../../side/i18n';
 import { drawRide } from './art';
 import { BikeRun } from './bike-run';
+import { FIRST_RIDE, rideById } from './rides';
 import { FamilySurface } from './surface';
 import { familyText as t } from './text';
 import { isRetro } from '../../side/pixel';
+import { paletteFor } from '../../side/palettes';
+import { addRetroImage } from '../world/retro-shader';
 
 const WORLD_DIV = isRetro() ? 3 : 1;
 
@@ -24,11 +27,14 @@ export class BikeScene extends FamilySurface {
   constructor() { super('Bike'); }
 
   create(): void {
-    this.run = new BikeRun(); this.frozen = false; this.held.clear(); this.touches.clear(); this.lastMode = ''; this.statusKey = '';
+    // `?ride=<id>` plays another ride file (src/play/family/rides); the chooser starts the first.
+    const ride = rideById(new URLSearchParams(location.search).get('ride') ?? '') ?? FIRST_RIDE;
+    this.run = new BikeRun(Math.random, ride); this.frozen = false; this.held.clear(); this.touches.clear(); this.lastMode = ''; this.statusKey = '';
     if (this.textures.exists('bike-world')) this.textures.remove('bike-world');
     // Retro: the ride is drawn at 480x270 and magnified, the same pixel size as Ringstorp Run.
     this.texture = this.textures.createCanvas('bike-world', 1440 / WORLD_DIV, 810 / WORLD_DIV)!;
-    this.add.image(0, 0, 'bike-world').setOrigin(0).setDisplaySize(1440, 810);
+    if (isRetro()) addRetroImage(this, 'bike-world', 0, 0, 1440, 810, () => paletteFor('bike'));
+    else this.add.image(0, 0, 'bike-world').setOrigin(0);
     this.setup();
     const down = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey) return;

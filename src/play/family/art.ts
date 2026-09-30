@@ -1,4 +1,5 @@
 import type { BikeRun } from './bike-run';
+import { FIRST_RIDE, type RideDefinition } from './rides';
 import { isRetro } from '../../side/pixel';
 
 // Carl-Otto's ride, drawn as a storybook illustration in the 960 × 540 world. The sun sits high on the right, so every
@@ -664,6 +665,34 @@ export function cyclist(c: C, x: number, y: number, time: number, scale = 1): vo
 
 // ---------------------------------------------------------------- the frame
 
+let layers: { art: CanvasRenderingContext2D; ink: CanvasRenderingContext2D } | null = null;
+const layerFor = (canvas: HTMLCanvasElement, old?: CanvasRenderingContext2D): CanvasRenderingContext2D => {
+  if (old && old.canvas.width === canvas.width && old.canvas.height === canvas.height) return old;
+  const next = document.createElement('canvas'); next.width = canvas.width; next.height = canvas.height;
+  return next.getContext('2d')!;
+};
+
+/**
+ * Retro: the cyclist and the apples are drawn on a layer of their own, which is stamped one pixel in each direction as a
+ * dark silhouette before it goes back on the frame, so they read as outlined sprites against the scenery.
+ */
+function outlined(c: C, draw: (target: C) => void): void {
+  if (!isRetro()) { draw(c); return; }
+  const art = layerFor(c.canvas, layers?.art), ink = layerFor(c.canvas, layers?.ink);
+  layers = { art, ink };
+  art.setTransform(1, 0, 0, 1, 0, 0); art.clearRect(0, 0, art.canvas.width, art.canvas.height);
+  art.setTransform(c.getTransform());
+  const frame = c;
+  draw(art);
+  ink.globalCompositeOperation = 'copy'; ink.drawImage(art.canvas, 0, 0);
+  ink.globalCompositeOperation = 'source-in'; ink.fillStyle = INK; ink.fillRect(0, 0, ink.canvas.width, ink.canvas.height);
+  ink.globalCompositeOperation = 'source-over';
+  frame.save(); frame.setTransform(1, 0, 0, 1, 0, 0);
+  for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) frame.drawImage(ink.canvas, dx, dy);
+  frame.drawImage(art.canvas, 0, 0);
+  frame.restore();
+}
+
 interface Art {
   sky: Sprite; clouds: Sprite[]; far: Sprite; mid: Sprite; near: Sprite; road: Sprite; fore: Sprite;
   trees: Sprite[]; dapple: Sprite[]; home: Sprite; preschool: Sprite; apple: Sprite; light: Sprite;
@@ -718,8 +747,8 @@ function target(c: C, x: number, y: number, t: number, warning: boolean, fade: n
 
 export function apple(c: C, x: number, y: number, size = 1): void { put(c, getArt().apple, x, y, size); }
 
-export function drawRide(c: C, ride: Pick<BikeRun, 'distance' | 'x' | 'y' | 'apples' | 'invulnerable' | 'elapsed'>): void {
-  const a = getArt(), d = ride.distance;
+export function drawRide(c: C, ride: Pick<BikeRun, 'distance' | 'x' | 'y' | 'apples' | 'invulnerable' | 'elapsed'> & { def?: RideDefinition }): void {
+  const a = getArt(), d = ride.distance, def = ride.def ?? FIRST_RIDE, orchard = def.scenery.trees;
   c.drawImage(a.sky.canvas, 0, 0, W, 400);
   for (let i = 0; i < 5; i++) {
     const x = ((i * 267 + 100 - d * 0.06) % 1300 + 1300) % 1300 - 130;
@@ -728,12 +757,12 @@ export function drawRide(c: C, ride: Pick<BikeRun, 'distance' | 'x' | 'y' | 'app
   tile(c, a.far, d * 0.08); tile(c, a.mid, d * 0.22); tile(c, a.near, d * 0.55);
   put(c, a.home, 16 - d * 0.85, 272);
   const trees: number[] = [];
-  for (let i = 0; i < 20; i++) {
-    const x = 475 + i * 222 - d;
-    if (x < -160 || x > 1120 || i * 222 > 3080) continue;
+  for (let i = 0; orchard.from + i * orchard.every <= orchard.until; i++) {
+    const x = orchard.from + i * orchard.every - d;
+    if (x < -160 || x > 1120) continue;
     trees.push(x); put(c, a.trees[i % 3], x, 388, 0.9 + (i % 3) * 0.13);
   }
-  put(c, a.preschool, 3600 - d + 280, 274);
+  put(c, a.preschool, def.length - d + 280, 274);
   tile(c, a.road, d);
   for (const [i, x] of trees.entries()) put(c, a.dapple[i % 3], x - 40, 418);
   for (const p of ride.apples) {
@@ -743,18 +772,19 @@ export function drawRide(c: C, ride: Pick<BikeRun, 'distance' | 'x' | 'y' | 'app
     const k = 1 - Math.min(p.height, 285) / 285;
     c.save(); c.globalAlpha = fade; softShadow(c, p.x, p.y, 6 + k * 8, 2.4 + k * 2.4, 0.2 + k * 0.35); c.restore();
   }
-  if (!ride.invulnerable || Math.floor(ride.elapsed * 12) % 2 === 0) cyclist(c, ride.x, ride.y, ride.elapsed);
-  for (const p of ride.apples) {
-    c.save();
-    c.globalAlpha = p.warning > 0 ? 0.9 : p.landed > 0 ? Math.max(0, 1 - p.landed / 0.6) : 1;
-    // A warned apple wobbles on its branch before it lets go; a landed one squashes a little.
-    const wobble = p.warning > 0 ? Math.sin(ride.elapsed * 30) * 0.18 : 0;
-    const ay = p.y - Math.max(8, p.height);
-    c.translate(p.x, ay); c.rotate(wobble);
-    if (p.landed > 0) c.scale(1.12, 0.88);
-    put(c, a.apple, 0, 0, 1.05);
-    c.restore();
-  }
+  outlined(c, t => {
+    if (!ride.invulnerable || Math.floor(ride.elapsed * 12) % 2 === 0) cyclist(t, ride.x, ride.y, ride.elapsed);
+    for (const p of ride.apples) {
+      t.save();
+      t.globalAlpha = p.warning > 0 ? 0.9 : p.landed > 0 ? Math.max(0, 1 - p.landed / 0.6) : 1;
+      // A warned apple wobbles on its branch before it lets go; a landed one squashes a little.
+      const wobble = p.warning > 0 ? Math.sin(ride.elapsed * 30) * 0.18 : 0;
+      t.translate(p.x, p.y - Math.max(8, p.height)); t.rotate(wobble);
+      if (p.landed > 0) t.scale(1.12, 0.88);
+      put(t, a.apple, 0, 0, 1.05);
+      t.restore();
+    }
+  });
   tile(c, a.fore, d * 1.2);
   c.drawImage(a.light.canvas, 0, 0, W, 540);
 }

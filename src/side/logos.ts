@@ -4,7 +4,7 @@ import { isSmooth } from './pixel';
 // scenery is baked and handed over here, so the art code stays free of loading. In pixel mode, or before the images arrive,
 // `drawLogo` returns false and callers draw their original lettering instead.
 
-export type LogoName = 'ica' | 'bildeve' | 'statoil-drop' | 'statoil-sign';
+export type LogoName = 'ica' | 'bildeve';
 export type LogoImage = CanvasImageSource & { width: number; height: number };
 
 const images = new Map<LogoName, LogoImage>();
