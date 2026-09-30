@@ -1,9 +1,11 @@
 import { FACADE_PX_PER_M, FRONTAGE_Y, HEIGHT, KERB_Y, NEAR_KERB_Y, WIDTH } from './layout';
-import { alpha, beginArt, disc, ellipse, fill, grain, isSmooth, mix, noise, pick, poly, rand, rect, rgb, rgrad, seg, shade, text, textWidth, vgrad } from './pixel';
+import { alpha, beginArt, disc, ellipse, fill, grain, hgrad, isSmooth, mix, noise, pick, poly, rand, rect, rgb, rgrad, seg, shade, text, textWidth, vgrad } from './pixel';
 import { paintGround } from './ground-smooth';
 import { drawLogo } from './logos';
 import type { Facade, FrontKind, Furniture, Run, SideStreet, Stage, Surface, Tree } from './stage';
 import { drawThaeo } from './graffiti';
+import { drawLitFacade } from './facade-light';
+import { paintPanel, paintPost } from './package-art';
 import { LEVEL2_ROLES, drawLevel2Facade, level2Box } from './level2-art';
 import { LEVEL3_ROLES, drawLevel3Facade, level3Box } from './level3-art';
 
@@ -112,6 +114,11 @@ export function windowAt(c: CanvasRenderingContext2D, cx: number, top: number, w
     c.beginPath(); c.rect(x0, y0, ww, wh); c.clip();
     poly(c, [[x0, y0 + wh * 0.62], [x0 + ww * 0.62, y0], [x0 + ww * 0.92, y0], [x0, y0 + wh * 0.92]], 'rgba(170, 205, 224, 0.34)');
     poly(c, [[x0 + ww * 0.22, y0 + wh * 0.98], [x0 + ww, y0 + wh * 0.26], [x0 + ww, y0 + wh * 0.44], [x0 + ww * 0.5, y0 + wh * 0.98]], 'rgba(170, 205, 224, 0.16)');
+    // Depth: the window sits in a reveal, so its head and the side away from the sun shade the glass.
+    const head = Math.max(1, wh * 0.2);
+    fill(c, x0, y0, ww, head, vgrad(c, y0, y0 + head, [[0, 'rgba(8, 12, 20, 0.5)'], [1, 'rgba(8, 12, 20, 0)']]));
+    const side = Math.max(0.8, ww * 0.16);
+    fill(c, x0 + ww - side, y0, side, wh, hgrad(c, x0 + ww - side, x0 + ww, [[0, 'rgba(8, 12, 20, 0)'], [1, 'rgba(8, 12, 20, 0.32)']]));
     c.restore();
   } else for (let i = 0; i < Math.min(ww, wh) - 2; i++) rect(c, x0 + 1 + i, y0 + wh - 3 - i, 1, 1, '#8fb0c4');
   if (!opts.plain && rand(seed, 9) > 0.45) { rect(c, x0, y0, 2, wh, '#e7dcc4'); rect(c, x0 + ww - 2, y0, 2, wh, '#e7dcc4'); }
@@ -119,6 +126,11 @@ export function windowAt(c: CanvasRenderingContext2D, cx: number, top: number, w
   for (let i = 1; i < panes; i++) rect(c, x0 + Math.round(ww * i / panes), y0, 1, wh, frame);
   if (opts.cross) rect(c, x0, y0 + Math.round(wh * 0.42), ww, 1, frame);
   rect(c, x0 - 2, y0 + wh + 1, ww + 4, 1, shade(frame, 0.7));
+  if (isSmooth()) {
+    // A lit sill with a soft shadow under it.
+    fill(c, x0 - 2, y0 + wh + 1, ww + 4, 0.4, 'rgba(255, 250, 238, 0.45)');
+    fill(c, x0 - 2, y0 + wh + 2, ww + 4, 2.4, vgrad(c, y0 + wh + 2, y0 + wh + 4.4, [[0, 'rgba(14, 12, 24, 0.26)'], [1, 'rgba(14, 12, 24, 0)']]));
+  }
 }
 
 export function doorAt(c: CanvasRenderingContext2D, cx: number, floor: number, dw: number, dh: number, color: string, frame: string): void {
@@ -750,7 +762,107 @@ function drawGate(c: CanvasRenderingContext2D, x: number, seed: number): void {
 
 // ---------------------------------------------------------------- street furniture
 
+/** Smooth-mode street furniture: rounded, shaded metal and enamel instead of flat blocks. */
+function smoothFurniture(c: CanvasRenderingContext2D, f: Furniture): boolean {
+  const x = Math.round(f.x), base = FRONTAGE_Y + 7;
+  const box = (x0: number, y0: number, w: number, h: number, r: number, top: string, bottom: string, stroke = '#10181f') => {
+    c.beginPath(); c.roundRect(x0, y0, w, h, r);
+    c.fillStyle = vgrad(c, y0, y0 + h, [[0, top], [1, bottom]]); c.fill();
+    if (stroke) { c.strokeStyle = stroke; c.lineWidth = 0.5; c.stroke(); }
+  };
+  const lampHead = (hx: number, hy: number, w: number) => {
+    box(hx, hy, w, 3.2, 1.2, '#4a535a', '#1d2327');
+    fill(c, hx + 1, hy + 3.1, w - 2, 0.9, '#ffeab0');
+    fill(c, hx + 1, hy + 4, w - 2, 3, vgrad(c, hy + 4, hy + 7, [[0, 'rgba(255, 236, 170, 0.35)'], [1, 'rgba(255, 236, 170, 0)']]));
+  };
+  switch (f.kind) {
+    case 'lamp': {
+      const H = 76;
+      paintPost(c, x + 0.5, base - H, base, 2.8);
+      box(x - 2, base - 5, 5, 5, 1, '#5b646a', '#262c30');
+      c.beginPath(); c.moveTo(x + 0.5, base - H + 1); c.quadraticCurveTo(x + 0.3, base - H - 4, x - 5, base - H - 4.5);
+      c.strokeStyle = '#3d454b'; c.lineWidth = 1.8; c.lineCap = 'round'; c.stroke();
+      c.strokeStyle = 'rgba(210, 220, 226, 0.5)'; c.lineWidth = 0.5; c.stroke();
+      lampHead(x - 13.5, base - H - 6.5, 11);
+      return true;
+    }
+    case 'floodlight': {
+      const H = 118;
+      paintPost(c, x + 1, base - H, base, 3.6);
+      box(x - 2.5, base - 6, 7, 6, 1, '#4b5358', '#20262a');
+      fill(c, x - 10, base - H - 5, 22, 3.4, vgrad(c, base - H - 5, base - H - 1.6, [[0, '#4a5258'], [1, '#1f2428']]));
+      for (const dx of [-8, 0, 8]) lampHead(x + dx - 2.5, base - H - 9, 7);
+      return true;
+    }
+    case 'sign': {
+      const label = f.label ?? '';
+      const tw = textWidth(label);
+      const [plate, ink] = f.variant === 3 ? ['#2f9a55', '#f6f4ea'] : f.variant === 2 ? ['#f2c14e', '#1d2a33'] : ['#1f4f8f', '#f6f4ea'];
+      const H = 28;
+      paintPost(c, x + 1, base - H, base, 2.2);
+      const px = x - Math.round(tw / 2) - 4, py = base - H - 13;
+      paintPanel(c, px - 1, py - 1, tw + 10, 15, plate, ink, 1.4);
+      text(c, label, px + 4, py + 5, ink);
+      return true;
+    }
+    case 'busstop': {
+      const H = 36;
+      paintPost(c, x + 1, base - H, base, 2.2);
+      paintPanel(c, x - 5, base - H - 11, 12, 12, '#f2c200', '#10181f', 1.4);
+      box(x - 3, base - H - 9, 8, 8, 1, '#2a8a4e', '#15532d', '');
+      text(c, 'H', x - 1, base - H - 7, '#f6f4ea');
+      if (f.label) {
+        const tw = textWidth(f.label), lx = x + 1 - Math.round(tw / 2);
+        paintPanel(c, lx - 3, base - H + 2, tw + 6, 11, '#f4f1e6', '#8b938f', 1.2);
+        text(c, f.label, lx, base - H + 6, '#1d2a33');
+      }
+      return true;
+    }
+    case 'crossing': {
+      paintPost(c, x + 0.5, base - 26, base, 1.8);
+      paintPanel(c, x - 4.5, base - 35.5, 10, 10, '#2064b0', '#f6f4ea', 1.2);
+      c.beginPath(); c.moveTo(x + 0.5, base - 33.6); c.lineTo(x + 4, base - 28.4); c.lineTo(x - 3, base - 28.4); c.closePath();
+      c.fillStyle = '#f6f4ea'; c.fill();
+      fill(c, x, base - 31.5, 1, 2.2, '#10181f');
+      return true;
+    }
+    case 'bin':
+      paintPost(c, x + 0.5, base - 7, base, 1.4);
+      box(x - 3.2, base - 14.5, 7.4, 8.4, 1.6, '#4f8a60', '#1f3a2c');
+      fill(c, x - 1.6, base - 13.2, 4.2, 0.9, '#10181f');
+      fill(c, x - 2.4, base - 14, 1, 7, 'rgba(255, 255, 255, 0.18)');
+      return true;
+    case 'postbox':
+      paintPost(c, x + 0.5, base - 10, base, 1.4);
+      box(x - 3.2, base - 18.6, 8.4, 8.6, 2, '#ffd83a', '#b88c00');
+      fill(c, x - 1.4, base - 15.4, 4.8, 1, '#1b1b1b');
+      c.beginPath(); c.arc(x + 1, base - 12.6, 1.1, 0, Math.PI * 2); c.fillStyle = '#1f5fa8'; c.fill();
+      return true;
+    case 'bench':
+      for (const lx of [x - 8, x + 7]) fill(c, lx, base - 7, 1.2, 7, '#2f3336');
+      box(x - 9.5, base - 8.6, 19, 2.2, 0.8, '#6d9c74', '#3e6546');
+      box(x - 9.5, base - 13.6, 19, 2.2, 0.8, '#6d9c74', '#3e6546');
+      return true;
+    case 'shelter': {
+      fill(c, x - 21.5, base - 31, 1.2, 31, '#2f3438');
+      fill(c, x + 20.3, base - 31, 1.2, 31, '#2f3438');
+      c.save();
+      c.beginPath(); c.rect(x - 20.3, base - 31, 40.6, 30); c.clip();
+      fill(c, x - 20.3, base - 31, 40.6, 30, vgrad(c, base - 31, base - 1, [[0, 'rgba(196, 226, 236, 0.5)'], [1, 'rgba(150, 190, 204, 0.36)']]));
+      poly(c, [[x - 14, base], [x - 4, base - 31], [x + 1, base - 31], [x - 9, base]], 'rgba(255, 255, 255, 0.18)');
+      c.restore();
+      box(x + 6, base - 28, 12, 20, 0.6, '#ef8a55', '#c8643a', '#2f3438');
+      fill(c, x + 7, base - 22, 10, 8, '#f5e3b0');
+      box(x - 16, base - 9.4, 18, 2.2, 0.7, '#6d9c74', '#3e6546', '');
+      box(x - 22.5, base - 34.5, 45, 3.6, 1, '#5a6268', '#2a3034');
+      return true;
+    }
+  }
+  return false;
+}
+
 function drawFurniture(c: CanvasRenderingContext2D, f: Furniture): void {
+  if (isSmooth() && smoothFurniture(c, f)) return;
   const x = Math.round(f.x), base = FRONTAGE_Y + 7;
   switch (f.kind) {
     case 'floodlight': {
@@ -846,6 +958,18 @@ function drawFurniture(c: CanvasRenderingContext2D, f: Furniture): void {
 /** A lamp post on the near pavement, between the camera and the action. */
 export function drawNearLamp(c: CanvasRenderingContext2D, x: number): void {
   const X = Math.round(x);
+  if (isSmooth()) {
+    // Close to the camera and out of focus range: a dark, softly lit tube with a bright edge on the sun's side.
+    fill(c, X - 2.5, 30, 6, HEIGHT - 30, hgrad(c, X - 2.5, X + 3.5, [[0, '#10171b'], [0.55, '#243238'], [0.8, '#4a5e66'], [1, '#1b2429']]));
+    fill(c, X - 4.5, HEIGHT - 14, 10, 14, hgrad(c, X - 4.5, X + 5.5, [[0, '#0c1215'], [0.7, '#2b393f'], [1, '#141c20']]));
+    c.beginPath(); c.moveTo(X + 0.5, 33); c.quadraticCurveTo(X + 1, 22, X + 12, 21);
+    c.strokeStyle = '#1b2429'; c.lineWidth = 3.2; c.lineCap = 'round'; c.stroke();
+    c.strokeStyle = 'rgba(120, 140, 148, 0.5)'; c.lineWidth = 0.7; c.stroke();
+    c.beginPath(); c.roundRect(X + 8, 16, 18, 6, 2);
+    c.fillStyle = vgrad(c, 16, 22, [[0, '#2c393f'], [1, '#0f1619']]); c.fill();
+    fill(c, X + 10, 22, 14, 1, '#ffe7a8');
+    return;
+  }
   rect(c, X - 2, 30, 5, HEIGHT - 30, '#1b2429');
   rect(c, X + 1, 30, 1, HEIGHT - 30, '#3a4a51');
   rect(c, X - 4, HEIGHT - 14, 9, 14, '#141c20');
@@ -1023,19 +1147,27 @@ function roadMarkings(c: CanvasRenderingContext2D, stage: Stage, from: number, t
 
 // ---------------------------------------------------------------- backdrop
 
+/** Whether the wall rises into a gable end (so there are no eaves along its top to cast a shadow). */
+function hasGable(f: Facade): boolean {
+  if (f.role && (LEVEL2_ROLES.has(f.role) || LEVEL3_ROLES.has(f.role) || f.role === 'kurir')) return false;
+  if (f.reference) return f.reference.silhouette === 'gable' || f.reference.silhouette === 'mansard-gable';
+  const a = f.appearance;
+  return a.roofShape !== 'flat' && a.rise > 0 && !f.eavesFront && a.roofShape !== 'hipped';
+}
+
 /** In smooth mode each chunk is baked this many logical pixels wider on both sides, so linear filtering never shows a seam. */
 export const CHUNK_PAD = 2;
 
 export class Backdrop {
   private readonly chunks = new Map<number, HTMLCanvasElement>();
   private distantStrip: HTMLCanvasElement | null = null;
-  readonly items: Array<{ dist: number; x0: number; x1: number; draw: (c: CanvasRenderingContext2D) => void }>;
+  readonly items: Array<{ dist: number; x0: number; x1: number; draw: (c: CanvasRenderingContext2D) => void; facade?: Facade }>;
 
   /** `scale` is device pixels per logical pixel; it only matters in smooth mode. */
   constructor(readonly stage: Stage, readonly scale = 1) {
     const facades = stage.facades.map(f => {
       const b = facadeBox(f);
-      return { dist: f.dist + (f.row ? 100 : 0), x0: b.x0 - 12, x1: b.x1 + 12, draw: (c: CanvasRenderingContext2D) => drawFacade(c, f) };
+      return { dist: f.dist + (f.row ? 100 : 0), x0: b.x0 - 12, x1: b.x1 + 12, draw: (c: CanvasRenderingContext2D) => drawFacade(c, f), facade: f };
     });
     const trees = stage.trees.map(t => ({ dist: t.dist + (t.row ? 100 : 0) - 0.01, x0: t.x - 34, x1: t.x + 34, draw: (c: CanvasRenderingContext2D) => drawTree(c, t) }));
     this.items = [...facades, ...trees].sort((a, b) => b.dist - a.dist);
@@ -1080,7 +1212,11 @@ export class Backdrop {
     // Everything below is drawn against the padded range, so the overlap between neighbouring chunks is identical.
     const lo = x0 - pad, hi = x1 + pad;
     for (const f of this.stage.facades) if (f.reference && f.row === 0 && f.x1 + 28 > lo && f.x0 - 28 < hi) drawReferenceGarden(c, f);
-    for (const item of this.items) if (item.x1 > lo && item.x0 < hi) item.draw(c);
+    for (const item of this.items) {
+      if (item.x1 <= lo || item.x0 >= hi) continue;
+      if (smooth && item.facade) drawLitFacade(c, S, x0, pad, CHUNK + 2 * pad, facadeBox(item.facade), { gable: hasGable(item.facade), far: item.facade.row === 1, night: !!this.stage.night }, item.draw);
+      else item.draw(c);
+    }
     const gaps: Array<[number, number]> = [
       ...this.stage.gates.map(g => [g - 7, g + 7] as [number, number]),
       ...this.stage.facades.map(referenceDrive).filter((d): d is [number, number] => d !== null),

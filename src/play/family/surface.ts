@@ -34,6 +34,35 @@ export abstract class FamilySurface extends Phaser.Scene {
     this.layer.add(g); return g;
   }
 
+  /** A card with a soft shadow beneath it, so it floats over the illustration. */
+  protected panel(x: number, y: number, w: number, h: number, color: number, radius = 0, alpha = 1): Phaser.GameObjects.Graphics {
+    const g = this.add.graphics();
+    for (const [grow, dy, a] of [[6, 8, 0.05], [3, 5, 0.07], [0, 3, 0.1]] as const) g.fillStyle(0x1d3326, a * alpha).fillRoundedRect(x - grow, y + dy - grow / 2, w + grow * 2, h + grow, radius + grow);
+    g.fillStyle(color, alpha).fillRoundedRect(x, y, w, h, radius);
+    this.layer.add(g); return g;
+  }
+
+  /** Hearts drawn as shapes (no font has to supply them): `filled` of `max`, left to right. */
+  protected hearts(g: Phaser.GameObjects.Graphics, x: number, y: number, filled: number, max: number, size = 30): void {
+    g.clear();
+    for (let i = 0; i < max; i++) {
+      const cx = x + i * (size + 10) + size / 2, cy = y + size * 0.3, k = size / 30;
+      const heart = (grow: number) => {
+        const r = (8 + grow) * k;
+        g.fillCircle(cx - 7 * k, cy, r); g.fillCircle(cx + 7 * k, cy, r);
+        g.fillTriangle(cx - (14.6 + grow) * k, cy + 3 * k, cx + (14.6 + grow) * k, cy + 3 * k, cx, cy + (21 + grow * 1.4) * k);
+      };
+      if (i < filled) {
+        g.fillStyle(0x7a2320, 1); heart(1.6);
+        g.fillStyle(0xd9473c, 1); heart(0);
+        g.fillStyle(0xffb3a0, 0.8); g.fillEllipse(cx + 7 * k, cy - 2.5 * k, 6 * k, 4 * k);
+      } else {
+        g.fillStyle(0xb9ae94, 1); heart(1.6);
+        g.fillStyle(0xf1ead3, 1); heart(0);
+      }
+    }
+  }
+
   protected label(value: string, x: number, y: number, size = 22, color = '#25473f', width?: number, bold = false): Phaser.GameObjects.Text {
     const text = this.add.text(x, y, value, {
       fontFamily: bold ? FONT.display : FONT.body, fontSize: `${size}px`, fontStyle: bold ? '700' : '400', color,
@@ -50,7 +79,10 @@ export abstract class FamilySurface extends Phaser.Scene {
 
   protected button(id: string, label: string, x: number, y: number, width: number, action: () => void, light = false): void {
     const height = 56;
-    const bg = this.rect(x, y, width, height, light ? 0xe9e8d8 : 0x254b40, 14);
+    // A raised button: a darker lip below the face gives it depth.
+    this.rect(x, y + 4, width, height, light ? 0xc9c6b0 : 0x14302a, 14, light ? 0.9 : 1);
+    const bg = this.rect(x, y, width, height, light ? 0xf1efe1 : 0x2a5a4b, 14);
+    this.rect(x + 3, y + 3, width - 6, height / 2 - 3, 0xffffff, 11, light ? 0.35 : 0.08);
     const text = this.label(label, x + 22, y + 12, 25, light ? '#254b40' : '#fff7df', undefined, true);
     if (text.width > width - 36) text.setFontSize(Math.floor(25 * (width - 36) / text.width));
     const ring = this.add.graphics().lineStyle(3, 0xd98b47).strokeRoundedRect(x - 4, y - 4, width + 8, height + 8, 17).setVisible(false);

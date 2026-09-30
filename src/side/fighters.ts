@@ -216,7 +216,8 @@ export function drawHead(c: CanvasRenderingContext2D, p: Pt, facing: 1 | -1, w: 
     c.translate(p[0], p[1] - h * 0.06);
     c.scale(facing * h / 9, h / 9);
     c.rotate(rot * facing);
-    paintHead(c, look, tint);
+    const r = rot * facing, fx = 0.62 * facing, fy = -0.78;
+    paintHead(c, look, tint, fx * Math.cos(r) + fy * Math.sin(r), -fx * Math.sin(r) + fy * Math.cos(r));
     c.restore();
     return;
   }

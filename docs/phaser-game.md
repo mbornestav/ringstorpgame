@@ -31,7 +31,19 @@ index.html ─ src/play/main.ts        fonts + brand logos load first, then Phas
 
 `SideRenderer` takes a scale and draws the whole world onto one `480·S × 270·S` canvas, which `CanvasWorldView` shows as a Phaser texture (S is 3 by default; `?scale=2|3|4`). Things that could not be swapped mechanically have smooth versions: the ground (`ground-smooth.ts`), sky, clouds and distant layer, hedges, chain-link, tree canopies, window glints, fighters (`fighter-smooth.ts`, same skeleton as the pixel puppets so reach and hitboxes match), and the night sky. Street chunks are baked with a 2 px overlap so filtering never shows a seam, and `Backdrop.evict` frees chunks behind the camera (a smooth chunk is about 2.5 MB).
 
+Light comes from the afternoon sun at the upper right of the screen, and the smooth art modules keep to it:
+
+- **Fighters** (`fighter-smooth.ts`): limbs are shaded tubes (core shadow, lit face towards the sun, a faint sky bounce), the torso has a light-aware cloth gradient, folds, belt and collar occlusion, a sunlit edge and the front arm's shadow across it; heads, hands and shoes are shaded the same way. The light is fixed in world space, so a fighter facing left is lit on the back.
+- **Vehicles** (`vehicle-smooth.ts`): the cars and trucks as illustrated bodywork (sky-and-road paint reflection, glass streaks, chrome, alloy rims, a soft shadow). The static body is baked once per model, colour and direction onto two offscreen layers (under and over the heads in the windows); wheels, lamps, beacons and POLIS are drawn live.
+- **Buildings** (`facade-light.ts`): each facade is baked through a scratch canvas and lit with `source-atop`, so only its own pixels change: sun across the elevation, a lighter roof crown, eave shadow, occlusion at the plinth, grain, a sunlit rim along the silhouette and a contact shadow on the ground. `windowAt` adds reveal shading and a sill shadow; street furniture has smooth versions in `backdrop.ts`.
+- **Markers** (`package-art.ts`): the parcel, the pick-up badge, alerts over heads, Marcus A's eyes, the home star, junction signs and the step-up chevron.
+- **Grade**: `SideRenderer.drawAtmosphere` blits one baked overlay (warm haze and sun, cool air low on the left, vignette) instead of filling gradients each frame.
+
 `?look=pixel` shows the original art through the same pipeline, which is handy for comparing.
+
+## Carl-Otto's ride
+
+`src/play/family/art.ts` draws the bike ride as a storybook illustration lit from the sun on the upper right. Everything static (sky, clouds, the three parallax hill strips, the gravel path, the foreground grass, the apple trees and their dappled shade, the house, the preschool, the apple and the light/vignette overlay) is baked once at 1.5× into sprites and tileable strips; a frame blits those and draws only the cyclist (two-bone IK legs on the pedals) and the apples live, about 0.3 ms of JS. The hub's two preview cards are drawn by the same module.
 
 ## Brand artwork
 

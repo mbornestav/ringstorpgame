@@ -11,7 +11,7 @@ export class BikeScene extends FamilySurface {
   private texture!: Phaser.Textures.CanvasTexture;
   private held = new Set<string>();
   private touches = new Map<number, string>();
-  private heartText!: Phaser.GameObjects.Text;
+  private heartGraphic!: Phaser.GameObjects.Graphics;
   private distanceText!: Phaser.GameObjects.Text;
   private progressBar!: Phaser.GameObjects.Graphics;
   private status!: HTMLElement;
@@ -64,12 +64,12 @@ export class BikeScene extends FamilySurface {
   protected build(): void {
     document.title = `${t('bikeTitle')} · ${t('carl')}`; document.documentElement.lang = getLang();
     this.mirror('h1', `${t('carl')} · ${t('bikeTitle')}`);
-    this.rect(28, 24, 1384, 99, 0xfff8e5, 22, 0.96);
+    this.panel(28, 24, 1384, 99, 0xfff8e5, 22, 0.96);
     this.label(t('carl'), 55, 39, 20, '#67715d', undefined, true);
     this.label(t('bikeTitle'), 54, 67, 31, '#25473f', undefined, true);
-    this.heartText = this.label('', 402, 47, 30, '#b24838', undefined, true);
+    this.heartGraphic = this.add.graphics(); this.layer.add(this.heartGraphic);
     this.label(t('home'), 590, 40, 17, '#67715d'); this.label(t('preschool'), 869, 40, 17, '#67715d');
-    this.rect(590, 75, 383, 12, 0xe1ddc3, 6);
+    this.rect(590, 75, 383, 13, 0xd9d4b8, 6.5); this.rect(591, 77, 381, 10, 0xe9e5cf, 5);
     this.progressBar = this.add.graphics(); this.layer.add(this.progressBar);
     this.distanceText = this.label('', 590, 93, 16, '#52644c');
     this.button('bike-menu', t('back'), 1170, 45, 217, () => this.scene.start('Hub'), true);
@@ -77,7 +77,7 @@ export class BikeScene extends FamilySurface {
     this.status = this.mirror('p', '', 'bike-status'); this.status.setAttribute('role', 'status'); this.status.setAttribute('aria-live', 'polite');
     this.statusKey = '';
     if (this.run.mode === 'riding') {
-      this.rect(28, 739, 690, 47, 0xfff8e5, 16, 0.92);
+      this.panel(28, 739, 690, 47, 0xfff8e5, 16, 0.92);
       this.label(`${t('steer')}  ↑ ↓ ← → / WASD     ${t('pauseHint')}`, 49, 750, 20, '#3e5948', undefined, true);
       this.pad();
     } else this.overlay();
@@ -92,7 +92,7 @@ export class BikeScene extends FamilySurface {
     const body = ready ? t('bikeInstructions') : paused ? t('pausedBody') : won ? t('wonBody') : t('lostBody');
     // The arrival card stays above the low red preschool, leaving the destination visible.
     const y = won ? 145 : 187;
-    this.rect(330, y, 780, ready ? 365 : won ? 245 : 285, 0xfff7df, 28, 0.98);
+    this.panel(330, y, 780, ready ? 365 : won ? 245 : 285, 0xfff7df, 28, 0.98);
     this.label(ready ? `${t('first')} · ${t('carl')}` : t('carl'), 373, y + (won ? 16 : 29), 20, '#8f653b', undefined, true);
     this.label(title, 372, y + (won ? 49 : 63), won ? 45 : 51, '#294d3e', 690, true);
     this.label(body, 374, y + (won ? 108 : 132), won ? 21 : 23, '#58674f', 684);
@@ -112,7 +112,7 @@ export class BikeScene extends FamilySurface {
       ['arrowup', '↑', t('up'), 1157, 631], ['arrowdown', '↓', t('down'), 1157, 718],
     ] as const;
     for (const [key, glyph, label, x, y] of keys) {
-      this.rect(x, y, 77, 69, 0xfff8e5, 18, 0.93);
+      this.panel(x, y, 77, 69, 0xfff8e5, 18, 0.93);
       this.label(glyph, x + 21, y + 8, 37, '#315846', undefined, true);
       const zone = this.add.zone(x, y, 77, 69).setOrigin(0).setInteractive(); this.layer.add(zone);
       zone.on('pointerdown', (p: Phaser.Input.Pointer) => this.touches.set(p.id, key));
@@ -128,9 +128,14 @@ export class BikeScene extends FamilySurface {
   }
 
   private updateHud(): void {
-    this.heartText.setText('♥ '.repeat(this.run.hearts) + '♡ '.repeat(3 - this.run.hearts));
+    if (this.heartGraphic.getData('hearts') !== this.run.hearts) {
+      this.heartGraphic.setData('hearts', this.run.hearts); this.hearts(this.heartGraphic, 395, 50, this.run.hearts, 3);
+    }
     this.distanceText.setText(`${this.run.metresLeft} ${t('left')}`);
-    this.progressBar.clear().fillStyle(0x749052).fillRoundedRect(590, 75, Math.max(12, 383 * this.run.progress), 12, 6);
+    const w = Math.max(12, 383 * this.run.progress);
+    this.progressBar.clear().fillStyle(0x5f7c40).fillRoundedRect(590, 76, w, 12, 6).fillStyle(0x86a85a).fillRoundedRect(590, 75, w, 8, 4)
+      .fillStyle(0xffffff, 0.35).fillRoundedRect(594, 76, Math.max(4, w - 8), 3, 1.5)
+      .fillStyle(0x2d6fa0).fillCircle(590 + w, 81, 9).fillStyle(0x4fb0e6).fillCircle(590 + w, 80, 7);
     const statusKey = `${this.run.mode}|${this.run.hearts}|${Math.ceil(this.run.metresLeft / 25)}`;
     if (statusKey !== this.statusKey) {
       this.statusKey = statusKey;

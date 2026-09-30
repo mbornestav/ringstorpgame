@@ -49,7 +49,7 @@ export class HubScene extends FamilySurface {
         this.section = 'carl'; this.rebuild(); this.root.querySelector<HTMLButtonElement>('[data-family="start-bike"]')?.focus();
       });
     } else {
-      this.rect(84, 254, 1272, 417, 0xe8e7d5, 24);
+      this.panel(84, 254, 1272, 417, 0xe9e9da, 24);
       const image = this.add.image(84, 278, 'family-bike-preview').setOrigin(0).setDisplaySize(650, 254);
       this.layer.add(image);
       this.label(t('bikeHint'), 115, 560, 23, '#547054', 580);
@@ -64,7 +64,7 @@ export class HubScene extends FamilySurface {
   }
 
   private card(x: number, texture: string, tag: string, title: string, description: string, action: string, id: string, onPress: () => void): void {
-    this.rect(x, 252, 616, 483, 0xe4e5d4, 24);
+    this.panel(x, 252, 616, 483, 0xe9e9da, 24);
     this.layer.add(this.add.image(x, 268, texture).setOrigin(0).setDisplaySize(616, 241));
     this.label(tag, x + 28, 525, 18, '#6d775d', undefined, true);
     this.label(title, x + 28, 552, 43, '#25473f', undefined, true);

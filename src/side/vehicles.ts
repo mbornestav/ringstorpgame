@@ -1,7 +1,8 @@
 import type { Car } from './game';
-import { disc, ellipse, poly, rect, seg, text, textWidth } from './pixel';
+import { disc, ellipse, isSmooth, poly, rect, seg, text, textWidth } from './pixel';
 import { t as tr } from './i18n';
 import { drawExtraCar } from './vehicle-art';
+import { drawSmoothCar } from './vehicle-smooth';
 import ddSmall from './dd-portrait-small.png';
 
 // Cars in side view: D.D's blue BMW saloon and the Swedish police's Volvo estate. Parts are laid
@@ -24,6 +25,10 @@ export function drawCar(c: CanvasRenderingContext2D, car: Car, sx: number, elaps
   const police = car.kind === 'police';
   const pal = police ? VOLVO : BMW;
   const half = police ? 53 : 50;
+  if (isSmooth()) {
+    drawSmoothCar(c, car, sx, elapsed, { half, pal, cabin: police ? 'volvo' : 'bmw', people: [] });
+    return;
+  }
 
   ellipse(c, cx, gy, half + 2, 3.5, 'rgba(18, 24, 30, 0.42)');
   for (const wx of [-31, 31]) disc(c, cx + wx * dir, gy - 7, 9.5, '#0f1216');

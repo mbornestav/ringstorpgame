@@ -1,6 +1,7 @@
 import type { Car } from './game';
 import { drawHead, LOOKS, type Look } from './fighters';
 import { disc, ellipse, isSmooth, mix, poly, rect, seg, shade, vgrad } from './pixel';
+import { drawSmoothCar, drawSmoothTruck } from './vehicle-smooth';
 
 // The Level 3 vehicles in side view: D.D's Ford Taunus with two heads in the windows, ordinary
 // traffic, and curtain-sided trucks whose kapell (tarpaulin) can be cut open. Cars head right, with y
@@ -25,10 +26,10 @@ const TARPS: Array<{ tarp: string; dark: string; light: string }> = [
 
 /** Extra cars for the heist: the Taunus, other traffic, and trucks. Returns false for the older kinds. */
 export function drawExtraCar(c: CanvasRenderingContext2D, car: Car, sx: number, elapsed: number): boolean {
-  if (car.kind === 'taunus') { drawSaloon(c, car, sx, { half: 52, pal: TAUNUS_PAINT, cabin: 'taunus', people: car.crew === 1 ? [LOOKS.dd] : [LOOKS.dd, LOOKS.goran] }); return true; }
+  if (car.kind === 'taunus') { drawSaloon(c, car, sx, { half: 52, pal: TAUNUS_PAINT, cabin: 'taunus', people: car.crew === 1 ? [LOOKS.dd] : [LOOKS.dd, LOOKS.goran] }, elapsed); return true; }
   if (car.kind === 'civil') {
     const style = car.id % 3 === 0 ? 'van' : car.id % 3 === 1 ? 'hatch' : 'sedan';
-    drawSaloon(c, car, sx, { half: style === 'van' ? 56 : style === 'hatch' ? 44 : 49, pal: TONES[(car.tone ?? car.id) % TONES.length], cabin: style, people: [] });
+    drawSaloon(c, car, sx, { half: style === 'van' ? 56 : style === 'hatch' ? 44 : 49, pal: TONES[(car.tone ?? car.id) % TONES.length], cabin: style, people: [] }, elapsed);
     return true;
   }
   if (car.kind === 'truck') {
@@ -41,7 +42,8 @@ export function drawExtraCar(c: CanvasRenderingContext2D, car: Car, sx: number, 
 
 interface Saloon { half: number; pal: Paint; cabin: 'taunus' | 'sedan' | 'hatch' | 'van'; people: Look[] }
 
-function drawSaloon(c: CanvasRenderingContext2D, car: Car, sx: number, cfg: Saloon): void {
+function drawSaloon(c: CanvasRenderingContext2D, car: Car, sx: number, cfg: Saloon, elapsed = 0): void {
+  if (isSmooth()) { drawSmoothCar(c, car, sx, elapsed, cfg); return; }
   const dir = car.dir, gy = Math.round(car.y), cx = Math.round(sx), { half, pal } = cfg;
   const P = (x: number, y: number): [number, number] => [cx + x * dir, gy + y];
   const shape = (points: Local, colour: string) => poly(c, points.map(([x, y]) => P(x, y)), colour);
@@ -129,6 +131,7 @@ export interface TruckDrawing {
 
 /** A curtain-sided trailer behind a dark tractor unit, 200 px long. */
 export function drawTruck(c: CanvasRenderingContext2D, o: TruckDrawing): void {
+  if (isSmooth()) { drawSmoothTruck(c, { ...o, tarpTone: TARPS[o.tone], toneKey: o.tone }); return; }
   const dir = o.facing, gy = Math.round(o.y), cx = Math.round(o.x), tone = TARPS[o.tone];
   const P = (x: number, y: number): [number, number] => [cx + x * dir, gy + y];
   const box = (x: number, y: number, w: number, h: number, colour: string) => rect(c, dir > 0 ? cx + x : cx - x - w, gy + y, w, h, colour);

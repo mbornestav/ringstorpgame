@@ -10,6 +10,7 @@ import { drawProp, drawRoom } from './interior';
 import { ARCHETYPE } from './gods-cast';
 import { actorTint, bakeNightSky, drawBeams, drawLights, nightAtmosphere, nightTint } from './night';
 import { drawTruck } from './vehicle-art';
+import { paintAlert, paintCrossBadge, paintEyes, paintHint, paintPanel, paintParcel, paintPost, paintQuestionBadge, paintStar } from './package-art';
 import { TRUCK_Y } from './yard';
 
 import { SIGHT_RANGE, type Patrol } from './gods-run';
@@ -146,6 +147,16 @@ export class SideRenderer {
       const label = t(junction.id === 'romares' ? 'cv.marcus' : 'cv.kurir');
       const street = junction.id === 'romares' ? 'ROMARES VÄG' : 'KURIRGATAN';
       const w = Math.max(textWidth(label), textWidth(street)) + 17;
+      if (isSmooth()) {
+        paintPost(c, x + 0.5, 122, 169, 2.6);
+        paintPanel(c, x - w / 2, 122, w, 21, '#3f6a50', '#cfe0c4', 1.8);
+        text(c, street, x - w / 2 + 4, 126, '#e1ead9');
+        text(c, label, x - w / 2 + 4, 135, '#fbe3a4');
+        paintPanel(c, x - 25, 146, 50, 11, '#efe8d3', '#9aa39a', 1.4);
+        text(c, t('cv.home'), x - 17, 149, '#334b45');
+        if (game.junctionAhead?.id === junction.id) this.hint(x, bob);
+        continue;
+      }
       rect(c, x - 1, 122, 3, 47, '#616e6b');
       rect(c, x, 122, 1, 47, '#c2c5b6');
       rect(c, x - w / 2, 122, w, 21, '#183f3b');
@@ -160,19 +171,25 @@ export class SideRenderer {
       // Beside the entrance: keep the ICA and Kurir Livs signs readable.
       const door = Math.round(stage.shopX - cam), x = door + 63, y = BAND_TOP - 25 + bob;
       if (x > -20 && x < WIDTH + 20) {
+        if (isSmooth()) paintCrossBadge(c, x + 0.5, y + 0.5, game.shopHealed);
+        else {
         rect(c, x - 7, y - 7, 15, 15, '#163f36');
         const col = game.shopHealed ? '#72897a' : '#a5e0a3';
         rect(c, x - 4, y - 1, 9, 3, col); rect(c, x - 1, y - 4, 3, 9, col);
+        }
         if (!game.shopHealed && game.hasPackage) this.hint(door, bob);
       }
     }
     if (!game.hasPackage) {
       const x = stage.package.x - cam, y = stage.package.y - 26 + bob;
+      if (isSmooth()) paintQuestionBadge(c, x, y - 7, this.elapsed);
+      else {
       c.font = 'bold 20px Impact, "Arial Black", sans-serif';
       c.textAlign = 'center';
       c.fillStyle = '#10181f'; c.fillText('?', x + 1, y + 1);
       c.fillStyle = '#ef4e45'; c.fillText('?', x, y);
       c.textAlign = 'left';
+      }
     }
     const marcus = this.landmark(stage, 'marcus');
     if (marcus) {
@@ -181,7 +198,8 @@ export class SideRenderer {
       const ex = Math.round((b.x0 + b.x1) / 2 - cam), ey = Math.max(62, b.top - 12) + (game.healed ? 0 : bob);
       const p = game.player;
       const dx = p.x - cam - ex, dy = p.y - 28 - ey, len = Math.hypot(dx, dy) || 1;
-      for (const off of [-5, 5]) {
+      if (isSmooth()) paintEyes(c, ex + 0.5, ey + 0.5, dx / len, dy / len, game.healed);
+      else for (const off of [-5, 5]) {
         disc(c, ex + off, ey, 6, '#10181f');
         disc(c, ex + off, ey, 5, game.healed ? '#d8d4ca' : '#f6f4ee');
         const px = ex + off + Math.round(dx / len * 2.2), py = ey + Math.round(dy / len * 2.2);
@@ -194,6 +212,8 @@ export class SideRenderer {
     if (home) {
       const b = facadeBox(home);
       const x = Math.round(stage.homeX - cam) + 0.5, y = b.top - 16 + bob;
+      if (isSmooth()) paintStar(c, x, y - 0.5, this.elapsed);
+      else {
       const star = [0, -8, 2.4, -2.6, 8, -2.6, 3.6, 1.2, 5, 7, 0, 3.6, -5, 7, -3.6, 1.2, -8, -2.6, -2.4, -2.6];
       c.beginPath();
       for (let i = 0; i < star.length; i += 2) c.lineTo(x + star[i], y + star[i + 1]);
@@ -201,6 +221,7 @@ export class SideRenderer {
       c.fillStyle = '#f5c33b'; c.fill();
       c.strokeStyle = '#10181f'; c.lineWidth = 1.5; c.stroke();
       rect(c, x - 2, y - 3, 2, 2, '#fff3b0');
+      }
       if (game.homeCrewDown) this.hint(stage.homeX - cam, bob);
     }
   }
@@ -208,6 +229,7 @@ export class SideRenderer {
   /** A bouncing arrow on the pavement: step up here. */
   private hint(x: number, bob: number): void {
     const c = this.c, X = Math.round(x), Y = BAND_TOP - 12 - Math.abs(bob) * 2;
+    if (isSmooth()) { paintHint(c, X + 0.5, Y); return; }
     c.fillStyle = '#10181f';
     c.beginPath(); c.moveTo(X - 7, Y + 7); c.lineTo(X, Y - 1); c.lineTo(X + 7, Y + 7); c.closePath(); c.fill();
     c.fillStyle = '#f3cc75';
@@ -241,7 +263,8 @@ export class SideRenderer {
       actors.push({ y: dd.y, x: dd.x, draw: () => {
         drawFighter(c, dd.x - cam, dd.y, 0, dd.state === 'leaving' || dd.x > p.x ? -1 : 1, LOOKS.dd, dd.state === 'ready' ? POSES.loiter(this.elapsed) : POSES.walk(dd.walk));
         const label = 'D.D', x = Math.round(dd.x - cam) - 9;
-        rect(c, x - 3, dd.y - 60, 25, 11, '#152b2b');
+        if (isSmooth()) paintPanel(c, x - 3, dd.y - 60, 25, 11, '#1d3a38', '#6f8f72', 2.5);
+        else rect(c, x - 3, dd.y - 60, 25, 11, '#152b2b');
         text(c, label, x, dd.y - 57, '#d1df9a');
       } });
     }
@@ -348,7 +371,8 @@ export class SideRenderer {
     const x = e.x - cam;
     drawFighter(c, x, e.y, e.z, e.facing, look, pose, { tint: e.flash > 0 ? FLASH : undefined });
     const top = e.y - e.z - look.height - 8;
-    if (e.state === 'windup') {
+    if (e.state === 'windup' && isSmooth()) paintAlert(c, x - 0.5, top - 1, '!', '#fff1b8');
+    else if (e.state === 'windup') {
       c.font = 'bold 12px monospace';
       c.fillStyle = '#10181f'; c.fillText('!', x - 2, top + 1);
       c.fillStyle = '#fff1b8'; c.fillText('!', x - 3, top);
@@ -373,7 +397,8 @@ export class SideRenderer {
     }
     const x = o.x - cam;
     drawFighter(c, x, o.y, o.z, o.facing, LOOKS.police, pose, { tint: o.flash > 0 ? FLASH : undefined });
-    if (o.state === 'grab') {
+    if (o.state === 'grab' && isSmooth()) paintAlert(c, x - 0.5, o.y - o.z - LOOKS.police.height - 9, '!', '#9cc4ff');
+    else if (o.state === 'grab') {
       const top = o.y - o.z - LOOKS.police.height - 8;
       c.font = 'bold 12px monospace';
       c.fillStyle = '#10181f'; c.fillText('!', x - 2, top + 1);
@@ -403,8 +428,11 @@ export class SideRenderer {
     if (o.state === 'alert' || o.state === 'search' || o.state === 'grab' || o.state === 'chase') {
       c.font = 'bold 12px monospace';
       const mark = o.state === 'alert' || o.state === 'search' ? '?' : '!';
+      if (isSmooth()) paintAlert(c, x - 0.5, top - 1, mark, mark === '?' ? '#fff1b8' : '#ff7a6e');
+      else {
       c.fillStyle = '#10181f'; c.fillText(mark, x - 2, top + 1);
       c.fillStyle = mark === '?' ? '#fff1b8' : '#ef4e45'; c.fillText(mark, x - 3, top);
+      }
     }
     if (o.suspicion > 0.02 && watching) {
       rect(c, x - 10, top - 10, 21, 3, '#273942');
@@ -427,7 +455,8 @@ export class SideRenderer {
     if (b.state === 'hide' && !b.moving) c.globalAlpha = 0.55;
     drawFighter(c, x, b.y, 0, b.facing, LOOKS.goran, pose, { parcel: b.carry > 0 });
     c.globalAlpha = 1;
-    if (b.whistle > 5) {
+    if (b.whistle > 5 && isSmooth()) paintAlert(c, x - 0.5, b.y - 62, '!', '#ffd166');
+    else if (b.whistle > 5) {
       c.font = 'bold 12px monospace';
       c.fillStyle = '#10181f'; c.fillText('!', x - 2, b.y - 52);
       c.fillStyle = '#ffd166'; c.fillText('!', x - 3, b.y - 53);
@@ -449,7 +478,7 @@ export class SideRenderer {
           drawFighter(c, n.x, n.y, 0, n.facing, look, POSES.loiter(this.elapsed + i * 1.7));
           const prop = ARCHETYPE.get(n.id)?.prop;
           if (prop) drawProp(c, prop, n.x, n.y, n.facing, this.elapsed);
-          if (n.id === 'dd') { rect(c, n.x - 12, n.y - 60, 25, 11, '#152b2b'); text(c, 'D.D', n.x - 9, n.y - 57, '#d1df9a'); }
+          if (n.id === 'dd') { if (isSmooth()) paintPanel(c, n.x - 12, n.y - 60, 25, 11, '#1d3a38', '#6f8f72', 2.5); else rect(c, n.x - 12, n.y - 60, 25, 11, '#152b2b'); text(c, 'D.D', n.x - 9, n.y - 57, '#d1df9a'); }
         } });
       });
     }
@@ -466,6 +495,7 @@ export class SideRenderer {
 
   private drawPackage(x: number, y: number): void {
     const c = this.c, X = Math.round(x), Y = Math.round(y);
+    if (isSmooth()) { paintParcel(c, X + 0.5, Y, 16, 12, 1); return; }
     rect(c, X - 8, Y - 12, 16, 12, '#3a2a22');
     rect(c, X - 7, Y - 7, 14, 6, '#b97c3e');
     rect(c, X - 7, Y - 11, 14, 5, '#dfad59');
@@ -529,8 +559,35 @@ export class SideRenderer {
 
   // ---------------------------------------------------------------- overlays
 
+  private grade: HTMLCanvasElement | null = null;
+
+  /**
+   * Smooth mode: the afternoon grade, baked once. Warm haze and sunlight from the upper right, cooler air low on the left
+   * where the shadows fall, and a soft vignette, all in one overlay so it costs a single blit a frame.
+   */
+  private bakeGrade(): HTMLCanvasElement {
+    const canvas = document.createElement('canvas');
+    canvas.width = WIDTH * this.S; canvas.height = HEIGHT * this.S;
+    const c = canvas.getContext('2d')!;
+    beginArt(c, this.S);
+    const haze = c.createLinearGradient(0, 0, 0, HEIGHT);
+    haze.addColorStop(0, 'rgba(255, 214, 160, 0.13)'); haze.addColorStop(0.5, 'rgba(255, 214, 160, 0.02)'); haze.addColorStop(1, 'rgba(24, 40, 70, 0.1)');
+    c.fillStyle = haze; c.fillRect(0, 0, WIDTH, HEIGHT);
+    const sun = c.createRadialGradient(430, 40, 0, 430, 40, 380);
+    sun.addColorStop(0, 'rgba(255, 228, 176, 0.16)'); sun.addColorStop(0.5, 'rgba(255, 228, 176, 0.05)'); sun.addColorStop(1, 'rgba(255, 228, 176, 0)');
+    c.fillStyle = sun; c.fillRect(0, 0, WIDTH, HEIGHT);
+    const cool = c.createLinearGradient(0, HEIGHT, WIDTH * 0.6, HEIGHT * 0.35);
+    cool.addColorStop(0, 'rgba(34, 52, 96, 0.12)'); cool.addColorStop(1, 'rgba(34, 52, 96, 0)');
+    c.fillStyle = cool; c.fillRect(0, 0, WIDTH, HEIGHT);
+    const vignette = c.createRadialGradient(WIDTH / 2, HEIGHT / 2, 120, WIDTH / 2, HEIGHT / 2, 330);
+    vignette.addColorStop(0, 'rgba(7, 20, 32, 0)'); vignette.addColorStop(1, 'rgba(7, 20, 32, 0.34)');
+    c.fillStyle = vignette; c.fillRect(0, 0, WIDTH, HEIGHT);
+    return canvas;
+  }
+
   private drawAtmosphere(): void {
     const c = this.c;
+    if (isSmooth()) { this.blit(this.grade ??= this.bakeGrade(), 0, 0); return; }
     const haze = c.createLinearGradient(0, 0, 0, HEIGHT);
     haze.addColorStop(0, 'rgba(255, 214, 160, 0.14)');
     haze.addColorStop(0.5, 'rgba(255, 214, 160, 0.02)');
