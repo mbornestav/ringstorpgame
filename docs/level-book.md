@@ -44,6 +44,9 @@ export default level;
 | `menu`, `order` | `menu: true` lists the level on the title screen; lower `order` comes first. |
 | `night` | Dark sky; lamps and floodlights light up the street. |
 | `intro` | The first message on screen. |
+| `completion` | Optional level-specific victory text. |
+| `credit` | Optional footer credit for scenery that does not use the Ringstorp map data. |
+| `busHome` | `'liljedal'` adds a yellow bus interaction after the final fight and an animated arrival at the Liljedal cabin. See [Karlstadrundan](karlstad.md). |
 | `objectives.parcel`, `.home` | The objective line before the parcel, and on the way home (both required). |
 | `objectives.crew`, `.shop` | Optional lines during a fight and while a shop is ahead. Without `shop`, the shop stop still works but isn't announced. |
 
@@ -57,7 +60,10 @@ export default level;
 | `start` | `{ x, lane? }`: where the courier starts, at least one screen before the end. |
 | `parcel` | `{ x, lane? }`: the parcel, ahead of the start. |
 | `home` | The x of home's door. The terrace (with 55B) is built around it and spans about 260 px on each side. Keep row-0 buildings out of that span. Leave at least 120 px of street after home. |
-| `homeCrew` | Who waits at home, e.g. `['runner', 'bruiser']`. Beating them ends the run. |
+| `homeCrew` | Who waits at the destination, e.g. `['runner', 'bruiser']`. Beat them, then approach the door (or board the bus with E when `busHome` is set). |
+| `finish` | Optional building definition, with the same fields as an entry in `buildings`. Replaces the default terrace and must contain `home`. Keep row-0 buildings out of its span. |
+| `restStops` | Optional `[{ x, name }]` cafés: E on the far pavement refills health once and saves a checkpoint. Names need both languages. Place stops between the parcel and the final fight; add café buildings separately. |
+| `waters` | Optional stretches of `river` or `harbour` water behind the buildings. |
 | `crews` | Fights on the way: `{ x, members: [{ kind, dx?, lane? }], backup? }`. Each crew holds the screen until it's beaten. They only come for you once you have the parcel, so place them past it, and at least half a screen before home. `backup` defaults to one runner per bruiser, plus one for a group. |
 | `names` | Street names from left to right, covering the whole street. The top bar shows the one you're on. |
 | `surfaces` | `road` (default), `major`, `path`, `paved` or `yard`. Must cover the whole street if given. |
@@ -93,6 +99,11 @@ All kinds are in `src/side/levels/catalogue.ts`, each drawn with art the game al
 | `warehouse` | Industrial warehouse. |
 | `containers` | Stacked shipping containers. |
 | `yard-gate` | The gate of a truck yard. |
+| `karlstad-townhall`, `karlstad-cathedral` | Yellow town hall with clock and peace monument; pale cathedral and spire. |
+| `karlstad-bridge`, `karlstad-sandgrund` | Twelve-arch stone bridge; white gallery with orange lettering. |
+| `karlstad-cityhouse`, `karlstad-coffee` | Pastel city frontage; brick coffee warehouse. |
+| `karlstad-cafe`, `karlstad-park` | Café with awning; red timber park pavilion. |
+| `karlstad-busstop` | Shelter and yellow bus, used as Karlstad's `finish` building. |
 
 ### Enemies
 

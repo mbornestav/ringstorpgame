@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { canvas, click, open, press, settledBounds, ui, watchErrors, world } from './helpers/play';
+import { canvas, open, press, settledBounds, ui, watchErrors, world } from './helpers/play';
 
 const checks = new WeakMap<Page, () => void>();
 test.beforeEach(({ page }) => checks.set(page, watchErrors(page)));
@@ -51,6 +51,7 @@ test('keyboard fika, defeat recovery, yellow bus ride, Liljedal and replay', asy
   await page.keyboard.press('e');
   expect(await world(page, g => g.busRide)).toBe(0);
   await page.evaluate(() => window.__ringstorp.step(0.05, 40));
+  await page.waitForTimeout(400);
   await canvas(page).screenshot({ path: 'test-results/karlstad/yellow-bus-ride.png' });
   await page.keyboard.press('Escape');
   await page.evaluate(() => window.__ringstorp.step(0.05, 20));

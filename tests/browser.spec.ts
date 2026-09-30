@@ -341,7 +341,7 @@ test('every title-screen and top-bar button answers across its whole face, not i
     const all = (o: { list?: unknown[] }): Phaser.GameObjects.GameObject[] => [o as Phaser.GameObjects.GameObject, ...((o.list ?? []) as { list?: unknown[] }[]).flatMap(all)];
     const interactive = scene.children.list.flatMap((o: Phaser.GameObjects.GameObject) => all(o as { list?: unknown[] })).filter(o => o.input);
     const out: string[] = [];
-    for (const id of ['start', 'start-2', 'start-3', 'lang', 'sound', 'chooser']) {
+    for (const id of ['start', 'start-2', 'start-3', 'level-karlstad', 'lang', 'sound', 'chooser']) {
       const b = r.bounds(id)!;
       for (const fy of [0.08, 0.5, 0.92]) for (const fx of [0.05, 0.5, 0.95]) {
         const p = game.input.activePointer;

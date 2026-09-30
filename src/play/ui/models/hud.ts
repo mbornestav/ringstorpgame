@@ -129,7 +129,7 @@ function heistSteps(game: SideGame): HudStep[] {
 
 function streetLine({ game }: UiContext): string {
   if (game.mode === 'title') return 'PÅLSJÖ KIOSK → RINGSTORPSVÄGEN 55B';
-  if (game.busRide !== null) return t(game.busRide < 7 ? 'level.busRide' : 'level.arrived').toUpperCase();
+  if (game.busRide !== null) return t(game.busRide < 7 ? 'level.journeyLabel' : 'level.arrived').toUpperCase();
   const toHome = t(game.custom?.busHome ? 'level.toBus' : 'hud.toHome', { m: Math.round(game.metresToHome) });
   if (game.level === 3) return `${(game.street ?? 'Kurirgatan').toUpperCase()}${game.heist.driving ? ` · ${toHome}` : ''}`;
   if (game.level === 2) {

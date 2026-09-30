@@ -99,8 +99,8 @@ export class SideRenderer {
       this.place(); this.lighting = 'day'; this.view = 0;
       drawLiljedalJourney(this.c, game.busRide);
       if (game.busRide >= 7) {
-        drawFighter(this.c, 246, 204, 0, 1, LOOKS.player, POSES.loiter(this.elapsed));
-        this.drawPackage(262, 204);
+        drawFighter(this.c, 246, 218, 0, 1, LOOKS.player, POSES.loiter(this.elapsed));
+        this.drawPackage(262, 218);
       }
       return;
     }

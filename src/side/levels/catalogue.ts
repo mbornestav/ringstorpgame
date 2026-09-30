@@ -28,7 +28,7 @@ export const BUILDINGS = {
   'karlstad-cityhouse': { style: 'block', landmark: 'cityhouse', look: look('#d6b58b', '#5a6160', 'plaster', 'hipped', 3), dist: 6, about: 'Pastel city facade with cornices, tall windows and shopfronts.' },
   'karlstad-coffee': { style: 'block', landmark: 'coffee', look: look('#8d4b3f', '#6c6262', 'brick', 'flat', 4), dist: 12, about: 'Brick coffee warehouse with a purple roasting-house sign.' },
   'karlstad-cafe': { style: 'block', landmark: 'cafe', look: look('#e9d4a6', '#5b6760', 'plaster', 'gabled', 1), dist: 4, about: 'Small cafe with a striped awning and outdoor seating.' },
-  'karlstad-park': { style: 'block', landmark: 'park', look: look('#a54336', '#5c5949', 'wood', 'gabled', 1), dist: 6, about: 'Red timber park pavilion and Mariebergsskogen entrance.' },
+  'karlstad-park': { style: 'block', landmark: 'park', look: look('#a54336', '#5c5949', 'wood', 'gabled', 1), dist: 6, about: 'Red timber pavilion for the Stadsträdgården park section.' },
   // Plain buildings.
   'house': { style: 'house', look: look('#e0d8c7', '#a25f43', 'plaster', 'gabled', 2), dist: 8, about: 'Rendered two-storey house with a tiled gable roof.' },
   'red-cottage': { style: 'house', look: look('#a3372f', '#3e3a38', 'wood', 'gabled', 1), dist: 8, about: 'Falu-red wooden cottage.' },

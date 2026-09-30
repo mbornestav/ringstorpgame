@@ -132,6 +132,7 @@ export class Button extends Phaser.GameObjects.Container {
     g.clear();
     this.face.y = this.down ? 2 : this.hover && !this.disabled ? -2 : 0;
     this.title.setColor(this.textColor());
+    this.sub.setColor(kind === 'primary' ? CSS.ink : CSS.dim);
     this.setAlpha(this.disabled ? 0.55 : 1);
     if (kind === 'primary') {
       box(g, 0, 0, w, h, { fill: this.hover ? 0xffd88f : COLOR.gold, fillAlpha: 1, border: 0xb98d3f, borderWidth: 2, radius: RADIUS.button, shadow: this.down ? 4 : 12 });

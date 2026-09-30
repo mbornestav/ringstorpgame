@@ -232,8 +232,7 @@ export class PanelHost extends Phaser.GameObjects.Container {
 
   private layoutArrival(card: Phaser.GameObjects.Container, m: PanelModel): void {
     const x = 100, w = 1240, top = 72, copyWidth = 900;
-    let y = this.eyebrow(card, m, x, top, copyWidth);
-    y = this.titleWithAccent(card, m, x, y - 12, 48);
+    let y = this.titleWithAccent(card, m, x, top, 48);
     y += this.text(card, 'body', m.body, x, y, { fontSize: fontPx(22), wordWrap: { width: copyWidth, useAdvancedWrap: true } }).height + 12;
     const stats = m.stats.map(s => `${s.label}  ${s.value}`).join('     ·     ');
     y += this.text(card, 'label', stats, x, y, { fontSize: fontPx(18) }, CSS.gold).height;

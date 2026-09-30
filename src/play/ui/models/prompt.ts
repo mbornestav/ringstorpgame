@@ -40,11 +40,11 @@ function choice(game: SideGame): Draft | null {
   const rest = game.custom?.street.restStops?.find(s => Math.abs(game.player.x - s.x) < 150);
   if (rest && action?.kind !== 'ammo' && action?.kind !== 'hail') {
     return draft(t('level.fika'), levelText(rest.name), t(game.rested.has(rest.x) ? 'level.restUsed' : 'level.restHint'),
-      t(game.active ? 'choice.clearCrew' : 'level.rest'), t('level.rest'), action?.kind === 'rest');
+      t(game.active ? 'choice.clearCrew' : 'level.fikaShort'), t('level.rest'), action?.kind === 'rest');
   }
   if (game.custom?.busHome && Math.abs(game.player.x - game.stage.homeX) < 200 && action?.kind !== 'ammo' && action?.kind !== 'hail') {
     return draft('KARLSTAD → LILJEDAL', t('level.board'), t('level.busHint'),
-      t(game.homeCrewDown ? 'level.board' : 'choice.clearCrew'), t('level.board'), action?.kind === 'bus');
+      t(game.homeCrewDown ? 'level.boardShort' : 'choice.clearCrew'), t('level.board'), action?.kind === 'bus');
   }
   if (game.dealerNearby) {
     return draft(t('choice.ddSmall'), t('choice.ddTitle', { clip: CLIP, price: REFILL_PRICE }), t('choice.ddHint', { cash: game.cash }),

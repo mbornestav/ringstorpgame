@@ -215,10 +215,10 @@ export function drawLiljedalJourney(c: C, elapsed: number): void {
   rect(c, 0, 140, 480, 130, '#87a45f');
   const arrived = elapsed >= 4.5;
   for (let i = -1; i < 11; i++) tree(c, i * 64 - (arrived ? 0 : elapsed * 105 % 64), 166, 0.65 + (i + 2) % 3 * 0.2, true);
-  if (arrived) cabin(c);
+  if (arrived) { c.save(); c.translate(0, 22); cabin(c); c.restore(); }
   rect(c, 0, 222, 480, 37, '#888b73'); rect(c, 0, 222, 480, 3, '#d4c79b');
   for (let i = 0; i < 8; i++) rect(c, i * 83 - (arrived ? 0 : elapsed * 150 % 83), 244, 31, 2, '#e7ddb4');
-  const busX = arrived ? Math.max(-110, 130 - (elapsed - 4.5) * 64) : 153;
+  const busX = arrived ? 153 + (elapsed - 4.5) * 90 : 153;
   yellowBus(c, busX, 239, 0.8, elapsed < 7 ? elapsed : 0);
   if (arrived) {
     rect(c, 61, 171, 3, 41, '#6e6f50'); rect(c, 30, 167, 67, 15, '#c3a56b'); text(c, 'LILJEDAL', 37, 171, '#304b3e');
