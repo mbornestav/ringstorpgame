@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
+import { isRetro } from '../../side/pixel';
 import type { Session } from '../session';
-import { COLOR, CSS, MOTION, RADIUS, UI_H, UI_W, textStyle } from '../theme';
+import { COLOR, CSS, MOTION, RADIUS, UI_H, UI_W, textStyle, fontPx } from '../theme';
 import { box } from './kit/draw';
 import { Button } from './kit/button';
 import { KeyChip } from './kit/chip';
@@ -8,7 +9,7 @@ import type { PromptModel } from './models';
 
 const W = 900, H = 96;
 const X = Math.round((UI_W - W) / 2);
-const Y = UI_H - 214;
+const Y = UI_H - (isRetro() ? 250 : 214);
 
 /** The bar above the street that says what E would do here, and lets you click it instead. */
 export class PromptBar extends Phaser.GameObjects.Container {
@@ -25,9 +26,9 @@ export class PromptBar extends Phaser.GameObjects.Container {
     super(scene, X, Y);
     this.bg = scene.add.graphics();
     box(this.bg, 0, 0, W, H, { fill: COLOR.panel, fillAlpha: 0.94, border: COLOR.gold, borderAlpha: 0.85, borderWidth: 2, radius: RADIUS.panel, shadow: 18 });
-    this.small = scene.add.text(28, 12, '', { ...textStyle('label', CSS.gold), fontSize: '16px' });
-    this.title = scene.add.text(28, 32, '', { ...textStyle('display', CSS.paper), fontSize: '32px' });
-    this.sub = scene.add.text(28, 70, '', { ...textStyle('small', CSS.dim), fontSize: '16px' });
+    this.small = scene.add.text(28, 12, '', { ...textStyle('label', CSS.gold), fontSize: fontPx(16) });
+    this.title = scene.add.text(28, 32, '', { ...textStyle('display', CSS.paper), fontSize: fontPx(32) });
+    this.sub = scene.add.text(28, 70, '', { ...textStyle('small', CSS.dim), fontSize: fontPx(16) });
     this.button = new Button(scene, { id: 'interact', label: '', kind: 'primary', height: 60 });
     this.key = new KeyChip(scene, 'E');
     this.button.onPress = () => this.session.dispatch('interact', 'pointer');

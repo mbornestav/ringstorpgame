@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { Session } from '../session';
-import { COLOR, CSS, MOTION, RADIUS, UI_H, UI_W, textStyle } from '../theme';
+import { COLOR, CSS, MOTION, RADIUS, UI_H, UI_W, textStyle, fontPx } from '../theme';
 import { FONT } from '../fonts';
 import { box } from './kit/draw';
 import { Button } from './kit/button';
@@ -35,7 +35,7 @@ export class PhoneDrawer extends Phaser.GameObjects.Container {
     this.panel = scene.add.graphics();
     box(this.panel, 0, 0, W, H, { fill: COLOR.panel, fillAlpha: 0.96, border: COLOR.goldDeep, borderAlpha: 0.9, borderWidth: 2, radius: RADIUS.panel + 4, shadow: 26 });
     this.handsetG = scene.add.graphics();
-    const mono = (size: number, color = LCD_INK) => scene.add.text(0, 0, '', { fontFamily: FONT.mono, fontSize: `${size}px`, color, resolution: 3 });
+    const mono = (size: number, color = LCD_INK) => scene.add.text(0, 0, '', { fontFamily: textStyle('mono').fontFamily, fontSize: fontPx(size), color, resolution: 3 });
     this.lcd = [mono(30), mono(16), mono(16)];
     this.handset = scene.add.container(34, 36, [this.handsetG, ...this.lcd]);
     this.handset.setScale(0.96);
@@ -46,12 +46,12 @@ export class PhoneDrawer extends Phaser.GameObjects.Container {
     this.no.on('pointerup', () => this.session.dispatch('phone-away', 'pointer'));
 
     const cx = 258;
-    this.wallet = scene.add.text(cx, 40, '', { ...textStyle('label', CSS.gold), fontSize: '22px' });
-    this.hint = scene.add.text(cx, 84, '', { ...textStyle('body', CSS.paper), fontSize: '23px', wordWrap: { width: W - cx - 36, useAdvancedWrap: true }, lineSpacing: 6 });
+    this.wallet = scene.add.text(cx, 40, '', { ...textStyle('label', CSS.gold), fontSize: fontPx(22) });
+    this.hint = scene.add.text(cx, 84, '', { ...textStyle('body', CSS.paper), fontSize: fontPx(23), wordWrap: { width: W - cx - 36, useAdvancedWrap: true }, lineSpacing: 6 });
     this.action = new Button(scene, { id: 'phone-call', label: '', kind: 'primary', size: 'sm' });
     this.cancel = new Button(scene, { id: 'phone-cancel', label: '', kind: 'secondary', size: 'sm' });
     this.pocket = new Button(scene, { id: 'phone-away', label: '', kind: 'ghost', size: 'sm' });
-    this.rounds = scene.add.text(cx, 0, '', { ...textStyle('small', CSS.dim), fontSize: '16px' });
+    this.rounds = scene.add.text(cx, 0, '', { ...textStyle('small', CSS.dim), fontSize: fontPx(16) });
     this.action.onPress = () => this.session.dispatch('phone-call', 'pointer');
     this.cancel.onPress = () => this.session.dispatch('phone-cancel', 'pointer');
     this.pocket.onPress = () => this.session.dispatch('phone-away', 'pointer');
@@ -157,7 +157,7 @@ export class PhoneDrawer extends Phaser.GameObjects.Container {
 
   private keyLabels: Phaser.GameObjects.Text[] = [];
   private keyLabel(label: string, x: number, y: number): Phaser.GameObjects.Text {
-    const t = this.scene.add.text(x, y, label, { fontFamily: FONT.mono, fontSize: label.length > 3 ? '17px' : '15px', color: '#d5dbb7', resolution: 3 }).setOrigin(0.5);
+    const t = this.scene.add.text(x, y, label, { fontFamily: textStyle('mono').fontFamily, fontSize: fontPx(label.length > 3 ? 17 : 15), color: '#d5dbb7', resolution: 3 }).setOrigin(0.5);
     this.handset.add(t);
     this.keyLabels.push(t);
     return t;

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOR, CSS, RADIUS, textStyle } from '../theme';
+import { COLOR, CSS, RADIUS, textStyle, fontPx } from '../theme';
 import { box, glyph, heart } from './kit/draw';
 import { KeyChip } from './kit/chip';
 import type { HudModel, HudStep, LifeCard, Meter } from './models';
@@ -32,22 +32,22 @@ export class HudCards extends Phaser.GameObjects.Container {
 
   constructor(scene: Phaser.Scene) {
     super(scene, 0, 0);
-    const label = (c: string = CSS.gold) => scene.add.text(0, 0, '', { ...textStyle('label', c), fontSize: '17px' });
+    const label = (c: string = CSS.gold) => scene.add.text(0, 0, '', { ...textStyle('label', c), fontSize: fontPx(17) });
     this.frame = scene.add.graphics();
     this.lifeG = scene.add.graphics();
     this.lifeLabel = label();
-    this.lifeText = scene.add.text(0, 0, '', { ...textStyle('display', CSS.paper), fontSize: '30px' });
-    this.lifeNote = scene.add.text(0, 0, '', { ...textStyle('small', CSS.dim), fontSize: '15px' });
-    this.lifeExtra = scene.add.text(0, 0, '', { ...textStyle('label', CSS.paper), fontSize: '19px' });
-    this.lifeExtra2 = scene.add.text(0, 0, '', { ...textStyle('label', CSS.paper), fontSize: '19px' });
+    this.lifeText = scene.add.text(0, 0, '', { ...textStyle('display', CSS.paper), fontSize: fontPx(30) });
+    this.lifeNote = scene.add.text(0, 0, '', { ...textStyle('small', CSS.dim), fontSize: fontPx(15) });
+    this.lifeExtra = scene.add.text(0, 0, '', { ...textStyle('label', CSS.paper), fontSize: fontPx(19) });
+    this.lifeExtra2 = scene.add.text(0, 0, '', { ...textStyle('label', CSS.paper), fontSize: fontPx(19) });
     this.ammoChip = new KeyChip(scene, 'I');
     this.objLabel = label();
-    this.objText = scene.add.text(0, 0, '', { ...textStyle('display', CSS.paper), fontSize: '30px', wordWrap: { width: 560 } });
-    this.route = scene.add.text(0, 0, '', { ...textStyle('small', CSS.dim), fontSize: '15px' });
+    this.objText = scene.add.text(0, 0, '', { ...textStyle('display', CSS.paper), fontSize: fontPx(30), wordWrap: { width: 560 } });
+    this.route = scene.add.text(0, 0, '', { ...textStyle('small', CSS.dim), fontSize: fontPx(15) });
     this.stepsG = scene.add.graphics();
     this.scoreLabel = label();
-    this.time = scene.add.text(0, 0, '', { ...textStyle('display', CSS.paper), fontSize: '40px' });
-    this.score = scene.add.text(0, 0, '', { ...textStyle('display', CSS.gold), fontSize: '40px' });
+    this.time = scene.add.text(0, 0, '', { ...textStyle('display', CSS.paper), fontSize: fontPx(40) });
+    this.score = scene.add.text(0, 0, '', { ...textStyle('display', CSS.gold), fontSize: fontPx(40) });
     this.add([this.frame, this.lifeG, this.lifeLabel, this.lifeText, this.lifeNote, this.lifeExtra, this.lifeExtra2, this.ammoChip, this.objLabel, this.objText, this.route, this.stepsG, this.scoreLabel, this.time, this.score]);
     scene.add.existing(this);
   }

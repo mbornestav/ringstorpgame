@@ -1,4 +1,5 @@
 import type Phaser from 'phaser';
+import { isRetro } from '../../../side/pixel';
 import { COLOR, RADIUS } from '../../theme';
 
 type G = Phaser.GameObjects.Graphics;
@@ -17,6 +18,7 @@ export interface BoxStyle {
 /** A rounded box with an optional soft shadow (several faint, growing layers, since Graphics has no blur). */
 export function box(g: G, x: number, y: number, w: number, h: number, s: BoxStyle = {}): void {
   const r = s.radius ?? RADIUS.panel;
+  if (isRetro()) { retroBox(g, x, y, w, h, r, s); return; }
   if (s.shadow) {
     for (let i = 4; i >= 1; i--) {
       const grow = (s.shadow * i) / 4;
@@ -72,4 +74,26 @@ export function glyph(g: G, kind: Glyph, x: number, y: number, size: number, col
     case 'arrow-up':
       g.fillTriangle(x - s, y + s * 0.5, x + s, y + s * 0.5, x, y - s * 0.7); break;
   }
+}
+
+/**
+ * The retro window: a hard drop shadow, a one-pixel dark outline, the fill, a one-pixel coloured border set in by a pixel,
+ * and a light bevel along the top edge, like a 16-bit console menu. Line widths are multiples of 3 UI px (one logical pixel),
+ * so the UI camera's block filter keeps every line.
+ */
+function retroBox(g: G, x: number, y: number, w: number, h: number, r: number, s: BoxStyle): void {
+  const P = 3;
+  if (s.shadow) { g.fillStyle(COLOR.black, 0.5); g.fillRoundedRect(x + P * 2, y + P * 2, w, h, r); }
+  g.fillStyle(s.fill ?? COLOR.panel, s.fillAlpha ?? 0.94);
+  g.fillRoundedRect(x, y, w, h, r);
+  if (s.border === undefined) return;
+  g.lineStyle(P, COLOR.black, 0.85);
+  g.strokeRoundedRect(x - P / 2, y - P / 2, w + P, h + P, r + P / 2);
+  // Chips and key caps are too small for the inset border: one coloured edge is enough.
+  if (h < 44) { g.lineStyle(P, s.border, s.borderAlpha ?? 1); g.strokeRoundedRect(x + P / 2, y + P / 2, w - P, h - P, Math.max(0, r - P)); return; }
+  const inset = Math.max(P, Math.round((s.borderWidth ?? 2) / P) * P);
+  g.lineStyle(inset, s.border, s.borderAlpha ?? 1);
+  g.strokeRoundedRect(x + P + inset / 2, y + P + inset / 2, w - P * 2 - inset, h - P * 2 - inset, Math.max(0, r - P));
+  g.fillStyle(0xffffff, 0.1);
+  g.fillRect(x + P * 2 + inset, y + P * 2 + inset, w - P * 4 - inset * 2, P);
 }

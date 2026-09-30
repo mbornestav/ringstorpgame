@@ -1,3 +1,11 @@
+import { isRetro } from '../../side/pixel';
+
+const ARROWS: Record<string, string> = { '←': '◀', '→': '▶', '↑': '▲', '↓': '▼' };
+/** The pixel font has no ← → and a poor ↑ ↓: retro text uses solid triangles for the arrow keys instead. */
+export function keyGlyphs(value: string): string {
+  return isRetro() ? value.replace(/[←→↑↓]/g, ch => ARROWS[ch]) : value;
+}
+
 /** Localised strings carry two bits of markup for the old DOM: `&nbsp;` in button labels and `<kbd>` around key names. */
 export function plain(value: string): string {
   return value.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();

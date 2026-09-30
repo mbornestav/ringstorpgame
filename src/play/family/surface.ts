@@ -2,6 +2,9 @@ import Phaser from 'phaser';
 import { onLangChange } from '../../side/i18n';
 import { RENDER_SCALE } from '../config';
 import { FONT } from '../fonts';
+import { fontPx } from '../theme';
+import { isRetro } from '../../side/pixel';
+import { keyGlyphs } from '../ui/text';
 
 /** Shared canvas controls and their keyboard/screen-reader counterparts. */
 export abstract class FamilySurface extends Phaser.Scene {
@@ -11,6 +14,8 @@ export abstract class FamilySurface extends Phaser.Scene {
 
   protected setup(): void {
     this.cameras.main.setOrigin(0, 0).setZoom(RENDER_SCALE / 3);
+    // Retro: the whole scene (illustration and interface) is sampled once per logical pixel, as pixel art.
+    if (isRetro()) { this.cameras.main.setRoundPixels(true); this.cameras.main.filters.internal.addBlocky({ size: RENDER_SCALE }); }
     this.root = document.getElementById('a11y')!;
     const offLang = onLangChange(() => this.rebuild());
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { offLang(); this.root.replaceChildren(); this.targets.clear(); });
@@ -64,8 +69,8 @@ export abstract class FamilySurface extends Phaser.Scene {
   }
 
   protected label(value: string, x: number, y: number, size = 22, color = '#25473f', width?: number, bold = false): Phaser.GameObjects.Text {
-    const text = this.add.text(x, y, value, {
-      fontFamily: bold ? FONT.display : FONT.body, fontSize: `${size}px`, fontStyle: bold ? '700' : '400', color,
+    const text = this.add.text(x, y, keyGlyphs(value), {
+      fontFamily: isRetro() ? FONT.pixel : bold ? FONT.display : FONT.body, fontSize: fontPx(size), fontStyle: bold && !isRetro() ? '700' : '400', color,
       resolution: 2, ...(width ? { wordWrap: { width, useAdvancedWrap: true } } : {}), lineSpacing: 5,
     });
     this.layer.add(text); return text;
@@ -84,7 +89,7 @@ export abstract class FamilySurface extends Phaser.Scene {
     const bg = this.rect(x, y, width, height, light ? 0xf1efe1 : 0x2a5a4b, 14);
     this.rect(x + 3, y + 3, width - 6, height / 2 - 3, 0xffffff, 11, light ? 0.35 : 0.08);
     const text = this.label(label, x + 22, y + 12, 25, light ? '#254b40' : '#fff7df', undefined, true);
-    if (text.width > width - 36) text.setFontSize(Math.floor(25 * (width - 36) / text.width));
+    if (!isRetro() && text.width > width - 36) text.setFontSize(Math.floor(25 * (width - 36) / text.width));
     const ring = this.add.graphics().lineStyle(3, 0xd98b47).strokeRoundedRect(x - 4, y - 4, width + 8, height + 8, 17).setVisible(false);
     this.layer.add(ring);
     const zone = this.add.zone(x, y, width, height).setOrigin(0).setInteractive({ useHandCursor: true });

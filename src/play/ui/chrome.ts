@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
+import { isRetro } from '../../side/pixel';
 import type { Session } from '../session';
-import { COLOR, CSS, UI_H, UI_W, textStyle } from '../theme';
+import { COLOR, CSS, UI_H, UI_W, textStyle, fontPx } from '../theme';
 import { box } from './kit/draw';
 import { Button } from './kit/button';
 import { KeyChip } from './kit/chip';
@@ -38,14 +39,14 @@ export class Chrome extends Phaser.GameObjects.Container {
 
     this.brandMark = scene.add.graphics();
     box(this.brandMark, MARGIN, 10, 42, 42, { fill: COLOR.gold, fillAlpha: 1, radius: 8, shadow: 6 });
-    const mark = scene.add.text(MARGIN + 21, 31, 'RR', { ...textStyle('display', CSS.night), fontSize: '24px' }).setOrigin(0.5);
-    this.brand = scene.add.text(MARGIN + 56, 8, '', { ...textStyle('display', CSS.paper), fontSize: '28px' });
-    this.sub = scene.add.text(MARGIN + 58, 38, '', { ...textStyle('small', CSS.dim), fontSize: '13px' });
+    const mark = scene.add.text(MARGIN + 21, 31, 'RR', { ...textStyle('display', CSS.night), fontSize: fontPx(24) }).setOrigin(0.5);
+    this.brand = scene.add.text(MARGIN + 56, 8, '', { ...textStyle('display', CSS.paper), fontSize: fontPx(28) });
+    this.sub = scene.add.text(MARGIN + 58, 38, '', { ...textStyle('small', CSS.dim), fontSize: fontPx(13) });
 
     this.dot = scene.add.graphics();
-    this.streetLabel = scene.add.text(0, 0, '', { ...textStyle('label', CSS.dim), fontSize: '16px' });
-    this.street = scene.add.text(0, 0, '', { ...textStyle('label', CSS.paper), fontSize: '19px' });
-    this.level = scene.add.text(0, 0, '', { ...textStyle('label', CSS.gold), fontSize: '17px' }).setOrigin(1, 0);
+    this.streetLabel = scene.add.text(0, 0, '', { ...textStyle('label', CSS.dim), fontSize: fontPx(16) });
+    this.street = scene.add.text(0, 0, '', { ...textStyle('label', CSS.paper), fontSize: fontPx(19) });
+    this.level = scene.add.text(0, 0, '', { ...textStyle('label', CSS.gold), fontSize: fontPx(17) }).setOrigin(1, 0);
     this.lang = new Button(scene, { id: 'lang', label: '', kind: 'icon', height: 40 });
     this.sound = new Button(scene, { id: 'sound', label: '', kind: 'icon', height: 40 });
     this.lang.onPress = () => this.session.dispatch('lang');
@@ -55,7 +56,7 @@ export class Chrome extends Phaser.GameObjects.Container {
     this.chooser.onPress = () => this.session.dispatch('chooser');
 
     this.strip = scene.add.container(0, UI_H - 46);
-    this.credit = scene.add.text(UI_W - MARGIN, UI_H - 5, '', { ...textStyle('small', CSS.dim), fontSize: '11px' }).setOrigin(1, 1);
+    this.credit = scene.add.text(UI_W - MARGIN, UI_H - 5, '', { ...textStyle('small', CSS.dim), fontSize: fontPx(11) }).setOrigin(1, 1);
     this.add([this.backdrop, this.brandMark, mark, this.brand, this.sub, this.dot, this.streetLabel, this.street, this.level, this.lang, this.sound, this.chooser, this.strip, this.credit]);
     scene.add.existing(this);
   }
@@ -72,7 +73,8 @@ export class Chrome extends Phaser.GameObjects.Container {
     if (key !== this.mastheadKey) {
       this.mastheadKey = key;
       this.brand.setText(head.brand);
-      this.sub.setText(head.sub);
+      // Retro: the pixel font leaves no room for the strapline beside the street line.
+      this.sub.setText(head.sub).setVisible(!isRetro());
       this.chooser.set({ id: 'chooser', label: familyText('menu'), kind: 'icon', height: 40 });
       this.lang.set({ id: 'lang', label: head.lang.label, kind: 'icon', height: 40 });
       this.sound.set({ id: 'sound', label: head.sound.label, kind: 'icon', height: 40 });
@@ -81,12 +83,20 @@ export class Chrome extends Phaser.GameObjects.Container {
       this.level.setText(hud.levelLine).setPosition(this.lang.x - 24, 22);
       this.streetLabel.setText(hud.streetLabel);
       this.street.setText(hud.streetLine);
-      const total = 22 + this.streetLabel.width + 10 + this.street.width;
-      const x0 = Math.round((UI_W - total) / 2);
+      if (isRetro()) {
+        // The pixel font is wider: the chooser moves clear of the brand, and the street line centres in the space that
+        // is left, dropping its small label when that space is tight.
+        this.chooser.setPosition(Math.max(250, MARGIN + 58 + Math.ceil(this.brand.width) + 24), 10);
+      }
+      const left = this.chooser.x + this.chooser.width + 24, right = this.level.x - this.level.width - 24;
+      const tight = isRetro() && 22 + this.streetLabel.width + 10 + this.street.width > right - left;
+      this.streetLabel.setVisible(!tight);
+      const total = tight ? 22 + this.street.width : 22 + this.streetLabel.width + 10 + this.street.width;
+      const x0 = isRetro() ? Math.round(left + (right - left - total) / 2) : Math.round((UI_W - total) / 2);
       this.dot.clear().fillStyle(COLOR.yellow, 1).fillCircle(x0 + 6, 31, 5);
       this.dot.fillStyle(COLOR.yellow, 0.25).fillCircle(x0 + 6, 31, 10);
       this.streetLabel.setPosition(x0 + 22, 22);
-      this.street.setPosition(x0 + 22 + this.streetLabel.width + 10, 20);
+      this.street.setPosition(tight ? x0 + 22 : x0 + 22 + this.streetLabel.width + 10, isRetro() ? 19 : 20);
       this.credit.setText(`${foot.bestLabel} ${foot.best}  ·  ${foot.credit}`);
     }
     this.layoutStrip(controls);
@@ -101,14 +111,31 @@ export class Chrome extends Phaser.GameObjects.Container {
     for (const hint of hints) {
       const chip = new KeyChip(this.scene, hint.keys);
       chip.setPosition(x, 0);
-      const label = this.scene.add.text(x + chip.width + 8, 3, hint.label, { ...textStyle('small', CSS.paper), fontSize: '15px' });
+      const label = this.scene.add.text(x + chip.width + 8, 3, hint.label, { ...textStyle('small', CSS.paper), fontSize: fontPx(15) });
       this.strip.add([chip, label]);
       x += chip.width + 8 + label.width + 22;
     }
     const width = x - 22;
+    if (isRetro()) { this.wrapStrip(); return; }
     // Long lists (level 2 has nine) shrink to fit rather than run off the screen.
     const fit = Math.min(1, (UI_W - MARGIN * 2) / width);
     this.strip.setScale(fit);
     this.strip.setPosition(MARGIN, UI_H - 52 + (1 - fit) * 12);
+  }
+
+  /** Retro: pixel text cannot be scaled, so a long list of hints moves onto a second row instead of shrinking. */
+  private wrapStrip(): void {
+    const items = this.strip.list as unknown as Array<KeyChip | Phaser.GameObjects.Text>;
+    let x = 0, row = 0;
+    for (let i = 0; i < items.length; i += 2) {
+      const chip = items[i], label = items[i + 1], w = chip.width + 8 + label.width;
+      // The bottom row shares its line with the credit.
+      const limit = row === 0 ? UI_W - MARGIN * 2 : this.credit.x - this.credit.width - MARGIN - 24;
+      if (x > 0 && x + w > limit) { row++; x = 0; }
+      chip.setPosition(x, row * 36);
+      label.setPosition(x + chip.width + 8, row * 36 + 2);
+      x += w + 18;
+    }
+    this.strip.setScale(1).setPosition(MARGIN, UI_H - 4 - (row + 1) * 36);
   }
 }

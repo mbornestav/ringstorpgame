@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { A11yMirror } from '../a11y/mirror';
 import { RENDER_SCALE } from '../config';
+import { isRetro } from '../../side/pixel';
 import { UI_W } from '../theme';
 import { Chrome } from '../ui/chrome';
 import { HudCards } from '../ui/hud';
@@ -40,6 +41,8 @@ export class UIScene extends Phaser.Scene {
   create(): void {
     const session = sessionOf(this);
     this.cameras.main.setOrigin(0, 0).setZoom(RENDER_SCALE / 3);
+    // Retro: sample the interface once per logical pixel, so text, corners and icons land on the world's pixel grid.
+    if (isRetro()) { this.cameras.main.setRoundPixels(true); this.cameras.main.filters.internal.addBlocky({ size: RENDER_SCALE }); }
     // Back to front. The panels sit under the chrome, so the language and sound buttons stay bright and reachable.
     this.worldHud = new WorldHud(this);
     this.panels = new PanelHost(this, session);

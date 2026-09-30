@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { UiAction } from '../actions';
 import type { Session } from '../session';
-import { COLOR, CSS, MOTION, RADIUS, UI_H, UI_W, textStyle } from '../theme';
+import { COLOR, CSS, MOTION, RADIUS, UI_H, UI_W, textStyle, fontPx } from '../theme';
 import { box } from './kit/draw';
 import { Button } from './kit/button';
 import { Chip, KeyChip } from './kit/chip';
@@ -92,20 +92,20 @@ export class PanelHost extends Phaser.GameObjects.Container {
   private eyebrow(card: Phaser.GameObjects.Container, m: PanelModel, x: number, y: number, width: number): number {
     let cx = x;
     if (m.chip) { const chip = new Chip(this.scene, m.chip); chip.setPosition(cx, y); card.add(chip); cx += chip.width + 14; }
-    const label = this.text(card, 'label', m.eyebrow.toUpperCase(), cx, y + 1, { fontSize: '21px' }, CSS.gold);
+    const label = this.text(card, 'label', m.eyebrow.toUpperCase(), cx, y + 1, { fontSize: fontPx(21) }, CSS.gold);
     cx += label.width + 16;
     const rule = this.scene.add.graphics();
     const end = m.eyebrowExtra ? x + width - 70 : x + width;
     rule.lineStyle(2, COLOR.gold, 0.5).lineBetween(cx, y + 14, end, y + 14);
     card.add(rule);
-    if (m.eyebrowExtra) this.text(card, 'label', m.eyebrowExtra, end + 12, y + 1, { fontSize: '21px' }, CSS.dim);
+    if (m.eyebrowExtra) this.text(card, 'label', m.eyebrowExtra, end + 12, y + 1, { fontSize: fontPx(21) }, CSS.dim);
     return y + 48;
   }
 
   private titleWithAccent(card: Phaser.GameObjects.Container, m: PanelModel, x: number, y: number, size: number): number {
-    const t = this.text(card, 'display', m.title.toUpperCase(), x, y, { fontSize: `${size}px` }, CSS.paper);
+    const t = this.text(card, 'display', m.title.toUpperCase(), x, y, { fontSize: fontPx(size) }, CSS.paper);
     if (m.titleAccent) {
-      const mark = this.text(card, 'display', m.titleAccent === 'blink' ? '_' : '.', x + t.width + 2, y, { fontSize: `${size}px` }, ACCENT[m.titleAccent]);
+      const mark = this.text(card, 'display', m.titleAccent === 'blink' ? '_' : '.', x + t.width + 2, y, { fontSize: fontPx(size) }, ACCENT[m.titleAccent]);
       if (m.titleAccent === 'blink') this.scene.tweens.add({ targets: mark, alpha: 0.1, duration: 520, yoyo: true, repeat: -1 });
     }
     return y + t.height + 6;
@@ -116,7 +116,7 @@ export class PanelHost extends Phaser.GameObjects.Container {
     for (const item of items) {
       const dot = this.scene.add.graphics().fillStyle(COLOR.gold, 1).fillCircle(x + 6, cy + 16, 5);
       card.add(dot);
-      const t = this.text(card, 'body', item, x + 26, cy, { fontSize: '22px', wordWrap: { width: width - 26, useAdvancedWrap: true } });
+      const t = this.text(card, 'body', item, x + 26, cy, { fontSize: fontPx(22), wordWrap: { width: width - 26, useAdvancedWrap: true } });
       cy += t.height + 8;
     }
     return cy;
@@ -128,8 +128,8 @@ export class PanelHost extends Phaser.GameObjects.Container {
       const sx = x + i * (w + gap), g = this.scene.add.graphics();
       box(g, sx, y, w, 96, { fill: COLOR.ink, fillAlpha: 0.55, border: COLOR.line, borderAlpha: 0.7, borderWidth: 1.5, radius: RADIUS.button });
       card.add(g);
-      this.text(card, 'label', s.label.toUpperCase(), sx + 18, y + 12, { fontSize: '16px' }, CSS.dim);
-      this.text(card, 'display', s.value, sx + 18, y + 38, { fontSize: '42px' }, CSS.gold);
+      this.text(card, 'label', s.label.toUpperCase(), sx + 18, y + 12, { fontSize: fontPx(16) }, CSS.dim);
+      this.text(card, 'display', s.value, sx + 18, y + 38, { fontSize: fontPx(42) }, CSS.gold);
     });
     return y + 96 + 26;
   }
@@ -150,8 +150,8 @@ export class PanelHost extends Phaser.GameObjects.Container {
     };
     plain.forEach(add);
     if (m.hint) {
-      if (hintBelow) { cy += rowH + 16; this.text(card, 'small', m.hint, x, cy, { fontSize: '16px' }, CSS.dim); rowH = 24; }
-      else this.text(card, 'small', m.hint, cx + 8, cy + Math.round(rowH / 2) - 10, { fontSize: '16px', wordWrap: { width: Math.max(160, x + width - cx - 8) } }, CSS.dim);
+      if (hintBelow) { cy += rowH + 16; this.text(card, 'small', m.hint, x, cy, { fontSize: fontPx(16) }, CSS.dim); rowH = 24; }
+      else this.text(card, 'small', m.hint, cx + 8, cy + Math.round(rowH / 2) - 10, { fontSize: fontPx(16), wordWrap: { width: Math.max(160, x + width - cx - 8) } }, CSS.dim);
     }
     if (picks.length) { cx = x; cy += rowH + 18; rowH = 0; picks.forEach(add); }
     return cy + rowH;
@@ -171,15 +171,15 @@ export class PanelHost extends Phaser.GameObjects.Container {
     let y = this.eyebrow(card, m, x, top, w);
     const [first, second] = m.title.split(' ');
     const size = 104, step = 90;
-    this.text(card, 'title', first, x - 4, y - 14, { fontSize: `${size}px` }, CSS.paper);
-    const b = this.text(card, 'title', second ?? '', x - 4, y - 14 + step, { fontSize: `${size}px` }, CSS.gold);
+    this.text(card, 'title', first, x - 4, y - 14, { fontSize: fontPx(size) }, CSS.paper);
+    const b = this.text(card, 'title', second ?? '', x - 4, y - 14 + step, { fontSize: fontPx(size) }, CSS.gold);
     const mid = y - 14 + step + b.height * 0.52;
     const play = this.scene.add.graphics();
     play.fillStyle(COLOR.red, 1).fillTriangle(x + b.width + 26, mid - 32, x + b.width + 26, mid + 32, x + b.width + 78, mid);
     card.add(play);
     y += step + b.height - 24;
-    if (m.subtitle) y += this.text(card, 'label', m.subtitle.toUpperCase(), x, y, { fontSize: '26px' }, CSS.gold).height + 8;
-    y += this.text(card, 'body', m.body, x, y, { fontSize: '22px', wordWrap: { width: w, useAdvancedWrap: true }, lineSpacing: 5 }, CSS.cream).height + 24;
+    if (m.subtitle) y += this.text(card, 'label', m.subtitle.toUpperCase(), x, y, { fontSize: fontPx(26) }, CSS.gold).height + 8;
+    y += this.text(card, 'body', m.body, x, y, { fontSize: fontPx(22), wordWrap: { width: w, useAdvancedWrap: true }, lineSpacing: 5 }, CSS.cream).height + 24;
     y = this.actionRows(card, m, x, y, w);
     this.finish(card, x, top, w, y, 40);
   }
@@ -193,11 +193,11 @@ export class PanelHost extends Phaser.GameObjects.Container {
       box(frame, x, y, 164, 184, { fill: COLOR.ink, fillAlpha: 0.7, border: COLOR.goldDeep, borderWidth: 2, radius: RADIUS.button });
       card.add(frame);
       card.add(this.scene.add.image(x + 82, y + 90, 'dd-portrait').setScale(2));
-      this.text(card, 'display', m.portrait.name, x, y + 198, { fontSize: '30px' }, CSS.paper);
-      this.text(card, 'small', m.portrait.caption, x, y + 232, { fontSize: '17px', wordWrap: { width: 180 } }, CSS.dim);
+      this.text(card, 'display', m.portrait.name, x, y + 198, { fontSize: fontPx(30) }, CSS.paper);
+      this.text(card, 'small', m.portrait.caption, x, y + 232, { fontSize: fontPx(17), wordWrap: { width: 180 } }, CSS.dim);
     }
     let ty = this.titleWithAccent(card, m, textX, y - 4, 64) + 10;
-    ty += this.text(card, 'body', m.body, textX, ty, { fontSize: '23px', wordWrap: { width: textW, useAdvancedWrap: true }, lineSpacing: 6 }).height + 18;
+    ty += this.text(card, 'body', m.body, textX, ty, { fontSize: fontPx(23), wordWrap: { width: textW, useAdvancedWrap: true }, lineSpacing: 6 }).height + 18;
     ty = this.bullets(card, m.bullets, textX, ty, textW) + 22;
     ty = this.actionRows(card, m, textX, ty, textW);
     const bottom = Math.max(ty, y + 290);
@@ -210,7 +210,7 @@ export class PanelHost extends Phaser.GameObjects.Container {
     const top = isPause ? 262 : 258;
     let y = this.eyebrow(card, m, x, top, w);
     y = this.titleWithAccent(card, m, x, y - 4, isPause ? 72 : 68) + 10;
-    y += this.text(card, 'body', m.body, x, y, { fontSize: '24px', wordWrap: { width: w, useAdvancedWrap: true }, lineSpacing: 6 }).height + 22;
+    y += this.text(card, 'body', m.body, x, y, { fontSize: fontPx(24), wordWrap: { width: w, useAdvancedWrap: true }, lineSpacing: 6 }).height + 22;
     if (m.stats.length) y = this.stats(card, m.stats, x, y, w);
     y = this.actionRows(card, m, x, y, w, isPause);
     this.finish(card, x, top, w, y, 44);

@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
-import { COLOR, CSS, MOTION, RADIUS, textStyle } from '../../theme';
+import { COLOR, CSS, MOTION, RADIUS, textStyle, fontPx } from '../../theme';
 import { box, glyph, type Glyph } from './draw';
+import { keyGlyphs } from '../text';
 
 export type ButtonKind = 'primary' | 'secondary' | 'ghost' | 'icon';
 
@@ -93,7 +94,7 @@ export class Button extends Phaser.GameObjects.Container {
     const small = kind === 'icon';
     this.keycap.setText(key ?? '').setVisible(!!key);
     const keySpace = key ? Math.max(30, Math.ceil(this.keycap.width) + 16) + 12 : 0;
-    this.title.setStyle({ ...textStyle(small ? 'label' : 'display', this.textColor()), ...(sub && { fontSize: '34px' }), ...(this.spec.size === 'sm' && { fontSize: '27px' }) }).setText(label.toUpperCase());
+    this.title.setStyle({ ...textStyle(small ? 'label' : 'display', this.textColor()), ...(sub && { fontSize: fontPx(34) }), ...(this.spec.size === 'sm' && { fontSize: fontPx(27) }) }).setText(keyGlyphs(label.toUpperCase()));
     this.sub.setText(sub ?? '').setVisible(!!sub);
     const iconSpace = (lead ? 40 : 0) + keySpace;
     const w = this.spec.width ?? Math.max(small ? 96 : this.spec.size === 'sm' ? 120 : 160, Math.ceil(Math.max(this.title.width + iconSpace, this.sub.width + iconSpace)) + PAD_X * 2);

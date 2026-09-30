@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { isRetro } from '../side/pixel';
 
 export const LOGICAL_W = 480;
 export const LOGICAL_H = 270;
@@ -44,7 +45,8 @@ export function gameConfig(scenes: Phaser.Types.Scenes.SceneType[], callbacks?: 
     height: VIEW.h,
     backgroundColor: BACKGROUND,
     pixelArt: false,
-    antialias: true,
+    // Retro: nearest-neighbour everywhere, which also lets the UI's block filter sample one exact pixel per block.
+    antialias: !isRetro(),
     roundPixels: false,
     fps: { smoothStep: false },
     render: { preserveDrawingBuffer: import.meta.env.DEV, powerPreference: 'high-performance' },

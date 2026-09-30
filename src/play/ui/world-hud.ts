@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { COLOR, CSS, RADIUS, UI_H, UI_W, textStyle } from '../theme';
+import { isRetro } from '../../side/pixel';
+import { COLOR, CSS, RADIUS, UI_H, UI_W, textStyle, fontPx } from '../theme';
 import { box, glyph } from './kit/draw';
 import type { RouteMarker, WorldHudModel } from './models';
 
@@ -15,7 +16,8 @@ const MARKER_COLOR: Record<RouteMarker['kind'], Record<RouteMarker['state'], num
 const STRIP_W = 820;
 const STRIP_X = Math.round((UI_W - STRIP_W) / 2);
 // The walking lanes end at y 744, so the strip is slim and sits as low as the controls row below it allows.
-const STRIP_Y = UI_H - 84;
+// Retro: higher, to leave two rows of key hints below it.
+const STRIP_Y = UI_H - (isRetro() ? 124 : 84);
 
 /** What the old canvas drew over the game: the message toast, GO arrow, POLIS badge, boss bar and route strip. */
 export class WorldHud extends Phaser.GameObjects.Container {
@@ -34,18 +36,18 @@ export class WorldHud extends Phaser.GameObjects.Container {
   constructor(scene: Phaser.Scene) {
     super(scene, 0, 0);
     this.toastG = scene.add.graphics();
-    this.toastText = scene.add.text(0, 0, '', { ...textStyle('body', CSS.paper), fontSize: '25px', align: 'center', wordWrap: { width: 760, useAdvancedWrap: true } }).setOrigin(0.5, 0);
+    this.toastText = scene.add.text(0, 0, '', { ...textStyle('body', CSS.paper), fontSize: fontPx(25), align: 'center', wordWrap: { width: 760, useAdvancedWrap: true } }).setOrigin(0.5, 0);
     this.portrait = scene.textures.exists('dd-portrait') ? scene.add.image(0, 0, 'dd-portrait').setOrigin(0, 0.5) : null;
     this.goG = scene.add.graphics();
-    this.goText = scene.add.text(UI_W - 230, 300, '', { ...textStyle('title', CSS.gold), fontSize: '92px' });
+    this.goText = scene.add.text(UI_W - 230, 300, '', { ...textStyle('title', CSS.gold), fontSize: fontPx(92) });
     this.polisLights = scene.add.graphics();
     const polisBox = scene.add.graphics();
     box(polisBox, 0, 0, 200, 56, { fill: 0x101c33, fillAlpha: 0.92, border: 0x5aa2ff, borderWidth: 2, radius: RADIUS.button, shadow: 8 });
-    const polisText = scene.add.text(100, 28, 'POLIS', { ...textStyle('display', '#f2d31b'), fontSize: '30px' }).setOrigin(0.5, 0.5);
+    const polisText = scene.add.text(100, 28, 'POLIS', { ...textStyle('display', '#f2d31b'), fontSize: fontPx(30) }).setOrigin(0.5, 0.5);
     this.polis = scene.add.container(20, 214, [polisBox, this.polisLights, polisText]);
     this.bar = scene.add.graphics();
-    this.barLabel = scene.add.text(STRIP_X + 24, STRIP_Y - 4, '', { ...textStyle('label', CSS.gold), fontSize: '19px' });
-    this.routeLabel = scene.add.text(STRIP_X + STRIP_W - 24, STRIP_Y + 18, '', { ...textStyle('small', CSS.paper), fontSize: '16px' }).setOrigin(1, 0.5);
+    this.barLabel = scene.add.text(STRIP_X + 24, STRIP_Y - 4, '', { ...textStyle('label', CSS.gold), fontSize: fontPx(19) });
+    this.routeLabel = scene.add.text(STRIP_X + STRIP_W - 24, STRIP_Y + 18, '', { ...textStyle('small', CSS.paper), fontSize: fontPx(16) }).setOrigin(1, 0.5);
     this.add([this.toastG, this.toastText, ...(this.portrait ? [this.portrait] : []), this.goG, this.goText, this.polis, this.bar, this.barLabel, this.routeLabel]);
     scene.add.existing(this);
   }

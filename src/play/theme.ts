@@ -1,3 +1,4 @@
+import { isRetro } from '../side/pixel';
 import { FONT } from './fonts';
 
 // The game's colours, from the original teal-and-gold interface (src/style.css), as numbers for Phaser shapes and as CSS
@@ -28,7 +29,17 @@ export const COLOR = {
 
 export const CSS = Object.fromEntries(Object.entries(COLOR).map(([name, value]) => [name, hex(value)])) as Record<keyof typeof COLOR, string>;
 
-export const RADIUS = { panel: 14, button: 10, chip: 6 } as const;
+/** Corner radii. Retro corners are small, so the pixel grid turns them into a single stepped notch. */
+export const RADIUS = isRetro() ? { panel: 6, button: 6, chip: 3 } : { panel: 14, button: 10, chip: 6 };
+
+/**
+ * A font size in UI pixels. The retro fonts only render crisply at whole multiples of their pixel grid (24 UI px = one
+ * logical pixel per font pixel), so a requested size snaps to 24, 48 or 72; otherwise it is used as given.
+ */
+export function fontPx(size: number): string {
+  if (!isRetro()) return `${size}px`;
+  return `${size < 36 ? 24 : size < 64 ? 48 : 72}px`;
+}
 
 /** Reference size the interface is authored in; the UI camera zooms it to whatever the canvas is. */
 export const UI_W = 1440;
@@ -41,6 +52,14 @@ export type TextKind = 'display' | 'title' | 'label' | 'body' | 'small' | 'mono'
 /** Text styles by role. Phaser 4's Text has no letter-spacing, so small caps labels rely on the display face being condensed. */
 export function textStyle(kind: TextKind, color: string = CSS.cream): Phaser.Types.GameObjects.Text.TextStyle {
   const base = { color, resolution: 2 };
+  if (isRetro()) {
+    const pixel = { ...base, resolution: 1, fontStyle: '400' };
+    switch (kind) {
+      case 'title': return { ...pixel, fontFamily: FONT.pixelTitle, fontSize: fontPx(96) };
+      case 'display': return { ...pixel, fontFamily: FONT.pixel, fontSize: fontPx(44) };
+      default: return { ...pixel, fontFamily: FONT.pixel, fontSize: fontPx(20) };
+    }
+  }
   switch (kind) {
     case 'title': return { ...base, fontFamily: FONT.display, fontStyle: '700', fontSize: '96px' };
     case 'display': return { ...base, fontFamily: FONT.display, fontStyle: '700', fontSize: '44px' };

@@ -5,18 +5,26 @@ import '@fontsource/ibm-plex-sans/latin-400.css';
 import '@fontsource/ibm-plex-sans/latin-500.css';
 import '@fontsource/ibm-plex-sans/latin-600.css';
 import '@fontsource/share-tech-mono/latin-400.css';
+import '@fontsource/tiny5/latin-400.css';
+import '@fontsource/press-start-2p/latin-400.css';
 
-/** Barlow Condensed for signage and numerals, IBM Plex Sans for menus and dialogue, Share Tech Mono for the handset's LCD. */
+/**
+ * Barlow Condensed for signage and numerals, IBM Plex Sans for menus and dialogue, Share Tech Mono for the handset's LCD.
+ * The retro interface uses two pixel fonts instead: Tiny5 for all running text and numbers, and Press Start 2P for the big
+ * titles. Both are drawn on a 1-logical-pixel grid (see `fontPx` in theme.ts).
+ */
 export const FONT = {
   display: '"Barlow Condensed", "Arial Narrow", Arial, sans-serif',
   body: '"IBM Plex Sans", system-ui, "Segoe UI", sans-serif',
   mono: '"Share Tech Mono", "Cascadia Mono", Consolas, monospace',
+  pixel: 'Tiny5, "Cascadia Mono", monospace',
+  pixelTitle: '"Press Start 2P", Tiny5, monospace',
 } as const;
 
 const FACES = [
   '500 20px "Barlow Condensed"', '600 20px "Barlow Condensed"', '700 20px "Barlow Condensed"',
   '400 16px "IBM Plex Sans"', '500 16px "IBM Plex Sans"', '600 16px "IBM Plex Sans"',
-  '400 16px "Share Tech Mono"',
+  '400 16px "Share Tech Mono"', '400 24px Tiny5', '400 24px "Press Start 2P"',
 ];
 // Å Ä Ö and the digits must be present, or canvas text measured before the font arrives would be the wrong width.
 const SAMPLE = 'ÅÄÖåäö0123456789 ABCabc';

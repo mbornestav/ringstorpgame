@@ -1,8 +1,9 @@
+import './look';
 import Phaser from 'phaser';
 import './page.css';
 import { getLang, onLangChange, setLang, t } from '../side/i18n';
 import { SideGame } from '../side/game';
-import { setArtFont, setArtMode } from '../side/pixel';
+import { setArtFont } from '../side/pixel';
 import { loadLogos } from './art/logos';
 import { gameConfig } from './config';
 import { FONT, loadFonts } from './fonts';
@@ -16,10 +17,6 @@ import { BikeScene } from './family/bike-scene';
 const params = new URLSearchParams(location.search);
 // New visitors meet the Swedish collection; an existing language choice is respected.
 try { if (!localStorage.getItem('ringstorp-lang')) setLang('sv'); } catch { setLang('sv'); }
-// The Phaser build draws the detailed art as retro pixel art. `?look=smooth` shows it as hi-res vector art and `?look=pixel`
-// the original pixel art, both through the same pipeline (for comparison while developing).
-const look = params.get('look');
-setArtMode(look === 'pixel' || look === 'smooth' ? look : 'retro');
 
 /** A small seeded generator for `?seed=N`, so a run (and its screenshots) can be repeated. */
 function mulberry32(seed: number): () => number {
