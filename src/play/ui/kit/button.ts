@@ -109,8 +109,10 @@ export class Button extends Phaser.GameObjects.Container {
     this.title.setPosition(PAD_X + iconSpace, sub ? 10 : Math.round((h - this.title.height) / 2) - 1);
     this.sub.setPosition(PAD_X + iconSpace, 10 + this.title.height);
     this.keycap.setPosition(PAD_X + Math.round((keySpace - 12 - this.keycap.width) / 2), Math.round((h - this.keycap.height) / 2));
-    if (this.input) (this.input.hitArea as Phaser.Geom.Rectangle).setSize(w, h);
-    else this.setInteractive({ hitArea: new Phaser.Geom.Rectangle(0, 0, w, h), hitAreaCallback: Phaser.Geom.Rectangle.Contains, useHandCursor: true });
+    // A Container tests its hit area from its centre (its display origin is half its size), while the button is laid out
+    // from its top-left corner: offset the rectangle by half, or every button answers half a button up and to the left.
+    if (this.input) (this.input.hitArea as Phaser.Geom.Rectangle).setTo(w / 2, h / 2, w, h);
+    else this.setInteractive({ hitArea: new Phaser.Geom.Rectangle(w / 2, h / 2, w, h), hitAreaCallback: Phaser.Geom.Rectangle.Contains, useHandCursor: true });
     this.redraw();
   }
 

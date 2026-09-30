@@ -156,7 +156,8 @@ export class PanelHost extends Phaser.GameObjects.Container {
       if (hintBelow) { cy += rowH + 16; this.text(card, 'small', m.hint, x, cy, { fontSize: fontPx(16) }, CSS.dim); rowH = 24; }
       else this.text(card, 'small', m.hint, cx + 8, cy + Math.round(rowH / 2) - 10, { fontSize: fontPx(16), wordWrap: { width: Math.max(160, x + width - cx - 8) } }, CSS.dim);
     }
-    if (picks.length) { cx = x; cy += rowH + 18; rowH = 0; picks.forEach(add); }
+    // Clear space between the main buttons and the level picks, so neither is pressed for the other.
+    if (picks.length) { cx = x; cy += rowH + 30; rowH = 0; picks.forEach(add); }
     return cy + rowH;
   }
 

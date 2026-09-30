@@ -1,3 +1,4 @@
+import type Phaser from 'phaser';
 import { expect, test, type Page } from '@playwright/test';
 import { activate, approach, canvas, click, open, press, state, ui, watchErrors, world } from './helpers/play';
 
@@ -329,6 +330,29 @@ test('renders a non-blank frame in every level', async ({ page }) => {
     const shot = await canvas(page).screenshot();
     expect(shot.length, `level ${start}`).toBeGreaterThan(40_000);
   }
+});
+
+test('every title-screen and top-bar button answers across its whole face, not its neighbour', async ({ page }) => {
+  await open(page);
+  await page.waitForTimeout(800); // the title panel slides in
+  const misses = await page.evaluate(() => {
+    const r = window.__ringstorp, game = r.game as unknown as Phaser.Game, scene = game.scene.getScene('UI'), cam = scene.cameras.main;
+    const canvas = game.canvas.getBoundingClientRect(), k = game.scale.gameSize.width / canvas.width;
+    const all = (o: { list?: unknown[] }): Phaser.GameObjects.GameObject[] => [o as Phaser.GameObjects.GameObject, ...((o.list ?? []) as { list?: unknown[] }[]).flatMap(all)];
+    const interactive = scene.children.list.flatMap((o: Phaser.GameObjects.GameObject) => all(o as { list?: unknown[] })).filter(o => o.input);
+    const out: string[] = [];
+    for (const id of ['start', 'start-2', 'start-3', 'lang', 'sound', 'chooser']) {
+      const b = r.bounds(id)!;
+      for (const fy of [0.08, 0.5, 0.92]) for (const fx of [0.05, 0.5, 0.95]) {
+        const p = game.input.activePointer;
+        p.x = (b.x + b.width * fx - canvas.left) * k; p.y = (b.y + b.height * fy - canvas.top) * k;
+        const hit = game.input.hitTest(p, interactive, cam)[0] as { id?: string } | undefined;
+        if (hit?.id !== id) out.push(`${id} at ${fx},${fy} → ${hit?.id ?? 'nothing'}`);
+      }
+    }
+    return out;
+  });
+  expect(misses).toEqual([]);
 });
 
 test('a level file plays from its URL with its own street and texts', async ({ page }) => {
