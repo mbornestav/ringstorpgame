@@ -6,8 +6,8 @@ import { SONGS, compile, frequency, type CompiledSong, type DrumEvent, type Note
 // Web Audio way, so the tempo holds steady even when frames are slow. One player per game; scenes ask for a track and
 // it crossfades. Audio is optional: without a context every call quietly does nothing.
 
-/** Overall music level, under the sound effects. */
-const MASTER = 0.045;
+/** Overall music level: about −27 dB on average, a little under the sound effects. */
+const MASTER = 0.2;
 const LEVEL: Record<NoteEvent['instrument'], number> = { lead: 0.42, arp: 0.13, bass: 0.62, drums: 0.5 };
 const AHEAD = 0.15;
 const FADE_OUT = 0.6, FADE_IN = 0.5;
@@ -32,6 +32,23 @@ export class Music {
     const web = manager as unknown as Partial<Pick<Phaser.Sound.WebAudioSoundManager, 'context' | 'destination'>>;
     this.context = web.context ?? null;
     this.out = web.destination ?? this.context?.destination ?? null;
+    this.unlockOnGesture();
+  }
+
+  /**
+   * Browsers keep audio suspended until the page is clicked, tapped or typed in. Phaser listens for that on the page body,
+   * but the game's own handlers stop some events before they get there; listening on the window in the capture phase
+   * sees every first gesture.
+   */
+  private unlockOnGesture(): void {
+    const c = this.context;
+    if (!c || typeof window === 'undefined') return;
+    const kinds = ['pointerdown', 'pointerup', 'touchend', 'keydown', 'mousedown'] as const;
+    const unlock = () => {
+      if (c.state === 'running') { for (const k of kinds) window.removeEventListener(k, unlock, true); return; }
+      void c.resume().then(() => { for (const k of kinds) window.removeEventListener(k, unlock, true); }, () => { /* try again on the next gesture */ });
+    };
+    for (const k of kinds) window.addEventListener(k, unlock, true);
   }
 
   /** Switches to `id` (null: silence), fading the old track out. `delay` seconds holds the new one back, after a jingle. */

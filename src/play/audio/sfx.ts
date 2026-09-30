@@ -5,6 +5,9 @@ import { CUES } from './cues';
  * The original oscillator synth, running on Phaser's AudioContext so Phaser's unlock-on-first-input and its master mute apply.
  * Audio is optional: any failure is swallowed.
  */
+/** How much louder than the original cue levels the effects play. */
+export const EFFECTS_BOOST = 3;
+
 export class Sfx {
   /** Only the WebAudio manager has a context; the no-audio and HTML5 managers leave the synth silent. */
   private readonly web: Partial<Pick<Phaser.Sound.WebAudioSoundManager, 'context' | 'destination'>>;
@@ -14,6 +17,20 @@ export class Sfx {
   }
 
   private get context(): AudioContext | null { return this.web.context ?? null; }
+
+  /**
+   * The cues keep the original game's per-note levels, which were meant for a quiet page; one boost brings effects up to
+   * a normal loudness, above the music.
+   */
+  private boost: GainNode | null = null;
+  private output(context: AudioContext): AudioNode {
+    if (!this.boost) {
+      this.boost = context.createGain();
+      this.boost.gain.value = EFFECTS_BOOST;
+      this.boost.connect(this.web.destination ?? context.destination);
+    }
+    return this.boost;
+  }
 
   setMuted(muted: boolean): void { this.manager.mute = muted; }
 
@@ -29,7 +46,7 @@ export class Sfx {
       if (context.state === 'suspended') void context.resume();
       // A cue scheduled on a suspended clock would all fire at once on unlock; skip it instead.
       if (context.state !== 'running') return;
-      const destination = this.web.destination ?? context.destination;
+      const destination = this.output(context);
       const now = context.currentTime;
       for (const [frequency, duration, delay] of cue.notes) {
         const osc = context.createOscillator();
