@@ -35,10 +35,15 @@ const NOTES: Record<string, Note[]> = {
   twinkle: [[1568, 0.08, 0], [2093, 0.08, 0.08], [2637, 0.16, 0.16]],
   boing: [[330, 0.28, 0]],
   cheer: [[784, 0.08, 0], [988, 0.12, 0.08]],
+  // Filmkväll: a thing landing on the sofa, the TV coming on, and two of the surprises.
+  plop: [[620, 0.12, 0]],
+  tvon: [[1175, 0.05, 0], [1568, 0.05, 0.06], [2093, 0.14, 0.12]],
+  atjoo: [[660, 0.08, 0], [880, 0.08, 0.1], [420, 0.32, 0.22]],
+  rawr: [[190, 0.45, 0], [150, 0.3, 0.12]],
 };
 
-const SAWTOOTH = new Set(['hit', 'hurt', 'smash', 'thud', 'shot', 'brake', 'lift', 'crash', 'tear', 'snuffle', 'prrrt']);
-const GLIDES = new Set(['swing', 'dodge', 'shot', 'brake', 'meow', 'prrrt', 'boing']);
+const SAWTOOTH = new Set(['hit', 'hurt', 'smash', 'thud', 'shot', 'brake', 'lift', 'crash', 'tear', 'snuffle', 'prrrt', 'atjoo', 'rawr']);
+const GLIDES = new Set(['swing', 'dodge', 'shot', 'brake', 'meow', 'prrrt', 'boing', 'plop', 'atjoo', 'rawr']);
 const QUIET = new Set(['warn', 'brake']);
 
 export interface Cue {

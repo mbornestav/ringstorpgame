@@ -65,14 +65,33 @@ const YARD: string[] = [
   '#2b3936', '#fffbea', '#f3cfae', '#8d5a3b', '#f5d23a', '#2f62d9', '#f07fb0', '#6cc0ee', '#8aad55', '#e2432f', '#1f1a18',
 ];
 
+/** Filmkväll's living room, after the photo: the grey-green floral wallpaper, the dark wooden floor, the white shelves and
+ * table, the grey sofa and the black chair, straw and wicker, the books' spines, and the TV's picture and green backlight. */
+const HOME: string[] = [
+  // Wall, ceiling and skirting.
+  '#8e917f', '#9a9c8d', '#a6a899', '#b4b6a7', '#c6c8b9', '#b5a983', '#cbc7bc', '#e7e5dd', '#f5f4ef',
+  // The floor, and the room dimmed for the film.
+  '#2a2522', '#38332f', '#45403b', '#5c544c', '#20223a', '#3a3b52', '#5a5a6a',
+  // White furniture, the grey fabrics, the TV and the bench, the leather and chrome.
+  '#fbfaf6', '#d9d7cf', '#b8bab6', '#8c8e8a', '#6b7076', '#4d5257', '#2c3236', '#1c1e21', '#3a3a40', '#c9ced0',
+  // Straw, wicker and seagrass.
+  '#ecd9a6', '#d3b97f', '#b4975c', '#8f6a3a', '#e2d4ad',
+  // Book spines, the red box, the cushion and the teddy, the popcorn.
+  '#a33a2f', '#d6372c', '#2e4f7a', '#3d6a9e', '#2f5a45', '#5c8a5a', '#6b4a6e', '#e6b8b0', '#d9a441', '#b07a4a', '#e2b98a', '#fbf3dc',
+  // The TV picture and its backlight, the geranium, the dining room.
+  '#6fbde8', '#cdeefb', '#a9d36a', '#62b046', '#2350b8', '#4f82e6', '#d6f05a', '#4c7a2e', '#7e6f78',
+  // Accents: ink, lamp light, Carl-Otto's skin, hair, light-blue top and trousers.
+  '#2b3936', '#ffe9b0', '#f0c197', '#c98f6a', '#e8c870', '#cfe2ec', '#9fb6c4', '#8798ab',
+];
+
 /** How far (in 0–255 units) the ordered dither may push a channel: enough to shade ramps, low enough to keep flats flat. */
-const SPREAD = { day: 10, night: 9, interior: 10, bike: 10, yard: 10 } as const;
+const SPREAD = { day: 10, night: 9, interior: 10, bike: 10, yard: 10, home: 10 } as const;
 
 export type Lighting = keyof typeof SPREAD;
 const cache = new Map<Lighting, Palette>();
 
 export function paletteFor(lighting: Lighting): { palette: Palette; spread: number } {
   let palette = cache.get(lighting);
-  if (!palette) cache.set(lighting, palette = new Palette({ day: DAY, night: NIGHT, interior: INTERIOR, bike: BIKE, yard: YARD }[lighting]));
+  if (!palette) cache.set(lighting, palette = new Palette({ day: DAY, night: NIGHT, interior: INTERIOR, bike: BIKE, yard: YARD, home: HOME }[lighting]));
   return { palette, spread: SPREAD[lighting] };
 }

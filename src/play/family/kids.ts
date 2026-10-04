@@ -8,6 +8,8 @@ import type { KidLook } from './games/kurragomma';
 export type Pose =
   | { kind: 'stand' }
   | { kind: 'walk'; phase: number }
+  /** Walking with both arms out in front, holding things (Filmkväll). */
+  | { kind: 'carry'; phase: number }
   | { kind: 'run'; phase: number }
   | { kind: 'cheer'; t: number }
   | { kind: 'pop'; t: number }
@@ -32,25 +34,34 @@ type Look = KidLook & { helmet?: boolean };
 const SIZE = { hip: 44, torso: 34, thigh: 22, shin: 22, upper: 15, fore: 14, head: 19 };
 const add = (p: Pt, angle: number, length: number): Pt => [p[0] + Math.sin(angle) * length, p[1] + Math.cos(angle) * length];
 
+// Joint angles: 0 points straight down and a positive angle turns towards where the child faces. Each limb is [upper, bend]:
+// a knee bends with a negative bend (the shin swings back), an elbow with a positive one (the forearm swings forward).
 interface Rig { lean: number; legs: [[number, number], [number, number]]; arms: [[number, number], [number, number]]; lift: number; bob: number }
+
+/** A walking stride: the knee folds back while that leg is behind. */
+const walkLegs = (p: number): Rig['legs'] => [[Math.sin(p) * 0.5, -Math.max(0, -Math.sin(p)) * 0.45], [-Math.sin(p) * 0.5, -Math.max(0, Math.sin(p)) * 0.45]];
 
 function rig(pose: Pose): Rig {
   const s = (t: number) => Math.sin(t);
   switch (pose.kind) {
-    case 'walk': { const p = pose.phase; return { lean: 0.05, legs: [[s(p) * 0.5, Math.max(0, -s(p)) * 0.6], [-s(p) * 0.5, Math.max(0, s(p)) * 0.6]], arms: [[-s(p) * 0.5, -0.4], [s(p) * 0.5, -0.4]], lift: 0, bob: Math.abs(s(p)) * 2 }; }
-    case 'run': { const p = pose.phase; return { lean: 0.2, legs: [[s(p) * 0.9, Math.max(0, -s(p)) * 1.2 + 0.2], [-s(p) * 0.9, Math.max(0, s(p)) * 1.2 + 0.2]], arms: [[-s(p) * 0.9, -1.3], [s(p) * 0.9, -1.3]], lift: Math.abs(s(p)) * 4, bob: 0 }; }
-    case 'cheer': { const j = Math.abs(s(pose.t * 7)), w = s(pose.t * 14) * 0.15; return { lean: -0.05, legs: [[0.15, 0.1 + j * 0.3], [-0.15, 0.1 + j * 0.3]], arms: [[Math.PI - 1.05 + w, -0.25], [Math.PI + 1.0 - w, 0.25]], lift: j * 14, bob: 0 }; }
-    case 'pop': { const j = Math.max(0, s(Math.min(1, pose.t / 0.5) * Math.PI)); return { lean: -0.05, legs: [[0.35, 0.5 * j], [-0.35, 0.5 * j]], arms: [[Math.PI - 0.9, 0.3], [Math.PI + 0.9, -0.3]], lift: j * 26, bob: 0 }; }
+    case 'walk': { const p = pose.phase; return { lean: 0.05, legs: walkLegs(p), arms: [[-s(p) * 0.5, 0.4], [s(p) * 0.5, 0.4]], lift: 0, bob: Math.abs(s(p)) * 2 }; }
+    case 'carry': { const p = pose.phase; return { lean: -0.04, legs: walkLegs(p), arms: [[0.95 + s(p) * 0.04, 0.95], [0.8 - s(p) * 0.04, 1.05]], lift: 0, bob: Math.abs(s(p)) * 2 }; }
+    case 'run': { const p = pose.phase; return { lean: 0.2, legs: [[s(p) * 0.9, -(Math.max(0, -s(p)) * 1.2 + 0.2)], [-s(p) * 0.9, -(Math.max(0, s(p)) * 1.2 + 0.2)]], arms: [[-s(p) * 0.9, 1.3], [s(p) * 0.9, 1.3]], lift: Math.abs(s(p)) * 4, bob: 0 }; }
+    case 'cheer': { const j = Math.abs(s(pose.t * 7)), w = s(pose.t * 14) * 0.15; return { lean: -0.05, legs: [[0.15, -(0.1 + j * 0.3)], [-0.15, -(0.1 + j * 0.3)]], arms: [[Math.PI - 1.05 + w, -0.25], [Math.PI + 1.0 - w, 0.25]], lift: j * 14, bob: 0 }; }
+    case 'pop': { const j = Math.max(0, s(Math.min(1, pose.t / 0.5) * Math.PI)); return { lean: -0.05, legs: [[0.35, -0.5 * j], [-0.35, -0.5 * j]], arms: [[Math.PI - 0.9, 0.3], [Math.PI + 0.9, -0.3]], lift: j * 26, bob: 0 }; }
     case 'eyes': return { lean: 0, legs: [[0.06, 0], [-0.06, 0]], arms: [[Math.PI - 0.35, 2.05], [Math.PI - 0.15, 2.2]], lift: 0, bob: 0 };
-    case 'crouch': return { lean: 2.25, legs: [[0.22, 0.05], [0.02, 0.08]], arms: [[0.25, 0.1], [0.05, 0.1]], lift: -2, bob: 0 };
+    case 'crouch': return { lean: 2.25, legs: [[0.22, -0.05], [0.02, -0.08]], arms: [[0.25, 0.1], [0.05, 0.1]], lift: -2, bob: 0 };
     case 'sit': { const w = s(pose.t * 3) * 0.35; return { lean: -0.05, legs: [[1.5, -1.5 + w], [1.4, -1.35 - w]], arms: [[0.4, 0.2], [0.5, 0.1]], lift: 0, bob: 0 }; }
-    case 'point': { const w = s(pose.t * 5) * 0.12; return { lean: 0, legs: [[0.08, 0], [-0.08, 0]], arms: [[Math.PI * 0.62 + w, 0.05], [0.2, -0.3]], lift: 0, bob: 0 }; }
-    default: return { lean: 0, legs: [[0.06, 0], [-0.06, 0]], arms: [[0.18, -0.25], [-0.12, -0.2]], lift: 0, bob: 0 };
+    case 'point': { const w = s(pose.t * 5) * 0.12; return { lean: 0, legs: [[0.08, 0], [-0.08, 0]], arms: [[Math.PI * 0.62 + w, 0.05], [0.2, 0.3]], lift: 0, bob: 0 }; }
+    default: return { lean: 0, legs: [[0.06, 0], [-0.06, 0]], arms: [[0.18, 0.25], [-0.12, 0.2]], lift: 0, bob: 0 };
   }
 }
 
-/** A whole child (or, with `scale` about 1.5, a grown-up). Faces right when `facing` is 1. */
-export function kid(c: C, x: number, y: number, look: Look, pose: Pose, facing: 1 | -1 = 1, face: Face = {}, scale = 1): void {
+/**
+ * A whole child (or, with `scale` about 1.5, a grown-up). Faces right when `facing` is 1. `hold` draws whatever the child
+ * carries, in the child's own units (feet at the origin, facing right), between the body and the near arm.
+ */
+export function kid(c: C, x: number, y: number, look: Look, pose: Pose, facing: 1 | -1 = 1, face: Face = {}, scale = 1, hold?: (c: C) => void): void {
   const r = rig(pose), z = SIZE, k = scale * (look.size ?? 1);
   c.save(); c.translate(x, y); c.scale(facing * k, k);
   const hip: Pt = [0, -z.hip - r.lift + r.bob * 0.5];
@@ -63,7 +74,8 @@ export function kid(c: C, x: number, y: number, look: Look, pose: Pose, facing: 
   const leg = (i: 0 | 1, colour: string) => {
     const [knee, foot] = legs[i];
     limb(c, [hip, knee, foot], 9.5, colour);
-    shoe(c, foot[0], foot[1], i ? shadeOf(look.shoes, 0.8) : look.shoes);
+    if (look.barefoot) bareFoot(c, foot[0], foot[1], i ? shadeOf(look.skin, 0.86) : look.skin);
+    else shoe(c, foot[0], foot[1], i ? shadeOf(look.shoes, 0.8) : look.shoes);
   };
   const arm = (i: 0 | 1, colour: string) => {
     const [elbow, hand] = arms[i];
@@ -82,6 +94,7 @@ export function kid(c: C, x: number, y: number, look: Look, pose: Pose, facing: 
   const head = add(shoulder, Math.PI - (r.lean > 1.5 ? r.lean : r.lean * 0.6), z.head);
   paintHead(c, head[0], head[1], look, pose.kind === 'eyes' ? { eyes: 'shut', mouth: 'grin', ...face } : face);
   if (pose.kind === 'eyes' || pose.kind === 'point') arm(1, farTop);
+  hold?.(c);
   arm(0, look.top);
   c.restore();
 }
@@ -93,6 +106,15 @@ function shoe(c: C, x: number, y: number, colour: string): void {
   c.beginPath(); c.moveTo(-4.5, -3.5); c.quadraticCurveTo(0, -6, 4, -3); c.quadraticCurveTo(9, -2, 9, 1.5); c.lineTo(-5.5, 1.5); c.closePath();
   c.fillStyle = colour; c.fill(); stroke(c, INK, 1.6);
   box(c, '#5d6765', -5.5, 1.2, 15, 1.8, 0.8);
+  c.restore();
+}
+
+/** A bare foot: rounder than a shoe, with toes. */
+function bareFoot(c: C, x: number, y: number, colour: string): void {
+  c.save(); c.translate(x, y);
+  c.beginPath(); c.moveTo(-4, -3.5); c.quadraticCurveTo(0, -5.5, 3.5, -2.5); c.quadraticCurveTo(8.5, -1.5, 8.5, 1); c.quadraticCurveTo(8, 1.8, -4.5, 1.6); c.quadraticCurveTo(-6, 0, -4, -3.5); c.closePath();
+  c.fillStyle = colour; c.fill(); stroke(c, INK, 1.5);
+  for (const tx of [4.6, 6.6]) line(c, shadeOf(colour, 0.72), 0.8, [[tx, -0.8], [tx + 0.4, 1.2]]);
   c.restore();
 }
 

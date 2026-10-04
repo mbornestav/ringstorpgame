@@ -3,6 +3,7 @@ import { getLang, setLang } from '../../side/i18n';
 import { sessionOf } from '../scenes/shared';
 import { drawRide, drawRunPreview } from './art';
 import { drawYardPreview } from './yard-art';
+import { drawHomePreview } from './home-art';
 import { FamilySurface } from './surface';
 import { familyText as t } from './text';
 import { isRetro } from '../../side/pixel';
@@ -15,7 +16,7 @@ export class HubScene extends FamilySurface {
 
   create(): void {
     this.section = 'all';
-    for (const key of ['family-bike-preview', 'family-run-preview', 'family-hide-preview']) {
+    for (const key of ['family-bike-preview', 'family-run-preview', 'family-hide-preview', 'family-home-preview']) {
       if (this.textures.exists(key)) continue;
       // Retro: small previews, magnified as pixel art (two screen pixels per preview pixel).
       const k = isRetro() ? 0.33 : 1;
@@ -23,6 +24,7 @@ export class HubScene extends FamilySurface {
       const c = texture.context; c.save(); c.scale(k, k); c.translate(0, -125);
       if (key === 'family-run-preview') drawRunPreview(c);
       else if (key === 'family-hide-preview') drawYardPreview(c);
+      else if (key === 'family-home-preview') drawHomePreview(c);
       else drawRide(c, { distance: 900, x: 430, y: 459, apples: [], invulnerable: 0, elapsed: 0.35 });
       c.restore(); texture.refresh();
     }
@@ -58,21 +60,28 @@ export class HubScene extends FamilySurface {
         this.section = 'carl'; this.rebuild(); this.root.querySelector<HTMLButtonElement>('[data-family="start-bike"]')?.focus();
       });
     } else {
-      // Carl-Otto's games side by side: the bike ride and hide-and-seek.
-      this.card(84, 'family-bike-preview', t('first'), t('bikeTitle'), t('bikeBlurb'), t('start'), 'start-bike', () => this.scene.start('Bike'));
-      this.card(740, 'family-hide-preview', t('second'), t('hideTitle'), t('hideBlurb'), t('countStart'), 'start-hide', () => this.scene.start('Hide'));
+      // Carl-Otto's games side by side: the bike ride, hide-and-seek and movie night.
+      const w = 408, gap = (1440 - 168 - w * 3) / 2;
+      this.card(84, 'family-bike-preview', t('first'), t('bikeTitle'), t('bikeBlurb'), t('start'), 'start-bike', () => this.scene.start('Bike'), w);
+      this.card(84 + w + gap, 'family-hide-preview', t('second'), t('hideTitle'), t('hideBlurb'), t('countStart'), 'start-hide', () => this.scene.start('Hide'), w);
+      this.card(84 + (w + gap) * 2, 'family-home-preview', t('third'), t('movieTitle'), t('movieBlurb'), t('movieStart'), 'start-movie', () => this.scene.start('Movie'), w);
       this.button('all-games', t('back'), 84, 740, 196, () => { this.section = 'all'; this.rebuild(); });
     }
     this.label(t('footer'), this.section === 'all' ? 84 : 820, 770, 16, '#78806b', undefined, true);
   }
 
-  private card(x: number, texture: string, tag: string, title: string, description: string, action: string, id: string, onPress: () => void): void {
-    this.panel(x, 252, 616, 483, 0xe9e9da, 24);
-    this.layer.add(this.add.image(x, 268, texture).setOrigin(0).setDisplaySize(616, 241));
+  /** A game's card: a preview, its name and a line about it, and the button that starts it. Narrower cards crop the preview. */
+  private card(x: number, texture: string, tag: string, title: string, description: string, action: string, id: string, onPress: () => void, w = 616): void {
+    this.panel(x, 252, w, 483, 0xe9e9da, 24);
+    const image = this.add.image(x, 268, texture).setOrigin(0);
+    const source = image.frame;
+    if (w < 616) image.setCrop((source.width - source.width * w / 616) / 2, 0, source.width * w / 616, source.height).setX(x - (616 - w) / 2);
+    image.setDisplaySize(616, 241);
+    this.layer.add(image);
     this.label(tag, x + 28, 525, 18, '#6d775d', undefined, true);
-    this.label(title, x + 28, 552, 43, '#25473f', undefined, true);
-    this.label(description, x + 28, 609, 20, '#5d6b56', 557);
-    this.button(id, action, x + 28, 672, 240, onPress);
+    this.label(title, x + 28, 552, w < 616 ? 36 : 43, '#25473f', undefined, true);
+    this.label(description, x + 28, 609, 20, '#5d6b56', w - 59);
+    this.button(id, action, x + 28, 672, Math.min(240, w - 56), onPress);
     this.mirror('h2', title); this.mirror('p', description);
   }
 }

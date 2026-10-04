@@ -13,6 +13,8 @@ index.html ─ src/play/main.ts        fonts + brand logos load first, then Phas
   BootScene → HubScene               collection chooser: Ringstorp Run / Carl-Ottos spel
     Ringstorp → WorldScene + UIScene run side by side; SideGame.mode is the mission state machine
     Carl-Otto → BikeScene            separate bicycle simulation and illustrated world
+              → HideScene            Kurragömma in the preschool yard (hide-run.ts + yard-art.ts)
+              → MovieScene           Filmkväll in the living room (movie-run.ts + home-art.ts)
 ```
 
 - **`WorldScene`** owns the cadence: `Controls.poll()` → `SideGame.update(dt)` → sound cues → `WorldView.update()`. It also turns a click on the lift's floor buttons into `floor-N`.
@@ -21,7 +23,7 @@ index.html ─ src/play/main.ts        fonts + brand logos load first, then Phas
 - **Accessibility**: `src/play/a11y/mirror.ts` keeps a visually hidden copy of the Ringstorp Run interface in real DOM (`#a11y`). The collection and bike scenes use `src/play/family/surface.ts` for the same canvas-button/DOM-proxy pattern. Screen readers get headings, live regions and buttons, and its buttons are the only elements that hold DOM focus (Tab, Enter and Space work). The canvas draws a focus ring on the control the DOM has focused.
 - **Input**: `input/keymap.ts` is a pure port of the original key handling (tested as a table); `input/controls.ts` feeds it from Phaser's keyboard. Phaser 4 re-runs its key queue on every DOM key event within a frame, so each handled key is marked consumed (`event.stopPropagation()`); without that, one Escape toggles pause twice on a slow frame.
 - **Audio**: the original oscillator synth (`audio/cues.ts` is the data, `audio/sfx.ts` plays it) on Phaser's AudioContext, muted through `game.sound.mute`. The mute preference keeps its original key, `ringstorp-muted`.
-- **Music** (`audio/music.ts`, tracks in `audio/songs.ts`): chiptune played live on the same AudioContext, through Phaser's master mute, so the sound button (or M in Carl-Otto's games) silences it too. A track is written step by step: a 25% pulse lead, a 12.5% pulse arpeggio and a triangle bass generated from one chord per bar, and noise drums. Notes are scheduled 150 ms ahead on the audio clock; tracks crossfade; the music dips while paused. Tracks: `title` (title and results), `street`, `gods`, `heist` (levels 1–3; level files use `street`, or `heist` at night), `hub`, `bike`, `hide`. `?music=off` silences it.
+- **Music** (`audio/music.ts`, tracks in `audio/songs.ts`): chiptune played live on the same AudioContext, through Phaser's master mute, so the sound button (or M in Carl-Otto's games) silences it too. A track is written step by step: a 25% pulse lead, a 12.5% pulse arpeggio and a triangle bass generated from one chord per bar, and noise drums. Notes are scheduled 150 ms ahead on the audio clock; tracks crossfade; the music dips while paused. Tracks: `title` (title and results), `street`, `gods`, `heist` (levels 1–3; level files use `street`, or `heist` at night), `hub`, `bike`, `hide`, `movie`. `?music=off` silences it.
 
 ## The retro look
 

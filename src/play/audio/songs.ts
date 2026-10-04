@@ -201,5 +201,17 @@ const HIDE: Song = {
   order: ['A', 'A', 'B', 'A'],
 };
 
-export const SONGS = { title: TITLE, street: STREET, gods: GODS, heist: HEIST, hub: HUB, bike: BIKE, hide: HIDE } satisfies Record<string, Song>;
+/** Filmkväll: a cosy, swaying evening tune. */
+const MOVIE: Song = {
+  id: 'movie', bpm: 96, bass: 'walk', bassOctave: 2, arp: 'broken', arpOctave: 4,
+  sections: {
+    A: { chords: ['F', 'Am', 'Bb', 'C'], drums: 'k . . . h . . . s . . . h . . .', lead:
+      'C5 - - - A4 - C5 - F5 - - - E5 - D5 - | C5 - - - E5 - A4 - C5 - - - . . . . | D5 - - - F5 - Bb5 - A5 - - - G5 - F5 - | E5 - - - G5 - - - C5 - - - . . . .' },
+    B: { chords: ['Dm', 'Bb', 'F', 'C'], drums: 'k . . . h . k . s . . . h . h .', lead:
+      'F5 - E5 - D5 - - - A4 - - - D5 - F5 - | F5 - - - D5 - Bb4 - D5 - F5 - Bb5 - - - | A5 - - - G5 - F5 - C5 - - - F5 - A5 - | G5 - - - - - E5 - C5 - - - - - . .' },
+  },
+  order: ['A', 'A', 'B', 'A'],
+};
+
+export const SONGS = { title: TITLE, street: STREET, gods: GODS, heist: HEIST, hub: HUB, bike: BIKE, hide: HIDE, movie: MOVIE } satisfies Record<string, Song>;
 export type TrackId = keyof typeof SONGS;

@@ -23,6 +23,8 @@ export interface KidLook {
   print?: 'sponge' | 'hedgehog' | 'star' | 'dino';
   /** 1 is the usual size; a little smaller or bigger than the others. */
   size?: number;
+  /** Bare feet instead of shoes (at home). */
+  barefoot?: boolean;
 }
 
 export interface Friend { id: string; name: string; look: KidLook; /** What they shout when they reach the door. */ cheer: Words }

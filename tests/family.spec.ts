@@ -28,6 +28,7 @@ test('the Swedish chooser groups the existing three levels and returns from ever
   await press(page, 'chooser');
   await expect(page.getByRole('heading', { name: 'Vad vill du spela?' })).toBeAttached();
   await press(page, 'choose-carl');
+  for (const name of ['Till förskolan', 'Kurragömma', 'Filmkväll']) await expect(page.getByRole('heading', { name })).toBeAttached();
   await canvas(page).screenshot({ path: 'test-results/carl-games.png' });
   await press(page, 'all-games'); await press(page, 'choose-ringstorp');
   await expect(page.locator('#a11y-panel-title')).toHaveText('RINGSTORP RUN');
@@ -180,4 +181,67 @@ test('music follows the game: chooser, title, each level, pause, and Carl-Otto�
   await page.keyboard.press('m');
   await press(page, 'bike-menu'); await press(page, 'choose-carl'); await press(page, 'start-hide');
   await expect.poll(track).toBe('hide');
+  await press(page, 'hide-menu'); await press(page, 'choose-carl'); await press(page, 'start-movie');
+  await expect.poll(track).toBe('movie');
+});
+
+test('Filmkväll: finds things by key and button, carries them to the sofa, and the film starts', async ({ page }) => {
+  await hub(page); await press(page, 'choose-carl'); await press(page, 'start-movie');
+  await expect(page.locator('#movie-panel-title')).toHaveText('Filmkväll');
+  await press(page, 'movie-primary');
+  await expect.poll(() => page.evaluate(() => window.__ringstorp.movie().mode)).toBe('gathering');
+  // Walk with the real keyboard.
+  const startX = await page.evaluate(() => window.__ringstorp.movie().x);
+  await page.keyboard.down('ArrowLeft'); await page.waitForTimeout(300); await page.keyboard.up('ArrowLeft');
+  expect(await page.evaluate(() => window.__ringstorp.movie().x)).toBeLessThan(startX - 20);
+  // Stand at a hiding place with something in it and look with Space: it goes into his arms.
+  await page.evaluate(() => { const g = window.__ringstorp.movie(); const s = g.spots.find(s => s.item)!; g.x = s.x; window.__ringstorp.step(1 / 60, 2); window.__ringstorp.thaw(); });
+  await page.keyboard.press('Space');
+  await expect(page.locator('#movie-status')).toContainText('hittad!');
+  await expect.poll(() => page.evaluate(() => window.__ringstorp.movie().carrying.length)).toBe(1);
+  // At an empty place, the big Titta! button opens the surprise.
+  await page.evaluate(() => { const g = window.__ringstorp.movie(); const s = g.spots.find(s => !s.item)!; g.x = s.x; window.__ringstorp.step(1 / 60, 60); window.__ringstorp.thaw(); });
+  await press(page, 'movie-look');
+  await expect.poll(() => page.evaluate(() => window.__ringstorp.movie().spots.filter(s => !s.item && s.opened).length)).toBe(1);
+  // Back at the sofa, what he carries goes onto it.
+  await page.evaluate(() => { const g = window.__ringstorp.movie(); g.x = 820; window.__ringstorp.step(1 / 60, 2); });
+  expect(await page.evaluate(() => window.__ringstorp.movie().placed.length)).toBe(1);
+  await expect(page.locator('#movie-status')).toContainText('ligger i soffan');
+  await canvas(page).screenshot({ path: 'test-results/carl-movie-sofa.png' });
+  // The rest, then the TV comes on and the film starts.
+  await page.evaluate(() => {
+    const g = window.__ringstorp.movie();
+    for (const s of g.spots.filter(s => s.item && !s.opened)) { g.x = s.x; g.look(); window.__ringstorp.step(1 / 60, 60); }
+    g.x = 820; window.__ringstorp.step(1 / 60, 120);
+  });
+  expect(await page.evaluate(() => window.__ringstorp.movie().tvOn)).toBe(true);
+  await canvas(page).screenshot({ path: 'test-results/carl-movie-tv.png' });
+  await page.evaluate(() => window.__ringstorp.step(1 / 60, 200));
+  await expect(page.locator('#movie-panel-title')).toHaveText('Filmen börjar!');
+  await canvas(page).screenshot({ path: 'test-results/carl-movie-won.png' });
+  await page.evaluate(() => window.__ringstorp.thaw());
+  await press(page, 'movie-primary');
+  await expect.poll(() => page.evaluate(() => window.__ringstorp.movie().mode)).toBe('gathering');
+  expect(await page.evaluate(() => window.__ringstorp.movie().placed.length)).toBe(0);
+  await press(page, 'movie-menu');
+  await expect(page.getByRole('heading', { name: 'Vad vill du spela?' })).toBeAttached();
+});
+
+test('Filmkväll: a tap on a hiding place walks there and looks, on a small touch screen', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true });
+  const page = await context.newPage();
+  const errors = watchErrors(page);
+  await page.goto('/?game=filmkvall');
+  await page.waitForFunction(() => window.__ringstorp); await page.evaluate(() => window.__ringstorp.ready);
+  await press(page, 'movie-primary');
+  // The nearest place to the left of the sofa (the coffee table), and where it is on screen (the 960-wide room view fills the canvas).
+  const target = await page.evaluate(() => {
+    const g = window.__ringstorp.movie(), s = g.spots[1], cam = Math.max(0, Math.min(2200 - 960, g.x - 960 * 0.42));
+    return { screen: (s.x - cam) / 960 };
+  });
+  const box = (await canvas(page).boundingBox())!;
+  await page.touchscreen.tap(box.x + target.screen * box.width, box.y + box.height * 0.75);
+  await expect.poll(() => page.evaluate(() => window.__ringstorp.movie().spots[1].opened), { timeout: 10_000 }).toBe(true);
+  await canvas(page).screenshot({ path: 'test-results/carl-movie-mobile.png' });
+  errors(); await context.close();
 });

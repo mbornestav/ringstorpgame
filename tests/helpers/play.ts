@@ -3,6 +3,7 @@ import type { UiAction } from '../../src/play/actions';
 import type { SideGame } from '../../src/side/game';
 import type { BikeRun } from '../../src/play/family/bike-run';
 import type { HideRun } from '../../src/play/family/hide-run';
+import type { MovieRun } from '../../src/play/family/movie-run';
 
 // The dev build exposes `window.__ringstorp` (see src/play/testing/bridge.ts); `sim` is the running SideGame.
 export interface Bridge {
@@ -11,6 +12,7 @@ export interface Bridge {
   sim: SideGame;
   bike(): BikeRun;
   hide(): HideRun;
+  movie(): MovieRun;
   click(action: UiAction): boolean;
   available(action: UiAction): boolean;
   freeze(): void;

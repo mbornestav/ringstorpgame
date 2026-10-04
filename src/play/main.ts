@@ -15,6 +15,7 @@ import { WorldScene } from './scenes/world';
 import { HubScene } from './family/hub-scene';
 import { BikeScene } from './family/bike-scene';
 import { HideScene } from './family/hide-scene';
+import { MovieScene } from './family/movie-scene';
 
 const params = new URLSearchParams(location.search);
 // New visitors meet the Swedish collection; an existing language choice is respected.
@@ -70,7 +71,7 @@ async function boot(): Promise<void> {
     setArtFont(FONT.display);
     // `?artlab=1` (development only) shows the art lab instead of the game.
     const lab = import.meta.env.DEV && params.has('artlab') ? (await import('./testing/artlab')).ArtLabScene : null;
-    game = new Phaser.Game(gameConfig(lab ? [lab] : [BootScene, WorldScene, UIScene, HubScene, BikeScene, HideScene], {
+    game = new Phaser.Game(gameConfig(lab ? [lab] : [BootScene, WorldScene, UIScene, HubScene, BikeScene, HideScene, MovieScene], {
       preBoot: g => { g.registry.set('session', session); },
     }));
   } catch (error) {

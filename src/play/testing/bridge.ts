@@ -6,6 +6,7 @@ import type { WorldScene } from '../scenes/world';
 import type { FamilySurface } from '../family/surface';
 import type { BikeScene } from '../family/bike-scene';
 import type { HideScene } from '../family/hide-scene';
+import type { MovieScene } from '../family/movie-scene';
 import { controlsModel, footerModel, hudModel, mastheadModel, panelModel, phoneModel, promptModel, worldHudModel } from '../ui/models';
 import { musicOf } from '../audio/music';
 
@@ -14,10 +15,13 @@ export function installBridge(game: Phaser.Game, session: Session): void {
   const world = () => game.scene.getScene('World') as WorldScene;
   const ui = () => game.scene.getScene('UI') as UIScene;
   /** Whichever running scene advances by frames: a Carl-Otto game, or Ringstorp Run's world. */
-  const stepper = (): { frozen: boolean; step(dt: number): void } =>
-    game.scene.isActive('Bike') ? game.scene.getScene('Bike') as BikeScene : game.scene.isActive('Hide') ? game.scene.getScene('Hide') as HideScene : world();
+  const family = ['Bike', 'Hide', 'Movie'];
+  const stepper = (): { frozen: boolean; step(dt: number): void } => {
+    const active = family.find(key => game.scene.isActive(key));
+    return active ? game.scene.getScene(active) as BikeScene | HideScene | MovieScene : world();
+  };
   const ready = new Promise<void>(resolve => {
-    const check = () => { if ((game.scene.isActive('World') && world().view) || game.scene.isActive('Hub') || game.scene.isActive('Bike') || game.scene.isActive('Hide')) resolve(); else setTimeout(check, 16); };
+    const check = () => { if ((game.scene.isActive('World') && world().view) || ['Hub', ...family].some(key => game.scene.isActive(key))) resolve(); else setTimeout(check, 16); };
     check();
   });
   const bridge = {
@@ -27,6 +31,7 @@ export function installBridge(game: Phaser.Game, session: Session): void {
     sim: session.game,
     bike: () => (game.scene.getScene('Bike') as BikeScene).run,
     hide: () => (game.scene.getScene('Hide') as HideScene).run,
+    movie: () => (game.scene.getScene('Movie') as MovieScene).run,
     click: (action: UiAction) => session.dispatch(action),
     available: (action: UiAction) => session.available(action),
     /** Stops the scene advancing by itself. */
@@ -41,8 +46,8 @@ export function installBridge(game: Phaser.Game, session: Session): void {
     render: () => game.canvas.toDataURL('image/png'),
     /** Where a control is on the page, in CSS pixels, for a real mouse click; null when it is not showing. */
     bounds: (id: string) => {
-      const family = ['Hub', 'Bike', 'Hide'].find(key => game.scene.isActive(key));
-      const b = family ? (game.scene.getScene(family) as FamilySurface).boundsOf(id) : ui().boundsOf(id);
+      const surface = ['Hub', ...family].find(key => game.scene.isActive(key));
+      const b = surface ? (game.scene.getScene(surface) as FamilySurface).boundsOf(id) : ui().boundsOf(id);
       if (!b) return null;
       const canvas = game.canvas.getBoundingClientRect(), k = canvas.width / game.scale.gameSize.width;
       return { x: canvas.left + b.x * k, y: canvas.top + b.y * k, width: b.width * k, height: b.height * k };

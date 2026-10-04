@@ -6,7 +6,7 @@ const sv = {
   ringstorp: 'Ringstorp Run', runTag: 'ARKADÄVENTYR · 4 BANOR',
   runDescription: 'Paket, hemliga uppdrag och en långtur i Karlstad. Ta den gula bussen hem till Liljedal.',
   runAction: 'Välj bana', carl: 'Carl-Ottos spel', carlTag: 'SMÅ ÄVENTYR · STOR UPPTÄCKARLUST',
-  carlDescription: 'På med den blå hjälmen! Cykla till förskolan och lek kurragömma med kompisarna i Höganäs.',
+  carlDescription: 'På med den blå hjälmen! Cykla till förskolan, lek kurragömma med kompisarna och gör filmkväll hemma.',
   carlAction: 'Upptäck spelen', back: 'Alla spel', first: 'SPEL 1',
   bikeTitle: 'Till förskolan', bikeDescription: 'Det är en fin morgon i Höganäs. Hjälp Carl-Otto att cykla till den röda förskolan och väja för äpplena som faller från träden.',
   bikeInstructions: 'Cykeln rullar av sig själv. Styr med piltangenterna eller WASD. På en pekskärm använder du pilknapparna.',
@@ -29,6 +29,13 @@ const sv = {
   seekAgain: 'Leta igen', foundStatus: '{name} hittad! {n} kvar.', foundLast: '{name} hittad! Alla är hittade!',
   friends: 'KOMPISAR', seekKeys: 'GÅ ◀ ▶ / A D     TITTA · MELLANSLAG     ESC · PAUS     M · LJUD', hidePaused: 'Paus i leken',
   hidePausedBody: 'Kompisarna väntar i sina gömställen.',
+  third: 'SPEL 3', movieTitle: 'Filmkväll', movieBlurb: 'Hitta det som behövs till filmkvällen och gör soffan mysig.',
+  movieInstructions: 'Det är filmkväll! Hitta filten, kudden, nallen, popcornen och fjärrkontrollen och bär dem till soffan. Gå med piltangenterna eller A och D och tryck mellanslag för att titta. På en pekskärm trycker du där du vill titta.',
+  movieHint: 'Titta efter något som sticker fram – en filtflik eller ett nalleöra!',
+  movieStart: 'Börja leta', toSofa: 'TILL SOFFAN', foundItem: '{name} hittad! Bär den till soffan.',
+  placedItem: '{name} ligger i soffan. {n} kvar.', placedLast: '{name} ligger i soffan. Allt är klart!', filmStarts: 'Nu börjar filmen!',
+  movieDone: 'Filmen börjar!', movieDoneBody: 'Vilken mysig soffa, Carl-Otto! Nu är det filmkväll.', lookAgain: 'Leta igen',
+  moviePaused: 'Paus i filmkvällen', moviePausedBody: 'Allt ligger kvar där det är.',
 };
 
 const en: Record<keyof typeof sv, string> = {
@@ -36,7 +43,7 @@ const en: Record<keyof typeof sv, string> = {
   ringstorp: 'Ringstorp Run', runTag: 'ARCADE ADVENTURES · 4 LEVELS',
   runDescription: 'Parcels, secret assignments and a long run through Karlstad. Take the yellow bus home to Liljedal.', runAction: 'Choose a level',
   carl: 'Carl-Ottos spel', carlTag: 'LITTLE ADVENTURES · BIG CURIOSITY',
-  carlDescription: 'Blue helmet on! Ride to preschool and play hide and seek with friends in Höganäs.', carlAction: 'Explore the games',
+  carlDescription: 'Blue helmet on! Ride to preschool, play hide and seek with friends, and get ready for movie night at home.', carlAction: 'Explore the games',
   back: 'All games', first: 'GAME 1', bikeTitle: 'Off to preschool',
   bikeDescription: 'It’s a lovely morning in Höganäs. Help Carl-Otto cycle to the red preschool and dodge the apples falling from the trees.',
   bikeInstructions: 'The bike rolls along by itself. Steer with the arrow keys or WASD. On a touchscreen, use the arrow buttons.',
@@ -58,6 +65,13 @@ const en: Record<keyof typeof sv, string> = {
   seekAgain: 'Play again', foundStatus: '{name} found! {n} to go.', foundLast: '{name} found! Everyone is found!',
   friends: 'FRIENDS', seekKeys: 'WALK ◀ ▶ / A D     LOOK · SPACE     ESC · PAUSE     M · SOUND', hidePaused: 'A little break',
   hidePausedBody: 'Your friends are waiting in their hiding places.',
+  third: 'GAME 3', movieTitle: 'Movie night', movieBlurb: 'Find what movie night needs and make the sofa cosy.',
+  movieInstructions: 'It’s movie night! Find the blanket, the cushion, Teddy, the popcorn and the remote, and carry them to the sofa. Walk with the arrow keys or A and D, and press space to look. On a touchscreen, tap where you want to look.',
+  movieHint: 'Look out for something poking out – a corner of the blanket or a teddy ear!',
+  movieStart: 'Start looking', toSofa: 'FOR THE SOFA', foundItem: 'Found {name}! Carry it to the sofa.',
+  placedItem: 'On the sofa: {name}. {n} to go.', placedLast: 'On the sofa: {name}. Everything’s ready!', filmStarts: 'The film is starting!',
+  movieDone: 'The film is on!', movieDoneBody: 'What a cosy sofa, Carl-Otto! Movie night can begin.', lookAgain: 'Play again',
+  moviePaused: 'A little break', moviePausedBody: 'Everything stays right where it is.',
 };
 
 export const familyText = (key: keyof typeof sv): string => (getLang() === 'sv' ? sv : en)[key];

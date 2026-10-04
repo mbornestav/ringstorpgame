@@ -90,6 +90,20 @@ export abstract class FamilySurface extends Phaser.Scene {
     this.layer.add(text); return text;
   }
 
+  /**
+   * Big touch targets in the lower right for walking left and right (Kurragömma, Filmkväll): a held arrow is in `touches`
+   * under its pointer, as the arrow key it stands for. `pressed` runs when one is touched.
+   */
+  protected walkPad(touches: Map<number, string>, pressed?: () => void): void {
+    for (const [key, glyph, x] of [['arrowleft', '◀', 1150], ['arrowright', '▶', 1320]] as const) {
+      this.panel(x, 660, 80, 72, 0xfff8e5, 18, 0.93);
+      this.label(glyph, x + 26, 676, 34, '#315846', undefined, true);
+      const zone = this.add.zone(x, 660, 80, 72).setOrigin(0).setInteractive(); this.layer.add(zone);
+      zone.on('pointerdown', (p: Phaser.Input.Pointer) => { touches.set(p.id, key); pressed?.(); });
+      zone.on('pointerout', (p: Phaser.Input.Pointer) => touches.delete(p.id));
+    }
+  }
+
   protected mirror(tag: 'h1' | 'h2' | 'p', value: string, id?: string): HTMLElement {
     const el = document.createElement(tag); el.textContent = value;
     if (id) el.id = id;

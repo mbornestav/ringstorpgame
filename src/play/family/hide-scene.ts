@@ -13,11 +13,12 @@ import { paintHead } from './kids';
 import { FamilySurface } from './surface';
 import { familyText as t } from './text';
 import { GROUND, TEACHER_X, drawYard } from './yard-art';
+import { Bubbles, type Bubble } from './seek-ui';
 import { musicOf } from '../audio/music';
 
 // Carl-Ottos spel 2: Kurragömma. The yard is drawn like the ride (480 × 270 in the retro build, through the palette
 // shader); the interface is canvas buttons with DOM counterparts, as everywhere in the collection. Speech bubbles float
-// over the yard from a small pool of reusable objects, so a busy moment never creates new ones.
+// over the yard (./seek-ui.ts).
 
 const DIV = isRetro() ? 3 : 1;
 /** World pixels to interface pixels: the 960-wide world fills the 1440-wide interface. */
@@ -25,8 +26,6 @@ const K = 1.5;
 const words = (w: Words) => w[getLang()];
 const SURPRISE_SOUND: Record<string, string> = { cat: 'meow', hedgehog: 'snuffle', cushion: 'prrrt', glasses: 'twinkle', sock: 'boing', snail: 'boing' };
 
-interface Bubble { text: string; x: number; y: number; until: number; tone: 'friend' | 'surprise' | 'teacher' | 'giggle' | 'look' }
-interface Slot { g: Phaser.GameObjects.Graphics; text: Phaser.GameObjects.Text }
 
 export class HideScene extends FamilySurface {
   run = new HideRun();
@@ -34,8 +33,7 @@ export class HideScene extends FamilySurface {
   private texture!: Phaser.Textures.CanvasTexture;
   private held = new Set<string>();
   private touches = new Map<number, string>();
-  private bubbles: Bubble[] = [];
-  private pool: Slot[] = [];
+  private bubbles!: Bubbles;
   private big!: Phaser.GameObjects.Text;
   private status!: HTMLElement;
   private sfx!: Sfx;
@@ -49,7 +47,7 @@ export class HideScene extends FamilySurface {
   constructor() { super('Hide'); }
 
   create(): void {
-    this.run = new HideRun(); this.frozen = false; this.held.clear(); this.touches.clear(); this.bubbles = [];
+    this.run = new HideRun(); this.frozen = false; this.held.clear(); this.touches.clear();
     this.lastMode = ''; this.lastNear = null; this.lastFound = 0; this.autoLook = null; this.clock = 0;
     this.sfx = new Sfx(this.game.sound);
     if (this.textures.exists('hide-world')) this.textures.remove('hide-world');
@@ -57,7 +55,7 @@ export class HideScene extends FamilySurface {
     if (isRetro()) addRetroImage(this, 'hide-world', 0, 0, 1440, 810, () => paletteFor('yard'));
     else this.add.image(0, 0, 'hide-world').setOrigin(0);
     this.makeFaces();
-    this.pool = Array.from({ length: 10 }, () => ({ g: this.add.graphics().setDepth(40), text: this.add.text(0, 0, '', this.style(24, '#25473f')).setDepth(41) }));
+    this.bubbles = new Bubbles(this, this.style(24, '#25473f'));
     this.big = this.add.text(720, 300, '', { ...this.style(120, '#fff7df', true), stroke: '#25473f', strokeThickness: 12 }).setOrigin(0.5).setDepth(42);
     this.setup();
     musicOf(this.game).play('hide');
@@ -156,7 +154,7 @@ export class HideScene extends FamilySurface {
     if (g.mode === 'seeking') {
       this.panel(28, 739, 1000, 47, 0xfff8e5, 16, 0.92);
       this.label(t('seekKeys'), 49, 750, 20, '#3e5948', undefined, true);
-      this.pad();
+      this.walkPad(this.touches, () => { this.autoLook = null; });
       if (g.near) this.button('hide-look', t('look'), 1150, 560, 250, () => { this.run.look(); this.changed(); });
     } else if (g.mode === 'counting') {
       this.panel(28, 739, 520, 47, 0xfff8e5, 16, 0.92);
@@ -180,23 +178,9 @@ export class HideScene extends FamilySurface {
     if (ready) this.mirror('p', t('hideHint'));
   }
 
-  /** Big touch targets: walk left and right (a tap in the yard also works). */
-  private pad(): void {
-    for (const [key, glyph, x] of [['arrowleft', '◀', 1150], ['arrowright', '▶', 1320]] as const) {
-      this.panel(x, 660, 80, 72, 0xfff8e5, 18, 0.93);
-      this.label(glyph, x + 26, 676, 34, '#315846', undefined, true);
-      const zone = this.add.zone(x, 660, 80, 72).setOrigin(0).setInteractive(); this.layer.add(zone);
-      zone.on('pointerdown', (p: Phaser.Input.Pointer) => { this.touches.set(p.id, key); this.autoLook = null; });
-      zone.on('pointerout', (p: Phaser.Input.Pointer) => this.touches.delete(p.id));
-    }
-  }
-
   // ---------------------------------------------------------------- the running game
 
-  private say(text: string, x: number, y: number, tone: Bubble['tone'], seconds = 2.6): void {
-    this.bubbles = this.bubbles.filter(b => !(b.tone === tone && Math.abs(b.x - x) < 40));
-    this.bubbles.push({ text, x, y, until: this.clock + seconds, tone });
-  }
+  private say(text: string, x: number, y: number, tone: Bubble['tone'], seconds = 2.6): void { this.bubbles.say(text, x, y, tone, this.clock + seconds); }
 
   private announce(text: string): void { if (this.status) this.status.textContent = text; }
 
@@ -247,28 +231,13 @@ export class HideScene extends FamilySurface {
 
   /** Speech bubbles, the giggles, the teacher's hint and the "Titta!" marker, positioned over the yard. */
   private drawBubbles(): void {
-    const g = this.run, live: Bubble[] = this.bubbles.filter(b => b.until > this.clock);
-    this.bubbles = live;
-    const extra: Bubble[] = [];
+    const g = this.run, extra: Bubble[] = [];
     if (g.mode === 'seeking') {
       for (const s of g.spots) if (s.giggling > 0) extra.push({ text: t('hihi'), x: s.x + 20, y: GROUND - 150, until: 0, tone: 'giggle' });
       if (g.hint) extra.push({ text: words(TEACHER.hint), x: TEACHER_X + 20, y: GROUND - 250, until: 0, tone: 'teacher' });
       if (g.near) extra.push({ text: t('look'), x: g.near.x, y: GROUND - 205, until: 0, tone: 'look' });
     }
-    const shown = [...live, ...extra];
     this.big.setText(g.mode === 'counting' ? String(Math.max(1, g.count + 1)) : '').setVisible(g.mode === 'counting');
-    this.pool.forEach((slot, i) => {
-      const b = shown[i];
-      slot.g.clear();
-      if (!b) { slot.text.setVisible(false); return; }
-      slot.text.setText(b.text).setVisible(true).setWordWrapWidth(360, true);
-      const w = Math.ceil(slot.text.width) + 32, h = Math.ceil(slot.text.height) + 20;
-      const cx = Math.round(Math.max(w / 2 + 10, Math.min(1430 - w / 2, (b.x - this.cam) * K))), top = Math.round(Math.max(130, b.y * K - h));
-      const fill = b.tone === 'look' ? 0x2a5a4b : b.tone === 'teacher' ? 0xfff0b8 : 0xffffff;
-      slot.g.fillStyle(0x1d3326, 0.25).fillRoundedRect(cx - w / 2 + 4, top + 5, w, h, 12);
-      slot.g.fillStyle(fill, 1).fillRoundedRect(cx - w / 2, top, w, h, 12).lineStyle(3, 0x25473f, 1).strokeRoundedRect(cx - w / 2, top, w, h, 12);
-      slot.g.fillStyle(fill, 1).fillTriangle(cx - 10, top + h - 2, cx + 10, top + h - 2, cx, top + h + 14);
-      slot.text.setColor(b.tone === 'look' ? '#fff7df' : '#25473f').setPosition(Math.round(cx - slot.text.width / 2), top + 10);
-    });
+    this.bubbles.draw(this.clock, extra, this.cam, K);
   }
 }
