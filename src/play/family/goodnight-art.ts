@@ -3,6 +3,7 @@ import { CARL_OTTO_HOME } from './games/filmkvall';
 import { ANIMALS, BED, FLOOR, KEYS, LAMP, PIANO, SONG, TOYS, TUNING, type AnimalId, type ToyId } from './games/godnatt';
 import type { GoodnightRun } from './goodnight-run';
 import { kid, paintHead } from './kids';
+import { paintHungPicture } from './wall-picture';
 
 // Carl-Otto's room for Godnatt, after the family's photos, seen from the doorway: the pale wallpaper of foxes, squirrels,
 // hedgehogs, badgers and rabbits among grey-green leaves, the white shelf over the desk, the toy piano on its red stool,
@@ -286,7 +287,7 @@ function hintAt(run: GoodnightRun, h: NonNullable<GoodnightRun['hint']>): Pt {
 }
 
 /** One frame of Carl-Otto's room, in world units. `cheer` makes him cheer (until the clock reaches it). */
-export function drawRoom(c: C, run: GoodnightRun, t: number, cheerUntil: number): void {
+export function drawRoom(c: C, run: GoodnightRun, t: number, cheerUntil: number, picture: HTMLImageElement | null = null): void {
   const night = run.dark >= 0 ? smooth01(run.dark / TUNING.dark) : 0;
   paintWallpaper(c); paintFloor(c);
   // The animals that get a goodnight, a little bigger than the pattern, on a soft light patch.
@@ -297,6 +298,8 @@ export function drawRoom(c: C, run: GoodnightRun, t: number, cheerUntil: number)
     if (asleep && asleep.since < 1.2) { const u = asleep.since / 1.2; c.save(); c.globalAlpha = 1 - u; c.font = '16px sans-serif'; c.fillStyle = '#6b7076'; c.fillText('z z', a.at[0] + 10 + u * 20, a.at[1] - a.r - u * 30); c.restore(); }
   }
   paintWindow(c, night); paintCurtain(c); paintShelf(c, run); paintDesk(c); paintPiano(c); paintBasket(c);
+  // His own picture on the wall, between the lamp and the bed (the one he chose for his room in the craft corner's gallery).
+  if (picture) paintHungPicture(c, picture, 318, 226, 88, -0.04);
   paintBed(c, run, t); paintDollhouse(c, run); paintFireStation(c, run); paintRug(c);
   // The toys at home, then the ones still out (and the one in a hand, on top).
   const order = [...run.toys].sort((a, b) => Number(a.id === run.held) - Number(b.id === run.held) || Number(!a.placed) - Number(!b.placed));

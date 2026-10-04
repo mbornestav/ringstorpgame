@@ -283,7 +283,8 @@ test('Hemma: the map chooses rooms by tap and by key, and goes back to Carl-Otto
   await expect(page.getByRole('heading', { name: 'Hemma' })).toBeAttached();
 });
 
-test('Pysselhörnan: draws, colours in, puts on stickers, undoes, and the picture hangs in the living room', async ({ page }) => {
+test('Pysselhörnan with the mouse and the keyboard: brushes, mirror, stickers, a pattern page, the gallery', async ({ page }) => {
+  test.setTimeout(60_000);
   await hub(page); await press(page, 'choose-carl'); await press(page, 'start-home');
   // The map opens on the hall, the first room of the evening.
   await expect(page.locator('#house-room')).toHaveText('Hallen'); await press(page, 'play-pyssel');
@@ -291,50 +292,48 @@ test('Pysselhörnan: draws, colours in, puts on stickers, undoes, and the pictur
   const box = (await canvas(page).boundingBox())!;
   /** A point on the paper (paper units, 580 × 420 from its top left at world 40, 96) on the page. */
   const on = (x: number, y: number) => ({ x: box.x + (40 + x) / 960 * box.width, y: box.y + (96 + y) / 540 * box.height });
+  const line = async (pts: Array<[number, number]>) => { let p = on(...pts[0]); await page.mouse.move(p.x, p.y); await page.mouse.down(); for (const q of pts.slice(1)) { p = on(...q); await page.mouse.move(p.x, p.y, { steps: 4 }); } await page.mouse.up(); };
   // Nothing to put up yet.
   await press(page, 'craft-hang');
   await expect(page.locator('#craft-status')).toHaveText('Rita något först!');
-  // A line with the mouse, in blue.
-  await press(page, 'crayon-5');
-  await expect(page.locator('#craft-status')).toHaveText('Blå krita');
-  let p = on(100, 120); await page.mouse.move(p.x, p.y); await page.mouse.down();
-  for (const [x, y] of [[160, 160], [240, 140], [320, 220]]) { p = on(x, y); await page.mouse.move(p.x, p.y, { steps: 4 }); }
-  await page.mouse.up();
-  const line = await page.evaluate(() => { const s = window.__ringstorp.craft().picture.strokes[0]; return { colour: s.colour, points: s.points.length }; });
-  expect(line.colour).toBe('#3157b8'); expect(line.points).toBeGreaterThan(4);
-  // A heart sticker, then undo takes it off again.
-  await press(page, 'sticker-heart');
-  p = on(450, 300); await page.mouse.click(p.x, p.y);
-  expect(await page.evaluate(() => window.__ringstorp.craft().picture.stickers.length)).toBe(1);
-  await press(page, 'craft-undo');
-  expect(await page.evaluate(() => window.__ringstorp.craft().picture.stickers.length)).toBe(0);
-  // The keyboard pen: the arrows move it, Space puts it down and lifts it.
-  await press(page, 'tool-crayon');
+  // A blue rainbow line, mirrored four ways.
+  await press(page, 'crayon-5'); await press(page, 'brush-rainbow'); await press(page, 'craft-sym'); await press(page, 'craft-sym');
+  await line([[80, 80], [160, 140], [240, 90]]);
+  const first = await page.evaluate(() => { const s = window.__ringstorp.craft().picture.strokes[0]; return { brush: s.brush, sym: s.sym, colour: s.colour }; });
+  expect(first).toEqual({ brush: 'rainbow', sym: 4, colour: '#3157b8' });
+  // The keyboard: B changes the brush (to glitter), S the mirror, Space draws with the pen.
+  await page.keyboard.press('b'); await page.keyboard.press('s'); await page.keyboard.press('s');
   await page.keyboard.press('Space'); await page.keyboard.down('ArrowDown'); await page.waitForTimeout(250); await page.keyboard.up('ArrowDown'); await page.keyboard.press('Space');
-  expect(await page.evaluate(() => window.__ringstorp.craft().picture.strokes.length)).toBe(2);
+  expect(await page.evaluate(() => window.__ringstorp.craft().picture.strokes.map(s => `${s.brush}:${s.sym}`))).toEqual(['rainbow:4', 'glitter:1']);
+  // Mamma on the paper, made bigger with +, moved with the arrows, and Z takes the move back.
+  await press(page, 'sticker-mamma');
+  await page.mouse.click(on(420, 300).x, on(420, 300).y);
+  const x0 = await page.evaluate(() => window.__ringstorp.craft().picture.stickers[0].x);
+  await page.keyboard.press('+'); await page.keyboard.press('ArrowLeft');
+  let st = await page.evaluate(() => window.__ringstorp.craft().picture.stickers.map(s => ({ id: s.sticker, size: s.size, x: s.x })));
+  expect(st).toEqual([{ id: 'mamma', size: 2, x: x0 - 10 }]);
+  await page.keyboard.press('z');
+  st = await page.evaluate(() => window.__ringstorp.craft().picture.stickers.map(s => ({ id: s.sticker, size: s.size, x: s.x })));
+  expect(st[0].x).toBe(x0);
   await canvas(page).screenshot({ path: 'test-results/carl-craft-drawing.png' });
-  // A colouring page: the bucket fills the house's wall green.
+  // A colouring page: the rocket, filled with a striped green.
   await press(page, 'craft-new');
   await canvas(page).screenshot({ path: 'test-results/carl-craft-choose.png' });
-  await press(page, 'paper-house');
+  await press(page, 'sheet-next');
+  await press(page, 'sheet-page-rocket');
   expect(await page.evaluate(() => window.__ringstorp.craft().tool)).toBe('bucket');
-  await page.keyboard.press('4');
-  p = on(210, 300); await page.mouse.click(p.x, p.y);
-  expect(await page.evaluate(() => window.__ringstorp.craft().picture.fills.filter(Boolean))).toEqual(['#62b046']);
-  for (const [k, x, y] of [['3', 500, 70], ['1', 280, 150], ['5', 30, 30], ['9', 290, 290]] as const) { await page.keyboard.press(k); p = on(x, y); await page.mouse.click(p.x, p.y); }
-  await canvas(page).screenshot({ path: 'test-results/carl-craft-house.png' });
-  // Up on the wall: remembered, and the craft corner is done.
+  await page.keyboard.press('4'); await press(page, 'pattern-stripes');
+  await page.mouse.click(on(270, 240).x, on(270, 240).y);
+  expect(await page.evaluate(() => window.__ringstorp.craft().picture.fills.filter(Boolean))).toEqual([{ colour: '#62b046', pattern: 'stripes' }]);
+  // Up on the wall, then into the gallery: hang it in Carl-Otto's room.
   await press(page, 'craft-hang');
   await expect(page.locator('#craft-panel-title')).toHaveText('Uppsatt!');
-  await canvas(page).screenshot({ path: 'test-results/carl-craft-hung.png' });
+  await press(page, 'craft-pictures');
+  await press(page, 'picture-0'); await press(page, 'hang-bedroom');
+  await expect(page.locator('#craft-status')).toHaveText('Bilden hänger nu i ditt rum.');
+  await canvas(page).screenshot({ path: 'test-results/carl-craft-gallery.png' });
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('carl-otto-hemma')!));
-  expect(saved.done).toEqual(['pyssel']); expect(saved.drawings).toHaveLength(1); expect(saved.drawings[0]).toMatch(/^data:image\/png;base64,/);
-  // In the living room, it hangs over the sofa.
-  await press(page, 'craft-menu');
-  await expect(page.locator('#house-room')).toHaveText('Hallen');
-  await press(page, 'room-living'); await press(page, 'play-filmkvall'); await press(page, 'movie-primary');
-  await page.waitForTimeout(300);
-  await canvas(page).screenshot({ path: 'test-results/carl-movie-picture.png' });
+  expect(saved.done).toEqual(['pyssel']); expect(saved.drawings).toHaveLength(1); expect(saved.hung.bedroom).toBe(0);
 });
 
 test('Pysselhörnan: crayons, stickers and the paper work by touch on a small screen', async ({ browser }) => {
@@ -345,12 +344,15 @@ test('Pysselhörnan: crayons, stickers and the paper work by touch on a small sc
   await page.waitForFunction(() => window.__ringstorp); await page.evaluate(() => window.__ringstorp.ready);
   const box = (await canvas(page).boundingBox())!;
   const tap = (x: number, y: number) => page.touchscreen.tap(box.x + (40 + x) / 960 * box.width, box.y + (96 + y) / 540 * box.height);
-  const centre = async (id: string) => { const b = (await page.evaluate(i => window.__ringstorp.bounds(i), id))!; await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2); };
+  const centre = async (id: string) => {
+    await expect.poll(() => page.evaluate(i => window.__ringstorp.bounds(i), id)).not.toBeNull();
+    const b = (await page.evaluate(i => window.__ringstorp.bounds(i), id))!; await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
+  };
   await centre('crayon-3');
   await expect.poll(() => page.evaluate(() => window.__ringstorp.craft().colour)).toBe('#62b046');
   await tap(200, 200);
   await expect.poll(() => page.evaluate(() => window.__ringstorp.craft().picture.strokes.length)).toBe(1);
-  await centre('sticker-star'); await tap(300, 150);
+  await centre('tab-shapes'); await centre('sticker-star'); await tap(300, 150);
   await expect.poll(() => page.evaluate(() => window.__ringstorp.craft().picture.stickers.length)).toBe(1);
   await canvas(page).screenshot({ path: 'test-results/carl-craft-mobile.png' });
   errors(); await context.close();

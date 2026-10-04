@@ -16,7 +16,7 @@ index.html ─ src/play/main.ts        fonts + brand logos load first, then Phas
               → HideScene            Kurragömma in the preschool yard (hide-run.ts + yard-art.ts)
               → HouseScene           Hemma: the map of the house (games/hemma.ts + house-art.ts, progress in house.ts)
                 → MovieScene         Filmkväll in the living room (movie-run.ts + home-art.ts)
-                → CraftScene         Pysselhörnan in the hall (craft-run.ts + craft-art.ts); the rooms extend room-scene.ts
+                → CraftScene         Pysselhörnan in the hall (craft-run.ts rules, craft-paint.ts the picture, craft-art.ts the table and its picture buttons); the rooms extend room-scene.ts
                 → PancakeScene       Pannkakor in the kitchen (pancake-run.ts + pancake-art.ts)
                 → GoodnightScene     Godnatt in Carl-Otto's room (goodnight-run.ts + goodnight-art.ts)
                 → MorningScene       God morgon in the big bedroom, then on to BikeScene (morning-run.ts + morning-art.ts)

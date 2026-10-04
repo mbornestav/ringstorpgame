@@ -2,7 +2,7 @@ import { INK, TAU, bake, box, flower, hgrad, line, lumps, mix, outlined, oval, p
 import { CARL_OTTO_HOME, PLACES, ROOM, SOFA_X, TUNING, type ItemId, type PlaceKind, type SurpriseKind } from './games/filmkvall';
 import type { Carried, MovieRun, Placed, Spot } from './movie-run';
 import { kid } from './kids';
-import { paintHungPicture } from './craft-art';
+import { paintHungPicture } from './wall-picture';
 
 // The living room for Filmkväll, after the family's photo, unrolled into one long back wall: the straw hats and the woven
 // pendant lamp, the TV over a low grey bench, the round two-tier table on a cream rug, the grey sofa, the black leather

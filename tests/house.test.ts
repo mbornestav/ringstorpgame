@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ACTIVITIES, BIG_SOFA, MAP, ROOMS, activitiesIn, type ActivityId } from '../src/play/family/games/hemma';
-import { MAX_DRAWINGS, addDrawing, eveningDone, markDone, morningDone, nextUp, readProgress } from '../src/play/family/house';
+import { MAX_DRAWINGS, addDrawing, eveningDone, hangDrawing, hungIn, markDone, morningDone, nextUp, readProgress, removeDrawing } from '../src/play/family/house';
 
 /** A Storage stand-in. */
 const memory = () => { const m = new Map<string, string>(); return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), m }; };
@@ -49,7 +49,7 @@ describe('Hemma: the house', () => {
 describe('Hemma: what is remembered', () => {
   it('starts empty, and remembers what is done, once each', () => {
     const store = memory();
-    expect(readProgress(store)).toEqual({ done: [], drawings: [] });
+    expect(readProgress(store)).toEqual({ done: [], drawings: [], hung: { living: 0, hall: 0, bedroom: 0 } });
     markDone('filmkvall', store); markDone('filmkvall', store); markDone('pyssel', store);
     expect(readProgress(store).done).toEqual(['filmkvall', 'pyssel']);
   });
@@ -63,13 +63,29 @@ describe('Hemma: what is remembered', () => {
   });
 
   it('shrugs off storage that refuses, junk in the key and activities it does not know', () => {
-    expect(readProgress(broken)).toEqual({ done: [], drawings: [] });
+    expect(readProgress(broken)).toEqual({ done: [], drawings: [], hung: { living: 0, hall: 0, bedroom: 0 } });
     expect(markDone('filmkvall', broken).done).toEqual(['filmkvall']);
-    expect(readProgress(null)).toEqual({ done: [], drawings: [] });
+    expect(readProgress(null)).toEqual({ done: [], drawings: [], hung: { living: 0, hall: 0, bedroom: 0 } });
     const store = memory();
     store.setItem('carl-otto-hemma', '{not json');
-    expect(readProgress(store)).toEqual({ done: [], drawings: [] });
+    expect(readProgress(store)).toEqual({ done: [], drawings: [], hung: { living: 0, hall: 0, bedroom: 0 } });
     store.setItem('carl-otto-hemma', JSON.stringify({ done: ['filmkvall', 'skateboard', 7], drawings: ['a', 3] }));
-    expect(readProgress(store)).toEqual({ done: ['filmkvall' as ActivityId], drawings: ['a'] });
+    expect(readProgress(store)).toEqual({ done: ['filmkvall' as ActivityId], drawings: ['a'], hung: { living: 0, hall: 0, bedroom: 0 } });
+  });
+
+  it('hangs a chosen picture in each room; a new picture goes up in the living room, the others keep theirs', () => {
+    const store = memory();
+    for (const u of ['a', 'b', 'c']) addDrawing(u, store);
+    // Newest first: c, b, a.
+    hangDrawing(2, 'bedroom', store); hangDrawing(1, 'hall', store);
+    let p = readProgress(store);
+    expect([hungIn(p, 'living'), hungIn(p, 'hall'), hungIn(p, 'bedroom')]).toEqual(['c', 'b', 'a']);
+    p = addDrawing('d', store);
+    expect([hungIn(p, 'living'), hungIn(p, 'hall'), hungIn(p, 'bedroom')]).toEqual(['d', 'b', 'a']);
+    // Throwing a hanging picture away hangs the newest there instead.
+    p = removeDrawing(3, store);
+    expect(p.drawings).toEqual(['d', 'c', 'b']);
+    expect([hungIn(p, 'living'), hungIn(p, 'hall'), hungIn(p, 'bedroom')]).toEqual(['d', 'b', 'd']);
   });
 });
+

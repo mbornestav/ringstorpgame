@@ -27,7 +27,7 @@ const HEAD_SPEED = 420;
 export class HouseScene extends FamilySurface {
   selected: RoomId = 'living';
   frozen = false;
-  progress: HomeProgress = { done: [], drawings: [] };
+  progress: HomeProgress = readProgress(null);
   head: Pt = [0, 0];
   private texture!: Phaser.Textures.CanvasTexture;
   private sfx!: Sfx;

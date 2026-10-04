@@ -1,11 +1,11 @@
 import { getLang } from '../../side/i18n';
 import type { Pt } from './art';
-import { wallPicture } from './craft-art';
+import { wallPicture } from './wall-picture';
 import { LINES, NAMES, PAIRS, STAND } from './games/hemkomst';
 import type { Words } from './games/kurragomma';
 import { drawHall } from './homecoming-art';
 import { HomecomingRun } from './homecoming-run';
-import { markDone, readProgress } from './house';
+import { hungIn, markDone, readProgress } from './house';
 import { K, RoomScene } from './room-scene';
 import { familyText as t } from './text';
 
@@ -29,7 +29,7 @@ export class HomecomingScene extends RoomScene {
 
   protected reset(): void {
     this.run = new HomecomingRun(); this.shown = ''; this.status = null; this.cheerUntil = 0;
-    this.drawing = readProgress().drawings[0];
+    this.drawing = hungIn(readProgress(), 'hall');
     this.run.events.push('start');
   }
 

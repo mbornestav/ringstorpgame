@@ -5,7 +5,8 @@ import { ANIMALS, BED, KEYS, LAMP, LINES, PIANO, PITCH, TOYS, type AnimalId, typ
 import type { Words } from './games/kurragomma';
 import { drawRoom, keyBox } from './goodnight-art';
 import { GoodnightRun } from './goodnight-run';
-import { markDone } from './house';
+import { hungIn, markDone, readProgress } from './house';
+import { wallPicture } from './wall-picture';
 import { K, RoomScene } from './room-scene';
 import { familyText as t } from './text';
 
@@ -22,10 +23,12 @@ export class GoodnightScene extends RoomScene {
   private status: HTMLElement | null = null;
   private shown = '';
   private cheerUntil = 0;
+  /** The picture Carl-Otto has chosen for his room. */
+  private drawing: string | undefined;
 
   constructor() { super('Goodnight', 'bedroom', 'bedroom', 'hub'); }
 
-  protected reset(): void { this.run = new GoodnightRun(); this.shown = ''; this.status = null; this.cheerUntil = 0; this.run.events.push('start'); }
+  protected reset(): void { this.drawing = hungIn(readProgress(), 'bedroom'); this.run = new GoodnightRun(); this.shown = ''; this.status = null; this.cheerUntil = 0; this.run.events.push('start'); }
 
   /**
    * What the controls depend on: when it changes, they are rebuilt. Only what changes the controls is in it (not, say, how
@@ -129,5 +132,5 @@ export class GoodnightScene extends RoomScene {
     musicOf(this.game).setDucked(g.piano.open || g.phase === 'asleep');
   }
 
-  protected paintWorld(c: CanvasRenderingContext2D): void { drawRoom(c, this.run, this.clock, this.cheerUntil); }
+  protected paintWorld(c: CanvasRenderingContext2D): void { drawRoom(c, this.run, this.clock, this.cheerUntil, wallPicture(this.drawing)); }
 }

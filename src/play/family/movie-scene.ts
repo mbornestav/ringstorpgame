@@ -13,8 +13,8 @@ import type { Words } from './games/kurragomma';
 import { GROUND, drawHome, paintIcon, topOf } from './home-art';
 import { MovieRun, type Spot } from './movie-run';
 import { Bubbles, type Bubble } from './seek-ui';
-import { markDone, readProgress } from './house';
-import { wallPicture } from './craft-art';
+import { hungIn, markDone, readProgress } from './house';
+import { wallPicture } from './wall-picture';
 import { FamilySurface } from './surface';
 import { familyText as t } from './text';
 
@@ -43,14 +43,14 @@ export class MovieScene extends FamilySurface {
   private lastNear: Spot | null = null;
   private lastThings = '';
   private autoLook: Spot | null = null;
-  /** Carl-Otto's latest picture from the craft corner, for the wall over the sofa. */
+  /** The picture Carl-Otto has chosen for the wall over the sofa (the newest, unless he chose another in the gallery). */
   private drawing: string | undefined;
 
   constructor() { super('Movie'); }
 
   create(): void {
     this.run = new MovieRun(); this.frozen = false; this.held.clear(); this.touches.clear();
-    this.drawing = readProgress().drawings[0];
+    this.drawing = hungIn(readProgress(), 'living');
     this.lastMode = ''; this.lastNear = null; this.lastThings = ''; this.autoLook = null; this.clock = 0;
     this.sfx = new Sfx(this.game.sound);
     if (this.textures.exists('movie-world')) this.textures.remove('movie-world');

@@ -97,6 +97,9 @@ const CRAFT: string[] = [
   '#f28b7c', '#f6b878', '#f8de80', '#a6d68c', '#b4e0f4', '#8aa2e0', '#f8b6d2', '#c2a0dc', '#c49a76',
   // The sticker sheet, the tape, the highlight on a chosen sticker.
   '#cdeefb', '#f0ecd6', '#fff3b0',
+  // Black and pastel papers, the button tiles, faces and hair for the family stickers, Nallen, the traced letters.
+  '#1d1d26', '#fff3c4', '#fbe0ea', '#e2f3d6', '#dbeefa', '#fff8e5', '#ffe9a0', '#f0c197', '#e2ae83', '#d9a37a',
+  '#9a7550', '#1f1a18', '#b85a32', '#b07a4a', '#e2b98a', '#a6e08a',
 ];
 
 /** Pannkakor's kitchen: the grey-green wall and white tiles, the window's sky, fence and bushes, terracotta pots and herbs,

@@ -1,5 +1,5 @@
 import { INK, TAU, box, line, lumps, oval, path, rgba, rgrad, seeded, stroke, vgrad, outlined, type C, type Pt } from './art';
-import { paintHungPicture } from './craft-art';
+import { paintHungPicture } from './wall-picture';
 import { CARL_OTTO_HOME } from './games/filmkvall';
 import { BENCH, BOARD, DOOR, FLOOR, HOOKS, JACKET, PAIRS, SHOE_SCALE, STAND, type ShoeKind, type ThingId } from './games/hemkomst';
 import { pairOf, partnerOf, THINGS, type HomecomingRun } from './homecoming-run';

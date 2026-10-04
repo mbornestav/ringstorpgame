@@ -198,7 +198,7 @@ test('Hemma by touch: the map, movie night and drawing with a finger', async ({ 
   await swipe(page, Array.from({ length: 24 }, (_, i) => [120 + i * 18, 260 + Math.sin(i / 3) * 50] as [number, number]));
   await expect.poll(() => page.evaluate(() => window.__ringstorp.craft().picture.strokes.length)).toBe(1);
   expect(await page.evaluate(() => window.__ringstorp.craft().picture.strokes[0].points.length)).toBeGreaterThan(10);
-  await tap(page, 'sticker-fox'); await tapWorld(page, 500, 420);
+  await tap(page, 'tab-shapes'); await tap(page, 'sticker-fox'); await tapWorld(page, 500, 420);
   await expect.poll(() => page.evaluate(() => window.__ringstorp.craft().picture.stickers.length)).toBe(1);
   await canvas(page).screenshot({ path: 'test-results/ipad-craft.png' });
   await tap(page, 'craft-hang');
@@ -371,4 +371,82 @@ test('Fånig i spegeln by touch: a crown, star glasses and a moustache, a silly 
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('carl-otto-hemma')!).drawings.length)).toBe(1);
   await tap(page, 'silly-face'); await tap(page, 'wear-pirate');
   await canvas(page).screenshot({ path: 'test-results/ipad-silly-pirate.png' });
+});
+
+test('Pysselhörnan by touch: magic brushes, a kaleidoscope, family stickers, scratch paper, the name, the gallery', async ({ page }) => {
+  test.setTimeout(120_000);
+  await open(page, 'pyssel');
+  const g = () => page.evaluate(() => { const r = window.__ringstorp.craft(); return { mode: r.mode, tool: r.tool, strokes: r.picture.strokes.map(s => `${s.brush}:${s.sym}`), stickers: r.picture.stickers.map(s => ({ id: s.sticker, size: s.size, x: Math.round(s.x), y: Math.round(s.y) })), selected: r.selected, traced: r.picture.traced }; });
+  /** A finger line on the paper (paper units; the paper's top left is at world 40, 96). */
+  const paperLine = (pts: Array<[number, number]>) => swipe(page, pts.map(([x, y]) => [40 + x, 96 + y] as [number, number]));
+  const wave = (y: number) => Array.from({ length: 16 }, (_, i) => [40 + i * 30, y + Math.sin(i / 2) * 26] as [number, number]);
+  // Three magic brushes.
+  await tap(page, 'brush-rainbow'); await paperLine(wave(70));
+  await tap(page, 'crayon-7'); await tap(page, 'brush-glitter'); await paperLine(wave(150));
+  await tap(page, 'crayon-0'); await tap(page, 'brush-stamp'); await paperLine(wave(230));
+  await tap(page, 'brush-stamp'); await tap(page, 'crayon-3'); await paperLine(wave(300));
+  expect((await g()).strokes).toEqual(['rainbow:1', 'glitter:1', 'stamp:1', 'stamp:1']);
+  expect(await page.evaluate(() => window.__ringstorp.craft().picture.strokes.map(s => s.stamp ?? null))).toEqual([null, null, 'heart', 'paw']);
+  await canvas(page).screenshot({ path: 'test-results/ipad-craft-brushes.png' });
+  // A kaleidoscope on new black paper with the neon brush.
+  await tap(page, 'craft-new'); await tap(page, 'sheet-paper-black');
+  for (let i = 0; i < 3; i++) await tap(page, 'craft-sym');
+  await tap(page, 'crayon-6');
+  await paperLine(Array.from({ length: 14 }, (_, i) => [300 + i * 14, 120 + Math.sin(i / 2) * 40] as [number, number]));
+  await tap(page, 'crayon-4'); await tap(page, 'brush-glitter');
+  await paperLine(Array.from({ length: 10 }, (_, i) => [320 + i * 8, 60 + i * 10] as [number, number]));
+  expect((await g()).strokes).toEqual(['neon:8', 'glitter:8']);
+  await canvas(page).screenshot({ path: 'test-results/ipad-craft-kaleidoscope.png' });
+  // Family stickers: Carl-Otto carried from the sheet onto the paper, moved, made bigger with its handle, Pappa beside
+  // him, then Pappa dragged into the bin.
+  await tap(page, 'craft-sym');
+  const cell = (i: number) => [638 + (i % 4) * 79 + 38, 302 + Math.floor(i / 4) * 60 + 29] as [number, number];
+  await swipe(page, [cell(0), [500, 300], [300, 300], [200, 280]]);
+  let now = await g();
+  expect(now.stickers.map(s => s.id)).toEqual(['carl']);
+  const carl = now.stickers[0];
+  await paperLine([[carl.x, carl.y], [carl.x + 40, carl.y - 20], [carl.x + 80, carl.y - 40]]);
+  now = await g();
+  expect([now.stickers[0].x, now.stickers[0].y]).toEqual([carl.x + 80, carl.y - 40]);
+  const handle = await page.evaluate(() => { const r = window.__ringstorp.craft(), s = r.picture.stickers[0]; return [Math.min(580 - 18, s.x + 30 + 22), Math.max(18, s.y - 30 * 0.55)]; });
+  await tapWorld(page, 40 + handle[0], 96 + handle[1]);
+  expect((await g()).stickers[0].size).toBe(2);
+  await swipe(page, [cell(2), [500, 300], [420, 330]]);
+  expect((await g()).stickers.map(s => s.id)).toEqual(['carl', 'pappa']);
+  await canvas(page).screenshot({ path: 'test-results/ipad-craft-family.png' });
+  const pappa = (await g()).stickers[1];
+  await paperLine([[pappa.x, pappa.y], [480, 360], [540, 380]]);
+  expect((await g()).stickers.map(s => s.id)).toEqual(['carl']);
+  // Put up, then hang it in Carl-Otto's room from the gallery.
+  await tap(page, 'craft-hang');
+  await expect(page.locator('#craft-panel-title')).toHaveText('Uppsatt!');
+  await tap(page, 'craft-pictures'); await tap(page, 'picture-0'); await tap(page, 'hang-bedroom');
+  await canvas(page).screenshot({ path: 'test-results/ipad-craft-gallery.png' });
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('carl-otto-hemma')!).hung.bedroom)).toBe(0);
+  await tap(page, 'gallery-back');
+  // Scratch paper: a finger scratches the rainbow out.
+  await tap(page, 'craft-new'); await tap(page, 'sheet-paper-scratch');
+  await paperLine(wave(200)); await paperLine(wave(260));
+  await canvas(page).screenshot({ path: 'test-results/ipad-craft-scratch.png' });
+  // Tracing his name: each letter followed with a finger lights up.
+  await tap(page, 'craft-new'); await tap(page, 'sheet-next'); await tap(page, 'sheet-trace-name');
+  const letters = await page.evaluate(() => window.__ringstorp.craft().picture.trace!.letters.map(l => l.strokes));
+  for (const strokes of letters) for (const s of strokes) await paperLine(s.flatMap((p, i) => i === 0 ? [p] : [[(s[i - 1][0] + p[0]) / 2, (s[i - 1][1] + p[1]) / 2], p]) as Array<[number, number]>);
+  await expect.poll(async () => (await g()).traced.every(Boolean)).toBe(true);
+  await canvas(page).screenshot({ path: 'test-results/ipad-craft-name.png' });
+  // "Spela": the picture comes alive.
+  await tap(page, 'craft-play');
+  expect(await page.evaluate(() => window.__ringstorp.craft().alive)).toBe(true);
+});
+
+test('A picture hung in Carl-Otto’s room from the gallery is on his wall in Godnatt', async ({ page }) => {
+  await open(page, 'pyssel');
+  const line = Array.from({ length: 12 }, (_, i) => [120 + i * 30, 300 + Math.sin(i) * 40] as [number, number]);
+  await tap(page, 'brush-rainbow'); await swipe(page, line);
+  await tap(page, 'craft-hang'); await tap(page, 'craft-pictures'); await tap(page, 'picture-0'); await tap(page, 'hang-bedroom');
+  await page.goto('/?game=godnatt');
+  await page.waitForFunction(() => window.__ringstorp); await page.evaluate(() => window.__ringstorp.ready);
+  await page.waitForTimeout(500);
+  await canvas(page).screenshot({ path: 'test-results/ipad-craft-in-bedroom.png' });
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('carl-otto-hemma')!).drawings.length)).toBe(1);
 });
