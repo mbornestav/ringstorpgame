@@ -13,7 +13,7 @@ export interface KidLook {
   bottom: string;
   shoes: string;
   /** A little extra that makes them easy to tell apart. */
-  extra?: 'glasses' | 'cap' | 'bow' | 'freckles';
+  extra?: 'glasses' | 'cap' | 'bow' | 'freckles' | 'stubble';
   extraColour?: string;
   /** Stripes across the top, in this colour. */
   stripes?: string;

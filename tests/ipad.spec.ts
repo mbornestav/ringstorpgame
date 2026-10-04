@@ -130,7 +130,8 @@ test('Ringstorp Run by touch: the stick walks, the buttons jump and punch, and t
   // Pause and carry on, by touch.
   await tap(page, 'touch-pause');
   await expect.poll(async () => (await sim()).mode).toBe('paused');
-  expect(await page.evaluate(() => window.__ringstorp.bounds('touch-jump'))).toBeNull();
+  // The buttons leave the screen with the next frame.
+  await expect.poll(() => page.evaluate(() => window.__ringstorp.bounds('touch-jump'))).toBeNull();
   await tap(page, 'resume');
   await expect.poll(async () => (await sim()).mode).toBe('playing');
 });

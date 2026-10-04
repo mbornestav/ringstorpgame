@@ -135,7 +135,7 @@ const MORNING: string[] = [
   '#e2d8c0', '#c9bc9c', '#d8ccb0', '#e2d6bc',
   '#b8d4ea', '#f4e3c0', '#e8eedf', '#fff3c4', '#6f9a54', '#8a5a3a', '#3d3a38', '#cfe0ea', '#9a8a70', '#b5653d', '#62903c', '#4c7a2e', '#3f3a36',
   '#c9a85c', '#f2dc9a', '#fff2c0', '#e8e2d0', '#ffe9b0',
-  '#f0c197', '#c98f6a', '#8a5a36', '#6b4a2e', '#e8c870', '#cfe2ec', '#8798ab', '#e6b8b0',
+  '#f0c197', '#c98f6a', '#9a7550', '#7a5a3a', '#e8c870', '#cfe2ec', '#8798ab', '#3a4a34',
   '#b07a4a', '#e2b98a', '#e2432f', '#fff3b0',
 ];
 
@@ -162,6 +162,7 @@ const DINING: string[] = [
   '#722c2e', '#e8eedf', '#7aa860', '#2f2b28', '#3d3835', '#c9a473', '#a07a4a', '#f2c230', '#fff3b0', '#ffe9b0',
   '#e0a64c', '#c8243a', '#7a4a2a', '#f2dc9a', '#b07a4a', '#e2b98a', '#f0c197', '#c98f6a', '#e8c870', '#cfe2ec',
   '#8798ab', '#8a5a36', '#6b4a2e', '#e6b8b0', '#7d93a8', '#4d5257',
+  '#9a7550', '#7a5a3a', '#3a4a34', '#2b2b2e',
 ];
 
 /** Tänder och tvål: the bathroom. White and grey tiles and their patterned border, the mirror cabinet and the bluer room in the glass, the white sink and the chrome tap, the soap pump, the teal cup and the blue toothbrush, the red-striped and teal towels, water and bubbles, Carl-Otto's face up close, and the sugar bugs' colours. */
@@ -172,6 +173,7 @@ const BATH: string[] = [
   '#f3e6e8', '#9a2f4a', '#e2432f', '#f0c197', '#e8b087', '#f6d8bc', '#c98f6a', '#e8c870', '#c8a850', '#f2dc9a',
   '#cfe2ec', '#a8bcc8', '#7a2e2a', '#e2867a', '#a05a48', '#ec786e', '#f07fb0', '#62b046', '#f2c230', '#8a56b8',
   '#f08a2c', '#fff3b0',
+  '#ccac60', '#a78d4f', '#d6bd80', '#7d93a6', '#576674', '#9a2f3a', '#e3b07a', '#3a4a6e',
 ];
 
 /** Fånig i spegeln: the little toilet. Coral-pink walls and the frames, the dark planks in the mirror and the crate shelf, brass, the paper fan, the light bar, the wooden tray, Carl-Otto's face up close, and the silly things' bright colours. */
@@ -182,6 +184,7 @@ const TOILET: string[] = [
   '#c98f6a', '#e8c870', '#c8a850', '#f2dc9a', '#cfe2ec', '#a8bcc8', '#7a2e2a', '#e2867a', '#a05a48', '#ec786e',
   '#f2c230', '#e2432f', '#3157b8', '#62b046', '#6fbde8', '#f07fb0', '#e05a96', '#c8302a', '#d6372c', '#ff7a6a',
   '#6b4a2e', '#1e1e28',
+  '#ccac60', '#a78d4f', '#d6bd80', '#7d93a6', '#576674', '#9a2f3a', '#e3b07a', '#3a4a6e',
 ];
 
 /** How far (in 0–255 units) the ordered dither may push a channel: enough to shade ramps, low enough to keep flats flat. */

@@ -201,6 +201,12 @@ export function paintHead(c: C, x: number, y: number, look: Look, face: Face = {
   else if (mouth === 'grin') { c.beginPath(); c.moveTo(8.5, 7.5); c.quadraticCurveTo(12, 12, 15.2, 7); c.closePath(); c.fillStyle = '#7a2e2a'; c.fill(); stroke(c, '#5a2420', 0.8); box(c, '#ffffff', 9.6, 7.4, 4.6, 1.3, 0.5); }
   else line(c, '#a05a48', 1.3, [[9, 8], [11.5, 9], [14, 7.6]]);
   if (look.extra === 'freckles') for (const [fx, fy] of [[6, 3], [8, 5.4], [10.6, 3.6], [12.4, 5.6]] as const) oval(c, shadeOf(look.skin, 0.72), fx, fy, 0.6, 0.6);
+  // A short beard along the jaw and a moustache, in dots of the hair's colour (Pappa).
+  if (look.extra === 'stubble') {
+    const s = mix(look.hair, look.skin, 0.25);
+    for (const [fx, fy] of [[0, 12.6], [3, 13.6], [6, 13.4], [9, 12.6], [11.6, 11.4], [14, 9.4], [15.4, 6.6], [2, 10.4], [5, 11.4], [8, 10.8], [12.6, 10.2], [-3, 10], [-6, 7.6]] as const) oval(c, s, fx, fy, 1, 1);
+    line(c, s, 1.6, [[9.6, 6.6], [12, 6.2], [15, 6.8]]);
+  }
 
   if (look.helmet) helmet(c);
   else hairFront(c, look);

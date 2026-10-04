@@ -2,7 +2,7 @@ import { INK, TAU, box, line, oval, path, rgba, rgrad, seeded, stroke, vgrad, ty
 import { CARL_OTTO_HOME } from './games/filmkvall';
 import { FACE, FACES, ITEMS, MIRROR, TRAY, type ItemId } from './games/toa';
 import { PAPER } from './games/pyssel';
-import { FEATURES, paintMirrorFace } from './mirror-face';
+import { FEATURES, bedtimeLook, paintMirrorFace } from './mirror-face';
 import type { SillyRun } from './silly-run';
 
 // The little toilet for Fånig i spegeln, after the family's photo: coral-pink walls, framed pictures up the side, and the
@@ -57,13 +57,13 @@ function paintItem(c: C, id: ItemId): void {
 /** Where each thing sits on the face (face units). */
 function placeOf(id: ItemId): Pt {
   const slot = ITEMS.find(i => i.id === id)!.slot;
-  return slot === 'head' ? (id === 'bow' ? [-50, -78] : [0, -72]) : slot === 'eyes' ? [0, FEATURES.eyes[0][1]] : slot === 'nose' ? FEATURES.nose : [0, FEATURES.mouth[1] - 20];
+  return slot === 'head' ? (id === 'bow' ? [-58, -94] : id === 'pirate' ? [0, -96] : [0, -106]) : slot === 'eyes' ? [0, FEATURES.eyes[0][1]] : slot === 'nose' ? FEATURES.nose : [0, FEATURES.mouth[1] - 20];
 }
 
 /** Carl-Otto in the mirror, with what he is wearing and the face he is pulling. */
 export function paintSillyFace(c: C, run: Pick<SillyRun, 'worn' | 'face' | 'wearing'>, x: number, y: number, k: number, t: number): void {
   const f = FACES[run.face];
-  paintMirrorFace(c, x, y, k, CARL_OTTO_HOME, { eyes: run.worn.eyes ? 'open' : f.eyes, mouth: f.mouth }, t);
+  paintMirrorFace(c, x, y, k, bedtimeLook(CARL_OTTO_HOME), { eyes: run.worn.eyes ? 'open' : f.eyes, mouth: f.mouth }, t);
   // Things on the face go on top, in order: moustache, nose, glasses, then the hat.
   for (const slot of ['lip', 'nose', 'eyes', 'head'] as const) {
     const id = run.worn[slot];
@@ -121,7 +121,8 @@ function paintTray(c: C, run: SillyRun, t: number): void {
 /** One frame of the little toilet, in world units. */
 export function drawToilet(c: C, run: SillyRun, t: number): void {
   paintRoom(c); paintMirror(c, run, t); paintTray(c, run, t);
-  if (run.flash >= 0 && run.flash < 0.6) { c.fillStyle = `rgba(255, 255, 255, ${0.9 * (1 - run.flash / 0.6)})`; c.fillRect(0, 0, W, 540); }
+  // The flash: a quick white blink (a fade would pass through odd colours in the retro palette).
+  if (run.flash >= 0 && run.flash < 0.15) { c.fillStyle = '#ffffff'; c.fillRect(0, 0, W, 540); }
 }
 
 /** The photo, as a small picture for the walls of the house (the shape of a sheet from the craft corner). */

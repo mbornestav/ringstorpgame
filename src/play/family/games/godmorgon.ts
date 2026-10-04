@@ -27,9 +27,10 @@ export const BULBS = 8;
 export const STAND: Pt = [770, 528];
 export const BOUNCE_X = 430;
 
-/** Mamma and Pappa: drawn as grown-ups. (Their looks can be made like the real ones: tell the game's author.) */
-export const MAMMA: KidLook = { skin: '#f0c197', hair: '#8a5a36', style: 'long', top: '#e6b8b0', bottom: '#8798ab', shoes: '#f0c197', barefoot: true };
-export const PAPPA: KidLook = { skin: '#f0c197', hair: '#6b4a2e', style: 'short', top: '#7d93a8', bottom: '#4d5257', shoes: '#f0c197', barefoot: true };
+/** Mamma and Pappa, drawn as grown-ups after their photos: Mamma's light-brown hair pulled back, her black top; Pappa's
+ * messy brown hair, his stubble and moustache, his dark-green t-shirt. */
+export const MAMMA: KidLook = { skin: '#f0c4a4', hair: '#9a7550', style: 'bun', top: '#2b2b2e', bottom: '#4d5257', shoes: '#f0c4a4', barefoot: true };
+export const PAPPA: KidLook = { skin: '#eebd98', hair: '#7a5a3a', style: 'short', top: '#3a4a34', bottom: '#4d5257', shoes: '#eebd98', barefoot: true, tee: true, extra: 'stubble' };
 
 export const LINES = {
   start: { sv: 'Psst! Mamma och pappa sover fortfarande. Väck dem!', en: 'Psst! Mamma and Pappa are still asleep. Wake them up!' },

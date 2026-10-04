@@ -2,7 +2,7 @@ import { INK, TAU, box, line, oval, path, rgba, rgrad, stroke, type C, type Pt }
 import type { BathRun } from './bath-run';
 import { CARL_OTTO_HOME } from './games/filmkvall';
 import { BASIN, CLOSE_FACE, CUP, FACE, HANDS, MIRROR, PUMP, STOOL, TAP, TOWEL, TUBE, TUNING } from './games/badrum';
-import { paintMirrorFace } from './mirror-face';
+import { bedtimeLook, paintMirrorFace } from './mirror-face';
 
 // The bathroom for Tänder och tvål, after the family's photo, as Carl-Otto sees it standing at the sink: white tiles with
 // a grey patterned border, the mirror cabinet with Carl-Otto in it and its shelf of bottles, the toilet-roll shelf with
@@ -12,6 +12,8 @@ import { paintMirrorFace } from './mirror-face';
 const W = 960;
 const smooth01 = (k: number) => { const u = Math.max(0, Math.min(1, k)); return u * u * (3 - 2 * u); };
 const SKIN = CARL_OTTO_HOME.skin;
+/** Ready for bed: his red-striped top. */
+const LOOK = bedtimeLook(CARL_OTTO_HOME);
 
 function slab(c: C, fill: string | CanvasGradient, x: number, y: number, w: number, h: number, r = 0, ink = 1.6): void {
   box(c, INK, x - ink, y - ink, w + ink * 2, h + ink * 2, r ? r + ink : 0); box(c, fill, x, y, w, h, r);
@@ -62,7 +64,7 @@ function paintCabinet(c: C, run: BathRun, t: number): void {
     ? { mouth: 'grin' as const, eyes: 'open' as const, sparkle: true }
     : brushing ? { mouth: 'brush' as const, eyes: 'wide' as const, foam: run.foam } : run.phase === 'spit' ? { mouth: 'o' as const, foam: run.foam } : { mouth: 'smile' as const };
   const close = brushing || run.phase === 'spit', fc = close ? CLOSE_FACE : FACE;
-  paintMirrorFace(c, fc.x, fc.y + (1 - rise) * 190, fc.k, CARL_OTTO_HOME, face, t);
+  paintMirrorFace(c, fc.x, fc.y + (1 - rise) * 190, fc.k, LOOK, face, t);
   // The sugar bugs on his teeth, and the ones hopping off into the sink.
   if (brushing || run.phase === 'spit') for (const b of run.bugs) {
     if (b.gone < 0) bug(c, b.at[0], b.at[1] + Math.sin(t * 6 + b.at[0]) * 2, b.colour, 1.7 * (0.6 + 0.4 * Math.max(0, b.hp)), t);
@@ -141,8 +143,9 @@ function paintHands(c: C, run: BathRun, t: number): void {
     // The arm in its sleeve, then the hand: a mitten with a thumb, fingers pointing up and in.
     c.save(); c.translate(sx, sy); c.rotate(a);
     const len = Math.hypot(hx - sx, hy - sy);
-    c.beginPath(); c.roundRect(0, -26, len - 40, 52, 22); c.fillStyle = CARL_OTTO_HOME.top; c.fill(); stroke(c, INK, 1.8);
-    box(c, 'rgba(255, 255, 255, 0.25)', 10, -20, len - 60, 8, 4);
+    c.beginPath(); c.roundRect(0, -26, len - 40, 52, 22); c.fillStyle = LOOK.top; c.fill();
+    c.save(); c.beginPath(); c.roundRect(0, -26, len - 40, 52, 22); c.clip(); for (let sx = 6; sx < len; sx += 16) box(c, LOOK.stripes!, sx, -30, 6, 60); c.restore();
+    c.beginPath(); c.roundRect(0, -26, len - 40, 52, 22); stroke(c, INK, 1.8);
     c.beginPath(); c.roundRect(len - 70, -20, 34, 40, 10); c.fillStyle = SKIN; c.fill(); stroke(c, INK, 1.6);
     c.restore();
     c.save(); c.translate(hx, hy); c.rotate(a + Math.PI / 2 + s * 0.15); c.scale(s, 1);
