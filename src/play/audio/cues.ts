@@ -40,10 +40,15 @@ const NOTES: Record<string, Note[]> = {
   tvon: [[1175, 0.05, 0], [1568, 0.05, 0.06], [2093, 0.14, 0.12]],
   atjoo: [[660, 0.08, 0], [880, 0.08, 0.1], [420, 0.32, 0.22]],
   rawr: [[190, 0.45, 0], [150, 0.3, 0.12]],
+  // Pannkakor: an egg cracking, milk and batter pouring, the whisk, and bubbles in the pan.
+  crack: [[1800, 0.03, 0], [900, 0.05, 0.03]],
+  glug: [[300, 0.07, 0], [240, 0.07, 0.1], [320, 0.07, 0.2]],
+  swish: [[700, 0.05, 0], [480, 0.06, 0.04]],
+  blub: [[400, 0.05, 0], [600, 0.06, 0.08]],
 };
 
 const SAWTOOTH = new Set(['hit', 'hurt', 'smash', 'thud', 'shot', 'brake', 'lift', 'crash', 'tear', 'snuffle', 'prrrt', 'atjoo', 'rawr']);
-const GLIDES = new Set(['swing', 'dodge', 'shot', 'brake', 'meow', 'prrrt', 'boing', 'plop', 'atjoo', 'rawr']);
+const GLIDES = new Set(['swing', 'dodge', 'shot', 'brake', 'meow', 'prrrt', 'boing', 'plop', 'atjoo', 'rawr', 'swish', 'blub']);
 const QUIET = new Set(['warn', 'brake']);
 
 export interface Cue {

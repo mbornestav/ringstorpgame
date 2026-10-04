@@ -1,6 +1,9 @@
 :root { color: #eadfca; background: #10212a; font-synthesis: none; }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; overflow: hidden; }
+/* Tablets: no double-tap zoom, no rubber-band scrolling, no text selection or callouts on a long press, no grey tap flash. */
+html { touch-action: manipulation; overscroll-behavior: none; -webkit-text-size-adjust: 100%; }
+body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
 body { background: radial-gradient(circle at 50% -15%, #365259 0, #10242d 47%, #0b1b24 100%); }
 #app { position: fixed; inset: 0; }
 #game { position: absolute; inset: 0; }

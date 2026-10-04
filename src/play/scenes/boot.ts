@@ -17,6 +17,11 @@ export class BootScene extends Phaser.Scene {
     } else if (params.get('game') === 'carl-otto') this.scene.start('Bike');
     else if (params.get('game') === 'kurragomma') this.scene.start('Hide');
     else if (params.get('game') === 'filmkvall') this.scene.start('Movie');
+    else if (params.get('game') === 'hemma') this.scene.start('House');
+    else if (params.get('game') === 'pyssel') this.scene.start('Craft');
+    else if (params.get('game') === 'pannkakor') this.scene.start('Pancake');
+    else if (params.get('game') === 'godnatt') this.scene.start('Goodnight');
+    else if (params.get('game') === 'godmorgon') this.scene.start('Morning');
     else this.scene.start('Hub');
   }
 }

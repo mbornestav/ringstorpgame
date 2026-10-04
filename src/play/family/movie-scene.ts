@@ -13,6 +13,8 @@ import type { Words } from './games/kurragomma';
 import { GROUND, drawHome, paintIcon, topOf } from './home-art';
 import { MovieRun, type Spot } from './movie-run';
 import { Bubbles, type Bubble } from './seek-ui';
+import { markDone, readProgress } from './house';
+import { wallPicture } from './craft-art';
 import { FamilySurface } from './surface';
 import { familyText as t } from './text';
 
@@ -41,11 +43,14 @@ export class MovieScene extends FamilySurface {
   private lastNear: Spot | null = null;
   private lastThings = '';
   private autoLook: Spot | null = null;
+  /** Carl-Otto's latest picture from the craft corner, for the wall over the sofa. */
+  private drawing: string | undefined;
 
   constructor() { super('Movie'); }
 
   create(): void {
     this.run = new MovieRun(); this.frozen = false; this.held.clear(); this.touches.clear();
+    this.drawing = readProgress().drawings[0];
     this.lastMode = ''; this.lastNear = null; this.lastThings = ''; this.autoLook = null; this.clock = 0;
     this.sfx = new Sfx(this.game.sound);
     if (this.textures.exists('movie-world')) this.textures.remove('movie-world');
@@ -150,12 +155,15 @@ export class MovieScene extends FamilySurface {
       const name = placed || carried ? words(item.short) : '?';
       this.label(name, x + 26 - name.length * 5, 100, 16, placed ? '#25473f' : '#8a8f80');
     });
-    this.button('movie-menu', t('back'), 1170, 45, 217, () => this.scene.start('Hub'), true);
+    this.button('movie-menu', t('toMap'), 1170, 45, 217, () => this.scene.start('House', { room: 'living' }), true);
+    this.soundButton('movie-sound', 846);
     if (g.mode === 'gathering') this.button('movie-pause', t('pause'), 1001, 45, 145, () => this.togglePause(), true);
     this.status = this.mirror('p', '', 'movie-status'); this.status.setAttribute('role', 'status'); this.status.setAttribute('aria-live', 'polite');
     if (g.mode === 'gathering') {
-      this.panel(28, 739, 1000, 47, 0xfff8e5, 16, 0.92);
-      this.label(t('seekKeys'), 49, 750, 20, '#3e5948', undefined, true);
+      if (!this.touch) {
+        this.panel(28, 739, 1000, 47, 0xfff8e5, 16, 0.92);
+        this.label(t('seekKeys'), 49, 750, 20, '#3e5948', undefined, true);
+      }
       this.walkPad(this.touches, () => { this.autoLook = null; });
       if (g.near) this.button('movie-look', t('look'), 1150, 560, 250, () => { this.run.look(); this.changed(); });
     } else if (g.mode !== 'watching') this.overlay();
@@ -189,7 +197,7 @@ export class MovieScene extends FamilySurface {
       if (e === 'start') this.sfx.play('ready');
       else if (e === 'watch') { this.sfx.play('cheer'); this.bubbles.clear(); this.say(t('filmStarts'), SOFA_X, GROUND - 200, 'friend', 3); }
       else if (e === 'tv') this.sfx.play('tvon');
-      else if (e === 'won') this.sfx.play('victory');
+      else if (e === 'won') { this.sfx.play('victory'); markDone('filmkvall'); }
       else if (e.startsWith('found:')) {
         const item = ITEMS.find(i => i.id === e.slice(6))!;
         // Carl-Otto says one thing at a time: a new find replaces what he said last.
@@ -230,7 +238,7 @@ export class MovieScene extends FamilySurface {
 
   private paint(): void {
     const c = this.texture.context;
-    c.save(); c.scale(1.5 / DIV, 1.5 / DIV); this.cam = drawHome(c, this.run, this.clock); c.restore();
+    c.save(); c.scale(1.5 / DIV, 1.5 / DIV); this.cam = drawHome(c, this.run, this.clock, wallPicture(this.drawing)); c.restore();
     this.texture.refresh();
   }
 

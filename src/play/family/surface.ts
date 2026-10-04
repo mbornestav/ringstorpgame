@@ -5,9 +5,11 @@ import { FONT } from '../fonts';
 import { fontPx } from '../theme';
 import { isRetro } from '../../side/pixel';
 import { keyGlyphs } from '../ui/text';
+import { familyText } from './text';
 import { CRT } from '../look';
 import { addCrt } from '../crt';
 import { sessionOf } from '../scenes/shared';
+import { isTouch } from '../input/touch';
 
 /** Shared canvas controls and their keyboard/screen-reader counterparts. */
 export abstract class FamilySurface extends Phaser.Scene {
@@ -33,6 +35,9 @@ export abstract class FamilySurface extends Phaser.Scene {
     this.layer = this.add.container(0, 0);
     this.root.replaceChildren(); this.targets.clear();
     this.build();
+    // New tap targets only join Phaser's hit testing at the start of the next frame, and the old ones are gone already, so
+    // a quick tap right after a rebuild would land on nothing (on a tablet, touches arrive between frames). Take them in now.
+    (this.input as unknown as { preUpdate(): void }).preUpdate();
     if (focus) this.root.querySelector<HTMLButtonElement>(`[data-family="${focus}"]`)?.focus({ preventScroll: true });
   }
 
@@ -46,6 +51,13 @@ export abstract class FamilySurface extends Phaser.Scene {
     this.rebuild();
   }
   protected get muted(): boolean { return sessionOf(this).muted; }
+  /** Played with fingers: the keyboard hints are left out (the games are all playable by touch). */
+  protected get touch(): boolean { return isTouch(); }
+
+  /** The sound switch for the top bar: a tablet has no M key. */
+  protected soundButton(id: string, x: number, y = 45, width = 140): void {
+    this.button(id, this.muted ? familyText('soundOff') : familyText('soundOn'), x, y, width, () => this.toggleSound(), true);
+  }
 
   protected rect(x: number, y: number, w: number, h: number, color: number, radius = 0, alpha = 1): Phaser.GameObjects.Graphics {
     const g = this.add.graphics().fillStyle(color, alpha);
@@ -118,15 +130,32 @@ export abstract class FamilySurface extends Phaser.Scene {
     this.rect(x + 3, y + 3, width - 6, height / 2 - 3, 0xffffff, 11, light ? 0.35 : 0.08);
     const text = this.label(label, x + 22, y + 12, 25, light ? '#254b40' : '#fff7df', undefined, true);
     if (!isRetro() && text.width > width - 36) text.setFontSize(Math.floor(25 * (width - 36) / text.width));
-    const ring = this.add.graphics().lineStyle(3, 0xd98b47).strokeRoundedRect(x - 4, y - 4, width + 8, height + 8, 17).setVisible(false);
+    this.target(id, label, x, y, width, height, 17, action, over => bg.setAlpha(over ? 0.85 : 1));
+  }
+
+  /**
+   * An invisible control over part of the illustration (a room on the map, a thing in a room): a tap target with a DOM
+   * button for the keyboard and screen readers, and a focus ring. `instant` acts as soon as a finger touches it (an egg
+   * hops into the bowl whether it is tapped or a drag starts on it); `zone: false` leaves the canvas to the room's own
+   * gestures (stirring, painting) and keeps only the DOM button and its ring.
+   */
+  protected hotspot(id: string, label: string, x: number, y: number, width: number, height: number, action: () => void, opts: { instant?: boolean; zone?: boolean } = {}): void {
+    this.target(id, label, x, y, width, height, 12, action, undefined, opts);
+  }
+
+  private target(id: string, label: string, x: number, y: number, width: number, height: number, radius: number, action: () => void, hover?: (over: boolean) => void, opts: { instant?: boolean; zone?: boolean } = {}): void {
+    const ring = this.add.graphics().lineStyle(3, 0xd98b47).strokeRoundedRect(x - 4, y - 4, width + 8, height + 8, radius).setVisible(false);
     this.layer.add(ring);
-    const zone = this.add.zone(x, y, width, height).setOrigin(0).setInteractive({ useHandCursor: true });
-    this.layer.add(zone);
-    let pressed = false;
-    zone.on('pointerover', () => { bg.setAlpha(0.85); });
-    zone.on('pointerout', () => { bg.setAlpha(1); pressed = false; });
-    zone.on('pointerdown', () => { pressed = true; });
-    zone.on('pointerup', () => { if (pressed) { pressed = false; (document.activeElement as HTMLElement | null)?.blur(); action(); } });
+    if (opts.zone !== false) {
+      const zone = this.add.zone(x, y, width, height).setOrigin(0).setInteractive({ useHandCursor: true });
+      this.layer.add(zone);
+      let pressed = false;
+      const run = () => { (document.activeElement as HTMLElement | null)?.blur(); action(); };
+      zone.on('pointerover', () => hover?.(true));
+      zone.on('pointerout', () => { hover?.(false); pressed = false; });
+      zone.on('pointerdown', () => { if (opts.instant) run(); else pressed = true; });
+      zone.on('pointerup', () => { if (pressed) { pressed = false; run(); } });
+    }
     const proxy = document.createElement('button'); proxy.type = 'button'; proxy.textContent = label; proxy.dataset.family = id;
     proxy.addEventListener('click', action);
     proxy.addEventListener('focus', () => ring.setVisible(true));

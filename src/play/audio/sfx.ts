@@ -63,4 +63,24 @@ export class Sfx {
       }
     } catch { /* Audio is optional. */ }
   }
+
+  /** One soft note (a toy piano's key), `frequency` Hz. */
+  note(frequency: number, duration = 0.6): void {
+    this.recent.push(`note:${Math.round(frequency)}`);
+    if (this.recent.length > 16) this.recent.shift();
+    const context = this.context;
+    if (!context || this.manager.mute) return;
+    try {
+      if (context.state === 'suspended') void context.resume();
+      if (context.state !== 'running') return;
+      const now = context.currentTime, osc = context.createOscillator(), gain = context.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(frequency, now);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.09, now + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+      osc.connect(gain).connect(this.output(context));
+      osc.start(now); osc.stop(now + duration + 0.02);
+    } catch { /* Audio is optional. */ }
+  }
 }

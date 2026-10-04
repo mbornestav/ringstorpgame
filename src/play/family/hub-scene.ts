@@ -14,8 +14,10 @@ export class HubScene extends FamilySurface {
 
   constructor() { super('Hub'); }
 
+  /** Coming back from one of Carl-Otto's games opens his page again. */
+  init(data: { section?: 'carl' }): void { this.section = data?.section ?? 'all'; }
+
   create(): void {
-    this.section = 'all';
     for (const key of ['family-bike-preview', 'family-run-preview', 'family-hide-preview', 'family-home-preview']) {
       if (this.textures.exists(key)) continue;
       // Retro: small previews, magnified as pixel art (two screen pixels per preview pixel).
@@ -60,11 +62,11 @@ export class HubScene extends FamilySurface {
         this.section = 'carl'; this.rebuild(); this.root.querySelector<HTMLButtonElement>('[data-family="start-bike"]')?.focus();
       });
     } else {
-      // Carl-Otto's games side by side: the bike ride, hide-and-seek and movie night.
+      // Carl-Otto's games side by side: the bike ride, hide-and-seek and the house (movie night and the other rooms).
       const w = 408, gap = (1440 - 168 - w * 3) / 2;
       this.card(84, 'family-bike-preview', t('first'), t('bikeTitle'), t('bikeBlurb'), t('start'), 'start-bike', () => this.scene.start('Bike'), w);
       this.card(84 + w + gap, 'family-hide-preview', t('second'), t('hideTitle'), t('hideBlurb'), t('countStart'), 'start-hide', () => this.scene.start('Hide'), w);
-      this.card(84 + (w + gap) * 2, 'family-home-preview', t('third'), t('movieTitle'), t('movieBlurb'), t('movieStart'), 'start-movie', () => this.scene.start('Movie'), w);
+      this.card(84 + (w + gap) * 2, 'family-home-preview', t('third'), t('homeTitle'), t('homeBlurb'), t('homeStart'), 'start-home', () => this.scene.start('House'), w);
       this.button('all-games', t('back'), 84, 740, 196, () => { this.section = 'all'; this.rebuild(); });
     }
     this.label(t('footer'), this.section === 'all' ? 84 : 820, 770, 16, '#78806b', undefined, true);

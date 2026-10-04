@@ -38,17 +38,22 @@ export class Music {
   /**
    * Browsers keep audio suspended until the page is clicked, tapped or typed in. Phaser listens for that on the page body,
    * but the game's own handlers stop some events before they get there; listening on the window in the capture phase
-   * sees every first gesture.
+   * sees every first gesture. On an iPad the sound stops again when Safari goes to the background or a call comes in (the
+   * context is "interrupted" or suspended), so the next touch after that starts it once more.
    */
   private unlockOnGesture(): void {
     const c = this.context;
     if (!c || typeof window === 'undefined') return;
     const kinds = ['pointerdown', 'pointerup', 'touchend', 'keydown', 'mousedown'] as const;
+    let listening = false;
+    const stop = () => { for (const k of kinds) window.removeEventListener(k, unlock, true); listening = false; };
     const unlock = () => {
-      if (c.state === 'running') { for (const k of kinds) window.removeEventListener(k, unlock, true); return; }
-      void c.resume().then(() => { for (const k of kinds) window.removeEventListener(k, unlock, true); }, () => { /* try again on the next gesture */ });
+      if (c.state === 'running') { stop(); return; }
+      void c.resume().then(stop, () => { /* try again on the next gesture */ });
     };
-    for (const k of kinds) window.addEventListener(k, unlock, true);
+    const listen = () => { if (listening || c.state === 'running') return; listening = true; for (const k of kinds) window.addEventListener(k, unlock, true); };
+    listen();
+    c.addEventListener('statechange', listen);
   }
 
   /** Switches to `id` (null: silence), fading the old track out. `delay` seconds holds the new one back, after a jingle. */

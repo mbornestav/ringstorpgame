@@ -7,6 +7,11 @@ import type { FamilySurface } from '../family/surface';
 import type { BikeScene } from '../family/bike-scene';
 import type { HideScene } from '../family/hide-scene';
 import type { MovieScene } from '../family/movie-scene';
+import type { HouseScene } from '../family/house-scene';
+import type { CraftScene } from '../family/craft-scene';
+import type { PancakeScene } from '../family/pancake-scene';
+import type { GoodnightScene } from '../family/goodnight-scene';
+import type { MorningScene } from '../family/morning-scene';
 import { controlsModel, footerModel, hudModel, mastheadModel, panelModel, phoneModel, promptModel, worldHudModel } from '../ui/models';
 import { musicOf } from '../audio/music';
 
@@ -15,10 +20,10 @@ export function installBridge(game: Phaser.Game, session: Session): void {
   const world = () => game.scene.getScene('World') as WorldScene;
   const ui = () => game.scene.getScene('UI') as UIScene;
   /** Whichever running scene advances by frames: a Carl-Otto game, or Ringstorp Run's world. */
-  const family = ['Bike', 'Hide', 'Movie'];
+  const family = ['Bike', 'Hide', 'Movie', 'House', 'Craft', 'Pancake', 'Goodnight', 'Morning'];
   const stepper = (): { frozen: boolean; step(dt: number): void } => {
     const active = family.find(key => game.scene.isActive(key));
-    return active ? game.scene.getScene(active) as BikeScene | HideScene | MovieScene : world();
+    return active ? game.scene.getScene(active) as BikeScene | HideScene | MovieScene | HouseScene | CraftScene | PancakeScene | GoodnightScene | MorningScene : world();
   };
   const ready = new Promise<void>(resolve => {
     const check = () => { if ((game.scene.isActive('World') && world().view) || ['Hub', ...family].some(key => game.scene.isActive(key))) resolve(); else setTimeout(check, 16); };
@@ -32,6 +37,11 @@ export function installBridge(game: Phaser.Game, session: Session): void {
     bike: () => (game.scene.getScene('Bike') as BikeScene).run,
     hide: () => (game.scene.getScene('Hide') as HideScene).run,
     movie: () => (game.scene.getScene('Movie') as MovieScene).run,
+    morning: () => (game.scene.getScene('Morning') as MorningScene).run,
+    goodnight: () => (game.scene.getScene('Goodnight') as GoodnightScene).run,
+    pancake: () => (game.scene.getScene('Pancake') as PancakeScene).run,
+    craft: () => (game.scene.getScene('Craft') as CraftScene).run,
+    house: () => { const s = game.scene.getScene('House') as HouseScene; return { selected: s.selected, head: s.head, done: [...s.progress.done] }; },
     click: (action: UiAction) => session.dispatch(action),
     available: (action: UiAction) => session.available(action),
     /** Stops the scene advancing by itself. */

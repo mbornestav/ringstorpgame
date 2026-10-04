@@ -36,16 +36,25 @@ export class Controls {
 
   private down(event: KeyboardEvent): void {
     this.consume(event);
+    this.decide(event.key.toLowerCase(), event.repeat, { ctrl: event.ctrlKey, meta: event.metaKey, alt: event.altKey }, document.activeElement instanceof HTMLButtonElement);
+  }
+
+  private decide(key: string, repeat: boolean, mods: { ctrl: boolean; meta: boolean; alt: boolean }, buttonFocused: boolean): void {
     const g = this.session.game;
-    const key = event.key.toLowerCase();
-    const decision = decideKey(key, event.repeat, { ctrl: event.ctrlKey, meta: event.metaKey, alt: event.altKey }, {
+    const decision = decideKey(key, repeat, mods, {
       mode: g.mode, level: g.level, hasPhone: g.hasPhone, phoneOpen: g.phoneOpen,
-      titleView: this.session.titleView, hasCheckpoint: g.checkpoint !== null,
-      buttonFocused: document.activeElement instanceof HTMLButtonElement,
+      titleView: this.session.titleView, hasCheckpoint: g.checkpoint !== null, buttonFocused,
     });
     for (const command of decision.commands) this.run(command);
     if (decision.hold) this.held.add(key);
   }
+
+  /**
+   * The on-screen touch controls press and release keys through the same keymap as the keyboard, so a thumb on the
+   * jump button is exactly Space, and the stick held right is exactly the right arrow.
+   */
+  press(key: string): void { if (!this.held.has(key)) this.decide(key, false, { ctrl: false, meta: false, alt: false }, false); }
+  release(key: string): void { this.held.delete(key); }
 
   private up(event: KeyboardEvent): void {
     this.consume(event);

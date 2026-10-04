@@ -12,6 +12,9 @@ import { musicOf } from '../audio/music';
 
 const WORLD_DIV = isRetro() ? 3 : 1;
 
+/** The way to preschool in the top bar: short enough to leave room for the sound and pause buttons. */
+const BAR_W = 220;
+
 export class BikeScene extends FamilySurface {
   run = new BikeRun();
   frozen = false;
@@ -81,17 +84,20 @@ export class BikeScene extends FamilySurface {
     this.label(t('carl'), 55, 39, 20, '#67715d', undefined, true);
     this.label(t('bikeTitle'), 54, 67, 31, '#25473f', undefined, true);
     this.heartGraphic = this.add.graphics(); this.layer.add(this.heartGraphic);
-    this.label(t('home'), 590, 40, 17, '#67715d'); this.label(t('preschool'), 869, 40, 17, '#67715d');
-    this.rect(590, 75, 383, 13, 0xd9d4b8, 6.5); this.rect(591, 77, 381, 10, 0xe9e5cf, 5);
+    this.label(t('home'), 590, 40, 17, '#67715d'); this.label(t('preschool'), 700, 40, 17, '#67715d');
+    this.rect(590, 75, BAR_W, 13, 0xd9d4b8, 6.5); this.rect(591, 77, BAR_W - 2, 10, 0xe9e5cf, 5);
     this.progressBar = this.add.graphics(); this.layer.add(this.progressBar);
     this.distanceText = this.label('', 590, 93, 16, '#52644c');
     this.button('bike-menu', t('back'), 1170, 45, 217, () => this.scene.start('Hub'), true);
+    this.soundButton('bike-sound', 846);
     if (this.run.mode === 'riding') this.button('bike-pause', t('pause'), 1001, 45, 145, () => { this.run.pause(); this.changed(); }, true);
     this.status = this.mirror('p', '', 'bike-status'); this.status.setAttribute('role', 'status'); this.status.setAttribute('aria-live', 'polite');
     this.statusKey = '';
     if (this.run.mode === 'riding') {
-      this.panel(28, 739, 900, 47, 0xfff8e5, 16, 0.92);
-      this.label(`${t('steer')}  ↑ ↓ ← → / WASD     ${t('pauseHint')}`, 49, 750, 20, '#3e5948', undefined, true);
+      if (!this.touch) {
+        this.panel(28, 739, 900, 47, 0xfff8e5, 16, 0.92);
+        this.label(`${t('steer')}  ↑ ↓ ← → / WASD     ${t('pauseHint')}`, 49, 750, 20, '#3e5948', undefined, true);
+      }
       this.pad();
     } else this.overlay();
     this.updateHud();
@@ -145,7 +151,7 @@ export class BikeScene extends FamilySurface {
       this.heartGraphic.setData('hearts', this.run.hearts); this.hearts(this.heartGraphic, 395, 50, this.run.hearts, 3);
     }
     this.distanceText.setText(`${this.run.metresLeft} ${t('left')}`);
-    const w = Math.max(12, 383 * this.run.progress);
+    const w = Math.max(12, BAR_W * this.run.progress);
     this.progressBar.clear().fillStyle(0x5f7c40).fillRoundedRect(590, 76, w, 12, 6).fillStyle(0x86a85a).fillRoundedRect(590, 75, w, 8, 4)
       .fillStyle(0xffffff, 0.35).fillRoundedRect(594, 76, Math.max(4, w - 8), 3, 1.5)
       .fillStyle(0x2d6fa0).fillCircle(590 + w, 81, 9).fillStyle(0x4fb0e6).fillCircle(590 + w, 80, 7);

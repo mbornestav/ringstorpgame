@@ -51,7 +51,7 @@ export function gameConfig(scenes: Phaser.Types.Scenes.SceneType[], callbacks?: 
     fps: { smoothStep: false },
     render: { preserveDrawingBuffer: import.meta.env.DEV, powerPreference: 'high-performance' },
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-    input: { keyboard: { target: window, capture: CAPTURED_KEYCODES }, activePointers: 2 },
+    input: { keyboard: { target: window, capture: CAPTURED_KEYCODES }, activePointers: 3 },
     scene: scenes,
     callbacks,
   };

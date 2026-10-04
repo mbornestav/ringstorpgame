@@ -10,6 +10,9 @@ import { PanelHost } from '../ui/panel-host';
 import { PhoneDrawer } from '../ui/phone-drawer';
 import { PromptBar } from '../ui/prompt';
 import { WorldHud } from '../ui/world-hud';
+import { TouchPad } from '../ui/touch-pad';
+import { isTouch } from '../input/touch';
+import type { WorldScene } from './world';
 import { controlsModel, footerModel, hudModel, mastheadModel, panelModel, phoneModel, promptModel, worldHudModel } from '../ui/models';
 import { sessionOf } from './shared';
 import { CRT } from '../look';
@@ -37,6 +40,8 @@ export class UIScene extends Phaser.Scene {
   private panels!: PanelHost;
   private phone!: PhoneDrawer;
   private mirror: A11yMirror | null = null;
+  /** The on-screen stick and buttons, on touch screens only. */
+  private touch: TouchPad | null = null;
 
   constructor() { super('UI'); }
 
@@ -51,6 +56,7 @@ export class UIScene extends Phaser.Scene {
     this.panels = new PanelHost(this, session);
     this.chrome = new Chrome(this, session);
     this.cards = new HudCards(this);
+    if (isTouch()) this.touch = new TouchPad(this, session, () => (this.scene.get('World') as WorldScene | null)?.controls ?? null);
     this.prompt = new PromptBar(this, session);
     this.phone = new PhoneDrawer(this, session);
     const root = document.getElementById('a11y');
@@ -60,16 +66,19 @@ export class UIScene extends Phaser.Scene {
 
   /** Every button that can be pressed by pointer, whether or not it is showing. */
   private controls(): Button[] {
-    return [...this.panels.actions, this.chrome.lang, this.chrome.sound, this.chrome.chooser, this.prompt.button, this.phone.launcher, this.phone.action, this.phone.cancel, this.phone.pocket];
+    return [...this.panels.actions, this.chrome.lang, this.chrome.sound, this.chrome.chooser, this.prompt.button, this.phone.launcher, this.phone.action, this.phone.cancel, this.phone.pocket, ...(this.touch ? [this.touch.pause] : [])];
   }
 
   /**
    * Where a button is on the canvas, in game pixels, or null if it is not showing. Tests use it to click with a real mouse.
    */
   boundsOf(id: string): { x: number; y: number; width: number; height: number } | null {
-    const button = this.controls().find(b => b.id === id && shown(b));
-    if (!button) return null;
-    const m = button.getWorldTransformMatrix(), zoom = this.cameras.main.zoom;
+    const button = this.controls().find(b => b.id === id && shown(b)), zoom = this.cameras.main.zoom;
+    if (!button) {
+      const pad = this.touch?.boundsOf(id);
+      return pad ? { x: pad.x * zoom, y: pad.y * zoom, width: pad.width * zoom, height: pad.height * zoom } : null;
+    }
+    const m = button.getWorldTransformMatrix();
     return { x: m.tx * zoom, y: m.ty * zoom, width: button.width * m.scaleX * zoom, height: button.height * m.scaleY * zoom };
   }
 
@@ -86,7 +95,9 @@ export class UIScene extends Phaser.Scene {
     if (session.section === 'hub') { this.scene.stop('World'); this.scene.start('Hub'); return; }
     const masthead = mastheadModel(session), hud = hudModel(session), footer = footerModel(session), controls = controlsModel(session);
     const panel = panelModel(session), prompt = promptModel(session), phone = phoneModel(session), world = worldHudModel(session);
-    this.chrome.update(masthead, hud, footer, controls);
+    // On a touch screen the key hints are left out: the on-screen controls take their place.
+    this.chrome.update(masthead, hud, footer, this.touch ? [] : controls);
+    this.touch?.update(controls, session.game.mode === 'playing' && !session.game.phoneOpen);
     this.cards.update(hud, UI_W);
     this.worldHud.setLift(this.chrome.stripRows > 1 ? 36 : 0);
     this.worldHud.update(world, time / 1000);

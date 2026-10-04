@@ -4,6 +4,10 @@ import type { SideGame } from '../../src/side/game';
 import type { BikeRun } from '../../src/play/family/bike-run';
 import type { HideRun } from '../../src/play/family/hide-run';
 import type { MovieRun } from '../../src/play/family/movie-run';
+import type { CraftRun } from '../../src/play/family/craft-run';
+import type { PancakeRun } from '../../src/play/family/pancake-run';
+import type { GoodnightRun } from '../../src/play/family/goodnight-run';
+import type { MorningRun } from '../../src/play/family/morning-run';
 
 // The dev build exposes `window.__ringstorp` (see src/play/testing/bridge.ts); `sim` is the running SideGame.
 export interface Bridge {
@@ -13,6 +17,11 @@ export interface Bridge {
   bike(): BikeRun;
   hide(): HideRun;
   movie(): MovieRun;
+  craft(): CraftRun;
+  pancake(): PancakeRun;
+  goodnight(): GoodnightRun;
+  morning(): MorningRun;
+  house(): { selected: string; head: [number, number]; done: string[] };
   click(action: UiAction): boolean;
   available(action: UiAction): boolean;
   freeze(): void;

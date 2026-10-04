@@ -84,14 +84,69 @@ const HOME: string[] = [
   '#2b3936', '#ffe9b0', '#f0c197', '#c98f6a', '#e8c870', '#cfe2ec', '#9fb6c4', '#8798ab',
 ];
 
+/** Pysselhörnan's craft table: teak, white paper, the ten crayons with a darker and a lighter step each (so lines and fills
+ * stay true to the crayon, and their soft edges have somewhere to go), the sticker sheet and the stickers. */
+const CRAFT: string[] = [
+  // Ink, the paper and its shadow, greys.
+  '#2b3936', '#ffffff', '#fbfaf6', '#e7e5dd', '#d9d7cf', '#b8bab6', '#8c8e8a', '#6b7076',
+  // The teak table.
+  '#4a3322', '#5e4029', '#74502f', '#8a6239', '#a07647', '#b88d5a', '#c9a476',
+  // The crayons: red, orange, yellow, green, light blue, blue, pink, purple, brown.
+  '#e2432f', '#f08a2c', '#f2c230', '#62b046', '#6fbde8', '#3157b8', '#f07fb0', '#8a56b8', '#8f5a36',
+  '#a8301f', '#b8641c', '#c09620', '#3f7f2c', '#3f8fc0', '#203c80', '#c0507f', '#5f3a82', '#5e3a22',
+  '#f28b7c', '#f6b878', '#f8de80', '#a6d68c', '#b4e0f4', '#8aa2e0', '#f8b6d2', '#c2a0dc', '#c49a76',
+  // The sticker sheet, the tape, the highlight on a chosen sticker.
+  '#cdeefb', '#f0ecd6', '#fff3b0',
+];
+
+/** Pannkakor's kitchen: the grey-green wall and white tiles, the window's sky, fence and bushes, terracotta pots and herbs,
+ * the black worktop and white cabinets, eggs, milk and flour, batter and pancakes from pale to brown, the toppings. */
+const KITCHEN: string[] = [
+  '#2b3936', '#ffffff', '#f3f2ec', '#e4e2da', '#d6d6cc', '#b8bab6', '#8c8e8a',
+  '#9ca393', '#a7ae9f', '#b9bfb1', '#cfe4ea', '#e8eedf', '#a2a59c', '#5c8a4a', '#73a35a', '#3f7f2c', '#62b046',
+  '#b5653d', '#9a5232', '#26282b', '#3a3d41', '#141517', '#5e4029', '#8f6a3a', '#d3b97f', '#b4975c',
+  '#fbf0dc', '#e2c49c', '#cfc8b8', '#bdb5a3', '#3d6ab0', '#e8ecf2', '#d7dde6', '#e9dfc8', '#c8432f', '#d9a441',
+  '#f6e7b4', '#f3dc8e', '#f1d996', '#e0a64c', '#b8763a', '#8a5220', '#f2b81e', '#c99a40',
+  '#c8243a', '#7a1424', '#3a4a8f', '#7a8ccf', '#e2432f', '#f8de80', '#f2c230', '#fff3b0', '#6fbde8',
+  '#f0c197', '#c98f6a', '#e8c870', '#cfe2ec', '#8798ab', '#ffe9b0', '#3c3a37',
+];
+
+/** Godnatt: Carl-Otto's room. The pale wallpaper and its animals (fox, squirrel, hedgehog, rabbit, badger), the oak
+ * floor, the grey-green bed and pink duvet, the paper lamp's warm light, the grey curtain, dusk and night in the window,
+ * the dollhouse and fire station, the toys and the toy piano's rainbow keys, and the night's blues and stars. */
+const BEDROOM: string[] = [
+  '#2b3936', '#ffffff', '#f3f2ec', '#efebe0', '#e6e2d6', '#d9d7cf', '#b8bab6', '#8c8e8a', '#6b7076',
+  '#a9b3a0', '#8f9a86', '#b9b08f', '#cdb07a', '#dcc28c', '#b4975c', '#8c6a40',
+  '#d9733a', '#c0603a', '#f0d8b8', '#7a6656', '#e9d6b8', '#a8957f', '#7d8086', '#2b2b2e', '#e6b8b0',
+  '#8fa092', '#6c7d6f', '#e6aea6', '#c98078', '#f3e6dc', '#fff2d0', '#f6d8a8', '#e8b47a', '#c9c0b0',
+  '#7a7f86', '#61666d', '#f2c9a0', '#c8d8e8', '#141a33', '#262b48', '#a05a46', '#ffd98a', '#5c8a4a', '#1f3328',
+  '#efe5dc', '#e6c8c0', '#b98f84', '#d6372c', '#a8301f', '#c8302a', '#1c1e21', '#2c3236',
+  '#f2c230', '#3157b8', '#62b046', '#f08a2c', '#e2432f', '#f07fb0', '#8a56b8', '#3fa4c0',
+  '#f0c197', '#e8c870', '#cfe2ec', '#fff3b0',
+];
+
+/** God morgon: the big bedroom. The dark floral wallpaper and the blue wall, birch and the floral duvet, the beige curtains,
+ * the morning window and the garden shed, the brass star lamp and its bulbs lit and unlit, Mamma, Pappa and Carl-Otto. */
+const MORNING: string[] = [
+  '#2b3936', '#ffffff', '#f3f2ec', '#d9d7cf', '#b8bab6', '#8c8e8a', '#6b7076', '#4d5257', '#3a3a3a',
+  '#3a4650', '#46535e', '#b9b496', '#c9c2a0', '#6f86a0', '#7d93a8', '#5a6b7e', '#1a2236',
+  '#c4a873', '#d6bb86', '#b4975c', '#e2cfa4', '#d8d2c4', '#cfc8b8', '#ddd6c6',
+  '#f3e8cc', '#e2d2ae', '#d6372c', '#e6a0a8', '#f2c230', '#5c8a5a',
+  '#e2d8c0', '#c9bc9c', '#d8ccb0', '#e2d6bc',
+  '#b8d4ea', '#f4e3c0', '#e8eedf', '#fff3c4', '#6f9a54', '#8a5a3a', '#3d3a38', '#cfe0ea', '#9a8a70', '#b5653d', '#62903c', '#4c7a2e', '#3f3a36',
+  '#c9a85c', '#f2dc9a', '#fff2c0', '#e8e2d0', '#ffe9b0',
+  '#f0c197', '#c98f6a', '#8a5a36', '#6b4a2e', '#e8c870', '#cfe2ec', '#8798ab', '#e6b8b0',
+  '#b07a4a', '#e2b98a', '#e2432f', '#fff3b0',
+];
+
 /** How far (in 0–255 units) the ordered dither may push a channel: enough to shade ramps, low enough to keep flats flat. */
-const SPREAD = { day: 10, night: 9, interior: 10, bike: 10, yard: 10, home: 10 } as const;
+const SPREAD = { day: 10, night: 9, interior: 10, bike: 10, yard: 10, home: 10, craft: 7, kitchen: 9, bedroom: 9, morning: 9 } as const;
 
 export type Lighting = keyof typeof SPREAD;
 const cache = new Map<Lighting, Palette>();
 
 export function paletteFor(lighting: Lighting): { palette: Palette; spread: number } {
   let palette = cache.get(lighting);
-  if (!palette) cache.set(lighting, palette = new Palette({ day: DAY, night: NIGHT, interior: INTERIOR, bike: BIKE, yard: YARD, home: HOME }[lighting]));
+  if (!palette) cache.set(lighting, palette = new Palette({ day: DAY, night: NIGHT, interior: INTERIOR, bike: BIKE, yard: YARD, home: HOME, craft: CRAFT, kitchen: KITCHEN, bedroom: BEDROOM, morning: MORNING }[lighting]));
   return { palette, spread: SPREAD[lighting] };
 }

@@ -2,6 +2,7 @@ import { INK, TAU, bake, box, flower, hgrad, line, lumps, mix, outlined, oval, p
 import { CARL_OTTO_HOME, PLACES, ROOM, SOFA_X, TUNING, type ItemId, type PlaceKind, type SurpriseKind } from './games/filmkvall';
 import type { Carried, MovieRun, Placed, Spot } from './movie-run';
 import { kid } from './kids';
+import { paintHungPicture } from './craft-art';
 
 // The living room for Filmkväll, after the family's photo, unrolled into one long back wall: the straw hats and the woven
 // pendant lamp, the TV over a low grey bench, the round two-tier table on a cream rug, the grey sofa, the black leather
@@ -754,8 +755,11 @@ function sparkles(c: C, x: number, y: number, t: number, r = 26): void {
   }
 }
 
-/** One frame of the living room, in room units on a context scaled to the 960 × 540 world. Returns the camera. */
-export function drawHome(c: C, g: View, t: number): number {
+/**
+ * One frame of the living room, in room units on a context scaled to the 960 × 540 world. Returns the camera. `picture` is
+ * Carl-Otto's latest picture from the craft corner, hung on the wall over the sofa.
+ */
+export function drawHome(c: C, g: View, t: number, picture: HTMLImageElement | null = null): number {
   const a = getArt(), P = placeArt();
   const film = g.mode === 'watching' || g.mode === 'won';
   const cam = film ? cameraFor(g.x) + (WATCH_CAM - cameraFor(g.x)) * smooth(g.watch / 1.2) : cameraFor(g.x);
@@ -767,6 +771,7 @@ export function drawHome(c: C, g: View, t: number): number {
   for (const end of a.ends) put(c, end, 0, 0);
   // On the walls and the floor: the TV's backlight glows on the wall once it is on.
   put(c, a.hats, 0, 0);
+  if (picture) paintHungPicture(c, picture, SOFA_X - 58, 176, 116, -0.03);
   put(c, a.tv, 0, 0); put(c, a.rug, 0, 0); put(c, a.shelf, 0, 0); put(c, a.lamp, 0, 0);
   // The hiding places, each with whatever is hidden there peeking out between its back and its front.
   for (const s of g.spots) {

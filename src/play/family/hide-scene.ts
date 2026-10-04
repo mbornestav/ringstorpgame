@@ -149,11 +149,14 @@ export class HideScene extends FamilySurface {
       this.label(found ? f.name : '?', x + 26 - (found ? f.name.length * 5 : 5), 100, 16, found ? '#25473f' : '#8a8f80');
     });
     this.button('hide-menu', t('back'), 1170, 45, 217, () => this.scene.start('Hub'), true);
+    this.soundButton('hide-sound', 846);
     if (g.mode === 'seeking') this.button('hide-pause', t('pause'), 1001, 45, 145, () => this.togglePause(), true);
     this.status = this.mirror('p', '', 'hide-status'); this.status.setAttribute('role', 'status'); this.status.setAttribute('aria-live', 'polite');
     if (g.mode === 'seeking') {
-      this.panel(28, 739, 1000, 47, 0xfff8e5, 16, 0.92);
-      this.label(t('seekKeys'), 49, 750, 20, '#3e5948', undefined, true);
+      if (!this.touch) {
+        this.panel(28, 739, 1000, 47, 0xfff8e5, 16, 0.92);
+        this.label(t('seekKeys'), 49, 750, 20, '#3e5948', undefined, true);
+      }
       this.walkPad(this.touches, () => { this.autoLook = null; });
       if (g.near) this.button('hide-look', t('look'), 1150, 560, 250, () => { this.run.look(); this.changed(); });
     } else if (g.mode === 'counting') {

@@ -7,7 +7,7 @@ import type { KidLook, Words } from './kurragomma';
 
 export type ItemId = 'blanket' | 'cushion' | 'teddy' | 'popcorn' | 'remote';
 export type PlaceKind = 'console' | 'table' | 'chair' | 'books' | 'toybasket' | 'baskethouse' | 'redbox' | 'doorway';
-/** What an empty place holds. `dining` is the doorway's: a peek into the next room, for another day. */
+/** What an empty place holds. `dining` is the doorway's: a peek into the next room, which has its own place on the map. */
 export type SurpriseKind = 'dustbunny' | 'sock' | 'puzzle' | 'dino' | 'crayon' | 'dining';
 
 export interface Item {
@@ -74,7 +74,7 @@ export const SURPRISES: Surprise[] = [
   { kind: 'crayon', line: { sv: 'En krita. Inte rita på väggen!', en: 'A crayon. No drawing on the walls!' } },
 ];
 /** The doorway, when nothing is hidden there. */
-export const DINING: Surprise = { kind: 'dining', line: { sv: 'Matsalen utforskar vi en annan gång!', en: 'We’ll explore the dining room another time!' } };
+export const DINING: Surprise = { kind: 'dining', line: { sv: 'Matsalen! Den hittar du på kartan.', en: 'The dining room! You’ll find it on the map.' } };
 
 /** Timings, in seconds. */
 export const TUNING = {
