@@ -450,3 +450,27 @@ test('A picture hung in Carl-Otto’s room from the gallery is on his wall in Go
   await canvas(page).screenshot({ path: 'test-results/ipad-craft-in-bedroom.png' });
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('carl-otto-hemma')!).drawings.length)).toBe(1);
 });
+
+test('Karlstad by touch: the phone calls a taxi that drives to the bus station', async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.addInitScript(() => localStorage.setItem('ringstorp-lang', 'sv'));
+  await page.goto('/?level=karlstad');
+  await page.waitForFunction(() => window.__ringstorp); await page.evaluate(() => window.__ringstorp.ready);
+  const sim = () => page.evaluate(() => { const g = window.__ringstorp.sim; return { taxi: g.taxi?.state ?? null, x: g.player.x, home: g.stage.homeX, bus: g.busRide }; });
+  await tap(page, 'phone');
+  await expect.poll(() => page.evaluate(() => window.__ringstorp.sim.phoneOpen)).toBe(true);
+  await canvas(page).screenshot({ path: 'test-results/ipad-taxi-phone.png' });
+  await tap(page, 'phone-taxi');
+  await expect.poll(async () => (await sim()).taxi).toBe('coming');
+  await expect.poll(async () => (await sim()).taxi, { timeout: 8000 }).toBe('riding');
+  await page.waitForTimeout(2500);
+  await canvas(page).screenshot({ path: 'test-results/ipad-taxi-ride.png' });
+  await expect.poll(async () => (await sim()).taxi, { timeout: 10_000 }).toBe('arriving');
+  await page.waitForTimeout(300);
+  await canvas(page).screenshot({ path: 'test-results/ipad-taxi-arrived.png' });
+  const s = await sim();
+  expect(s.x).toBeGreaterThan(s.home - 40);
+  // Board the bus with the prompt's button.
+  await tap(page, 'interact');
+  await expect.poll(async () => (await sim()).bus).not.toBeNull();
+});

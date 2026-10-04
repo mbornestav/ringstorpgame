@@ -72,7 +72,7 @@ export interface Effect {
   y1?: number;
 }
 
-export type CarKind = 'bmw' | 'police' | 'taunus' | 'civil' | 'truck';
+export type CarKind = 'bmw' | 'police' | 'taunus' | 'civil' | 'truck' | 'taxi';
 export type CarState = 'driving' | 'braking' | 'stopped' | 'leaving';
 /** A car on the carriageway. Traffic keeps right, so cars heading right use the lane nearer the camera. */
 export interface Car {
@@ -152,6 +152,9 @@ const TURN_REACH = 72;
 /** Tyre lines of the two lanes: near the camera for traffic heading right, far for traffic heading left. */
 export const LANES = { near: 244, far: 206 };
 const CAR_SPEED = 170, BRAKING = 520;
+/** Karlstad's taxi: what it costs (or whatever is in the wallet, if less), and how long the ride to the bus station takes. */
+export const TAXI_FARE = 100;
+const TAXI_RIDE = 6;
 /** D.D notices a wave from this close. */
 const HAIL_REACH = 150;
 /** Rounds in the handgun D.D hands over. */
@@ -236,6 +239,11 @@ export class SideGame {
   phoneOpen = false;
   phoneCall: 'idle' | 'dialing' | 'ringing' | 'connected' = 'idle';
   delivery: Delivery | null = null;
+  /**
+   * Karlstad: a taxi called from the phone drives up, the courier gets in, and it takes him (and the parcel) to the bus
+   * station; the streets in between, their crews and the last crew at the stop are skipped.
+   */
+  taxi: { state: 'coming' | 'boarding' | 'riding' | 'arriving'; timer: number; carId: number; from: number; to: number } | null = null;
   private callTimer = 0;
   /** Seconds until the BMW next comes by. It waits for an open stretch of road, and for you to be unarmed. */
   bmwTimer = 0;
@@ -268,7 +276,7 @@ export class SideGame {
   reset(route: Route = 'direct', stage: Stage = stageFor(route)): void {
     this.level = 1;
     this.custom = null;
-    this.rested.clear(); this.busRide = null;
+    this.rested.clear(); this.busRide = null; this.taxi = null;
     this.sneaking = false;
     this.using = false;
     this.gods.reset();
@@ -390,7 +398,7 @@ export class SideGame {
   get interaction(): { kind: 'turn' | 'shop' | 'hail' | 'ammo' | 'rest' | 'bus' | GodsAction | HeistAction; label: string } | null {
     if (this.level === 2) return this.gods.interaction();
     if (this.level === 3) return this.heist.interaction();
-    if (this.phoneOpen || this.mode !== 'playing' || this.transition > 0 || this.busRide !== null) return null;
+    if (this.phoneOpen || this.mode !== 'playing' || this.transition > 0 || this.busRide !== null || (this.taxi && this.taxi.state !== 'arriving')) return null;
     const p = this.player;
     if (p.hp <= 0 || p.z > 0 || p.downTimer > 0 || p.hurtTimer > 0 || p.riseTimer > 0 || p.dodgeTimer > 0 || p.attackTimer > 0 || p.cuffTimer > 0) return null;
     if (this.dealerNearby) return { kind: 'ammo', label: t('act.ammo', { clip: CLIP, price: REFILL_PRICE }) };
@@ -472,6 +480,7 @@ export class SideGame {
     });
     this.continues++;
     this.cars = [];
+    this.taxi = null;
     this.phoneOpen = false;
     this.relocateDelivery();
     this.police = [];
@@ -534,6 +543,7 @@ export class SideGame {
 
   get objective(): string {
     if (this.busRide !== null) return t(this.busRide < 7 ? 'level.busRide' : 'level.arrived');
+    if (this.taxi && this.taxi.state !== 'coming' && this.taxi.state !== 'arriving') return t('level.taxiRide');
     if (this.level === 2) return this.gods.objective;
     if (this.level === 3) return this.heist.objective;
     const own = this.custom?.objectives;
@@ -594,6 +604,7 @@ export class SideGame {
     if (this.level === 3) { this.updateHeist(dt); return; }
     this.updatePhone(dt);
     this.updateDelivery(dt);
+    if (this.updateTaxi(dt)) { this.messageTimer = Math.max(0, this.messageTimer - dt); return; }
     // The phone pauses the fight, but D.D can still answer and arrive.
     if (this.phoneOpen) { this.updateCars(dt, true); return; }
     this.elapsed += dt;
@@ -992,7 +1003,79 @@ export class SideGame {
   // ---------------------------------------------------------------- D.D and the handgun
 
   /** The handset has D.D's number only after he has pulled over once. */
-  get hasPhone(): boolean { return this.level === 1 && this.metDD && this.busRide === null; }
+  get hasPhone(): boolean { return this.level === 1 && (this.metDD || !!this.custom?.busHome) && this.busRide === null && !this.taxi; }
+
+  /** A taxi can be called in Karlstad from anywhere short of the bus station. */
+  get canTaxi(): boolean {
+    return !!this.custom?.busHome && this.mode === 'playing' && this.busRide === null && !this.taxi && this.player.hp > 0 && this.player.x < this.stage.homeX - 260;
+  }
+
+  /** Calls the taxi: it drives up the road to the courier from behind. */
+  callTaxi(): void {
+    if (!this.canTaxi) return;
+    this.closePhone();
+    this.dismissDD();
+    const car = this.makeCar('taxi', 1, CAR_SPEED * 1.6);
+    car.stopAt = clamp(this.player.x + 10, this.camera + 60, this.camera + WIDTH - 60);
+    this.taxi = { state: 'coming', timer: 0, carId: car.id, from: 0, to: 0 };
+    this.events.push('dial', 'honk');
+    this.say('level.taxiComing');
+  }
+
+  private get taxiCar(): Car | undefined { return this.taxi ? this.cars.find(c => c.id === this.taxi!.carId) : undefined; }
+
+  /** The taxi's part of a frame, before the street's: true while the ride itself takes over the frame. */
+  private updateTaxi(dt: number): boolean {
+    const taxi = this.taxi, car = this.taxiCar;
+    if (!taxi || !car) { this.taxi = null; return false; }
+    taxi.timer += dt;
+    if (taxi.state === 'coming' && car.state === 'stopped') { taxi.state = 'boarding'; taxi.timer = 0; this.events.push('doors'); }
+    else if (taxi.state === 'boarding') {
+      // The courier walks to the door and gets in; then everything behind and ahead of the bus stop is let go.
+      const p = this.player;
+      p.x += (car.x - p.x) * Math.min(1, dt * 6); p.y += (car.y - 10 - p.y) * Math.min(1, dt * 6);
+      if (taxi.timer >= 0.6) this.board(taxi, car);
+      return taxi.timer >= 0.6;
+    } else if (taxi.state === 'riding') {
+      const u = Math.min(1, taxi.timer / TAXI_RIDE), k = u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+      const before = car.x;
+      car.x = taxi.from + (taxi.to - taxi.from) * k;
+      car.speed = Math.abs(car.x - before) / dt; car.wheel += (car.x - before) / 7;
+      this.player.x = car.x; this.player.y = car.y - 10;
+      this.camera = clamp(car.x - WIDTH * 0.4, 0, this.stage.length - WIDTH);
+      this.elapsed += dt;
+      if (u >= 1) this.arrive(taxi, car);
+      return true;
+    } else if (taxi.state === 'arriving' && taxi.timer > 0.4 && car.state === 'stopped') { car.state = 'leaving'; this.taxi = null; }
+    return false;
+  }
+
+  /** In the taxi: the fights, the police and the other traffic are left behind, and the parcel comes along. */
+  private board(taxi: NonNullable<SideGame['taxi']>, car: Car): void {
+    taxi.state = 'riding'; taxi.timer = 0; taxi.from = car.x; taxi.to = this.stage.homeX - 90; car.crew = 2;
+    this.enemies = []; this.police = []; this.dispatch = null; this.heat = 0;
+    this.active = null; this.backup = [];
+    for (const e of this.stage.encounters) this.encounters.set(e.id, 'cleared');
+    this.crewSprung = true;
+    if (!this.hasPackage) { this.hasPackage = true; this.events.push('parcel'); }
+    this.cars = [car];
+    this.delivery = null; this.phoneCall = 'idle';
+    this.moveInput = { x: 0, y: 0 };
+    this.events.push('go');
+  }
+
+  /** At the bus station: the courier gets out on the pavement beside the yellow bus, and the taxi drives off. */
+  private arrive(taxi: NonNullable<SideGame['taxi']>, car: Car): void {
+    taxi.state = 'arriving'; taxi.timer = 0;
+    car.speed = 0; car.state = 'stopped'; car.timer = 0; car.crew = 1;
+    const p = this.player;
+    p.x = this.stage.homeX - 28; p.y = BAND_TOP + 8; p.facing = 1;
+    this.checkpoint = Math.max(this.checkpoint ?? 0, this.stage.homeX - 120);
+    const fare = Math.min(this.cash, TAXI_FARE);
+    this.cash -= fare;
+    this.events.push(fare ? 'cash' : 'doors');
+    if (fare) this.say('level.taxiFare', { fare }); else this.say('level.taxiArrived');
+  }
 
   openPhone(): void {
     if (!this.hasPhone || this.mode !== 'playing' || this.player.hp <= 0) return;
@@ -1183,6 +1266,8 @@ export class SideGame {
   private updateCars(dt: number, phoneOnly = false): void {
     for (const car of this.cars) {
       if (phoneOnly && !(car.kind === 'bmw' && (car.delivery || car.handed))) continue;
+      // The taxi is moved by its ride while the courier is in it.
+      if (car.kind === 'taxi' && this.taxi?.state === 'riding') continue;
       car.timer += dt;
       if (car.state === 'driving') {
         const left = car.stopAt === null ? Infinity : (car.stopAt - car.x) * car.dir;
@@ -1207,7 +1292,8 @@ export class SideGame {
         if (car.kind === 'bmw') {
           if (!car.delivery && !car.handed && car.timer >= 0.55) this.handOver(car);
           if (!car.delivery && car.timer >= 1.7) { car.state = 'leaving'; this.events.push('honk'); }
-        } else if (car.timer > 1 && !this.police.some(o => o.unit === car.id)) car.state = 'leaving';
+        } else if (car.kind === 'taxi') { /* waits for the courier, and leaves once he is out */ }
+        else if (car.timer > 1 && !this.police.some(o => o.unit === car.id)) car.state = 'leaving';
       } else if (car.state === 'leaving') {
         car.speed = Math.min(CAR_SPEED * 1.2, car.speed + 260 * dt);
         car.x += car.dir * car.speed * dt;

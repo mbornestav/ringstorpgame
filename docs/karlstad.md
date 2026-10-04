@@ -6,6 +6,8 @@ The level uses the first game's courier, parcel, lane-based combat, screen-locki
 
 Pick up the parcel on Stora torget. Five cafés provide optional fika breaks: approach the far pavement and press **E** after clearing nearby enemies. Each stop restores health once and saves a checkpoint, including when health is already full. A knockout offers continuation from the most recent checkpoint, with the existing score penalty. Cleared crews and the parcel survive continuation.
 
+**Taxi:** in Karlstad the phone works from the start. **Ring taxi · Busstationen** (or T while the phone is open) calls a yellow taxi. It pulls up beside the courier, he gets in with the parcel, and the ride runs along the whole street to the bus station; the crews on the way and the last crew at the stop are skipped. The fare is 100 kr, or whatever is in the wallet if that is less. He gets out beside the yellow bus, ready to board. D.D's line on the phone opens once he has met D.D, as on the first level. Implemented in `SideGame.callTaxi` (`src/side/game.ts`).
+
 At the end, clear the final crew, approach the **yellow bus**, and press **E**. A short countryside journey ends at **Liljedal**, the red cabin in the user's reference photo. The result banner leaves the cabin visible. Pause freezes the journey; replay starts a fresh Karlstad run. English and Swedish text are included.
 
 ## Scenery references

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { Session } from '../src/play/session';
-import { hudModel, panelModel, promptModel, worldHudModel } from '../src/play/ui/models';
+import { hudModel, panelModel, phoneModel, promptModel, worldHudModel } from '../src/play/ui/models';
 import { SideGame } from '../src/side/game';
 import { setLang } from '../src/side/i18n';
 import { compileLevel, menuLevels, validateLevel } from '../src/side/levels';
@@ -113,4 +113,54 @@ describe('Karlstad to Liljedal', () => {
     for (let i = 0; i < 185; i++) g.update(0.05);
     expect(panelModel(s)?.title).toBe('HEMMA I LILJEDAL');
   });
+
+  it('a taxi from the phone takes the courier (and the parcel) to the bus station from anywhere', () => {
+    const g = run();
+    // Before D.D has given his number, the phone is still there: for the taxi.
+    expect(g.metDD).toBe(false);
+    expect(g.hasPhone).toBe(true); expect(g.canTaxi).toBe(true);
+    const cash = g.cash;
+    g.openPhone(); g.callTaxi();
+    expect(g.phoneOpen).toBe(false); expect(g.taxi?.state).toBe('coming'); expect(g.hasPhone).toBe(false);
+    for (let i = 0; i < 60 * 6 && g.taxi?.state === 'coming'; i++) g.update(frame);
+    expect(g.taxi?.state).toBe('boarding');
+    for (let i = 0; i < 60 && g.taxi?.state === 'boarding'; i++) g.update(frame);
+    expect(g.taxi?.state).toBe('riding');
+    expect(g.objective).toBe('By taxi · to the bus station');
+    // Riding: the streets, their crews and the last crew at the stop are left behind; the parcel comes along.
+    expect(g.enemies).toHaveLength(0); expect(g.hasPackage).toBe(true); expect(g.homeCrewDown).toBe(true);
+    for (let i = 0; i < 60 * 7 && g.taxi?.state === 'riding'; i++) g.update(frame);
+    expect(g.taxi?.state).toBe('arriving');
+    expect(g.player.x).toBeGreaterThan(g.stage.homeX - 40);
+    expect(g.cash).toBe(cash - Math.min(cash, 100));
+    // Out beside the yellow bus: E boards it, and the ride home to Liljedal follows.
+    expect(g.interaction?.kind).toBe('bus');
+    g.interact();
+    expect(g.busRide).toBe(0);
+    for (let i = 0; i < 60 * 10; i++) g.update(frame);
+    expect(g.mode).toBe('victory');
+  });
+
+  it('takes no taxi when already at the bus station, and the taxi goes away after a knockout', () => {
+    const g = run();
+    teleport(g, g.stage.homeX - 100);
+    expect(g.canTaxi).toBe(false);
+    const h = run();
+    h.callTaxi(); h.mode = 'defeat'; h.checkpoint = 100;
+    h.continueFromCheckpoint();
+    expect(h.taxi).toBeNull(); expect(h.canTaxi).toBe(true);
+  });
+
+  it('shows the taxi button on the phone in Karlstad, with the taxi on the handset before D.D', () => {
+    const session = new Session(new SideGame());
+    session.game.startLevel(level);
+    session.dispatch('phone', 'key');
+    const m = phoneModel({ game: session.game, phoneReceipt: false, muted: false, titleView: 'main' } as never);
+    expect(m.taxi).toMatchObject({ visible: true, disabled: false });
+    expect(m.lcd.contact).toBe('TAXI'); expect(m.action.disabled).toBe(true);
+    expect(session.available('phone-call')).toBe(false);
+    expect(session.dispatch('phone-taxi', 'key')).toBe(true);
+    expect(session.game.taxi?.state).toBe('coming');
+  });
 });
+

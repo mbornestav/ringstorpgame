@@ -56,7 +56,8 @@ export class Session {
       case 'interact': return mode === 'playing' && !g.phoneOpen;
       case 'sound': case 'lang': case 'chooser': return true;
       case 'phone': return mode === 'playing' && g.hasPhone;
-      case 'phone-call': return mode === 'playing' && g.phoneOpen;
+      case 'phone-call': return mode === 'playing' && g.phoneOpen && (g.metDD || g.dealerNearby);
+      case 'phone-taxi': return mode === 'playing' && g.phoneOpen && g.canTaxi;
       case 'phone-cancel': return mode === 'playing' && g.phoneOpen;
       case 'phone-away': return mode === 'playing' && g.phoneOpen;
       default: return false;
@@ -91,6 +92,7 @@ export class Session {
         else { this.phoneReceipt = false; g.callDD(); }
         break;
       case 'phone-cancel': this.clearInput(); g.dismissDD(); break;
+      case 'phone-taxi': this.clearInput(); this.phoneReceipt = false; g.callTaxi(); break;
       case 'phone-away': this.clearInput(); g.closePhone(); break;
     }
     for (const fn of this.changers) fn();

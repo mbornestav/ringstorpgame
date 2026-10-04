@@ -318,7 +318,9 @@ export class SideRenderer {
       const x = heist.pickupX;
       actors.push({ y: 252, x, draw: () => { this.shadow(x - cam, 252, 0, 9); drawFighter(this.c, x - cam, 252, 0, -1, LOOKS.goran, POSES.walk(this.elapsed * 8)); } });
     }
-    if (!(heist && heist.driving)) actors.push({ y: p.y + 0.1, x: p.x, draw: () => this.drawPlayer(game, p, cam) });
+    // In the taxi (Karlstad), the courier is the face in its back window.
+    const inTaxi = game.taxi?.state === 'riding';
+    if (!(heist && heist.driving) && !inTaxi) actors.push({ y: p.y + 0.1, x: p.x, draw: () => this.drawPlayer(game, p, cam) });
     if (game.level === 1 && !game.hasPackage) actors.push({ y: game.stage.package.y, x: game.stage.package.x, draw: () => this.drawPackage(game.stage.package.x - cam, game.stage.package.y) });
     actors.sort((a, b) => a.y - b.y || a.x - b.x);
     this.outlined(() => { for (const a of actors) a.draw(); });

@@ -60,6 +60,7 @@ export class A11yMirror {
   private readonly no: HTMLButtonElement;
   private readonly phoneAction: HTMLButtonElement;
   private readonly phoneCancel: HTMLButtonElement;
+  private readonly phoneTaxi: HTMLButtonElement;
   private readonly phonePocket: HTMLButtonElement;
   private readonly phoneWallet: HTMLElement;
   private readonly phoneHint: HTMLElement;
@@ -115,6 +116,7 @@ export class A11yMirror {
     this.phoneWallet = make('p', { class: 'phone-wallet' }, this.phone);
     this.phoneHint = make('p', { class: 'phone-hint', 'aria-live': 'polite' }, this.phone);
     this.phoneAction = make('button', { type: 'button', class: 'phone-action', 'data-action': 'phone-call' }, this.phone);
+    this.phoneTaxi = make('button', { type: 'button', class: 'phone-taxi', 'data-action': 'phone-taxi' }, this.phone);
     this.phoneCancel = make('button', { type: 'button', class: 'phone-cancel', 'data-action': 'phone-cancel' }, this.phone);
     this.phonePocket = make('button', { type: 'button', class: 'phone-pocket', 'data-action': 'phone-away' }, this.phone);
     this.phoneRounds = make('span', { class: 'phone-rounds' }, this.phone);
@@ -235,6 +237,10 @@ export class A11yMirror {
     this.phoneAction.disabled = this.yes.disabled = phone.action.disabled;
     this.yes.setAttribute('aria-label', phone.yesAria);
     this.no.setAttribute('aria-label', phone.noAria);
+    this.phoneTaxi.hidden = !phone.taxi.visible;
+    set(this.phoneTaxi, phone.taxi.label);
+    this.phoneTaxi.setAttribute('aria-label', phone.taxi.aria);
+    this.phoneTaxi.disabled = phone.taxi.disabled;
     this.phoneCancel.hidden = !phone.cancel.visible;
     set(this.phoneCancel, phone.cancel.label);
     set(this.phonePocket, phone.pocketLabel);

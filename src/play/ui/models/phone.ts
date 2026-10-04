@@ -20,6 +20,8 @@ export interface PhoneModel {
   yesAria: string;
   noAria: string;
   action: { label: string; disabled: boolean };
+  /** Karlstad: the taxi to the bus station. */
+  taxi: { visible: boolean; label: string; aria: string; disabled: boolean };
   cancel: { visible: boolean; label: string };
   pocketLabel: string;
 }
@@ -40,18 +42,23 @@ export function phoneModel({ game: g, phoneReceipt }: UiContext): PhoneModel {
     } else if (g.phoneCall === 'idle') { status = t('ph.onMyWay'); hint = t('ph.hintComing'); }
   } else if (disabled) action = t('ph.calling');
   if (phoneReceipt) { status = t('ph.refilled'); hint = t('ph.hintRefilled', { clip: CLIP, price: REFILL_PRICE }); }
+  // Karlstad before D.D has given his number: the phone is for the taxi.
+  const taxiPhone = !!g.custom?.busHome, noDD = taxiPhone && !g.metDD && !g.delivery;
+  if (noDD) { action = t('ph.noDD'); disabled = true; status = t('ph.ready'); hint = t('ph.hintTaxi'); }
+  else if (taxiPhone && g.phoneCall === 'idle' && !g.delivery && !phoneReceipt) hint = `${hint} ${t('ph.hintTaxi')}`;
   return withKey<PhoneModel>({
     visible: g.phoneOpen && g.mode === 'playing',
     launcher: { visible: g.mode === 'playing' && g.hasPhone, aria: t('phone.open'), keyLabel: 'F', name: 'GH337', cash: `${g.cash} KR` },
     dialogLabel: t('ph.dialog'),
     handsetLabel: t('ph.handset'),
-    lcd: { contact: DD_CONTACT, number: DD_NUMBER, status },
+    lcd: noDD ? { contact: t('ph.taxiContact'), number: '054-12 34 56', status } : { contact: DD_CONTACT, number: DD_NUMBER, status },
     wallet: t('ph.wallet', { cash: g.cash }),
     hint,
     rounds: t('ph.carrying', { ammo: g.ammo, clip: CLIP }),
     yesAria: g.dealerNearby ? t('ph.buyAria', { price: REFILL_PRICE }) : t('ph.callAria'),
     noAria: t('ph.away'),
     action: { label: action, disabled },
+    taxi: { visible: taxiPhone, label: t('ph.taxi'), aria: t('ph.taxiAria'), disabled: !g.canTaxi },
     cancel: {
       visible: !((!g.delivery || g.delivery.state === 'leaving') && g.phoneCall === 'idle'),
       label: t(g.dealerNearby ? 'ph.sendAway' : 'ph.cancelCall'),

@@ -32,7 +32,13 @@ export function decideKey(key: string, repeat: boolean, mods: Modifiers, ctx: Ke
   if ((key === 'f' && ctx.hasPhone) || (key === 'escape' && ctx.phoneOpen)) {
     return repeat ? NOTHING : { commands: [{ ui: 'phone' }], hold: false };
   }
-  if (ctx.phoneOpen) return key === 'm' && !repeat ? { commands: [{ ui: 'sound' }], hold: false } : NOTHING;
+  if (ctx.phoneOpen) {
+    if (repeat) return NOTHING;
+    if (key === 'm') return { commands: [{ ui: 'sound' }], hold: false };
+    // T calls the taxi (Karlstad).
+    if (key === 't') return { commands: [{ ui: 'phone-taxi' }], hold: false };
+    return NOTHING;
+  }
   if ((key === 'enter' || key === ' ') && ctx.buttonFocused) return NOTHING;
 
   const commands: Command[] = [];

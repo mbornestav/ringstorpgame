@@ -17,6 +17,7 @@ export class PhoneDrawer extends Phaser.GameObjects.Container {
   readonly action: Button;
   readonly cancel: Button;
   readonly pocket: Button;
+  readonly taxi: Button;
   private readonly panel: Phaser.GameObjects.Graphics;
   private readonly handset: Phaser.GameObjects.Container;
   private readonly handsetG: Phaser.GameObjects.Graphics;
@@ -51,11 +52,13 @@ export class PhoneDrawer extends Phaser.GameObjects.Container {
     this.action = new Button(scene, { id: 'phone-call', label: '', kind: 'primary', size: 'sm' });
     this.cancel = new Button(scene, { id: 'phone-cancel', label: '', kind: 'secondary', size: 'sm' });
     this.pocket = new Button(scene, { id: 'phone-away', label: '', kind: 'ghost', size: 'sm' });
+    this.taxi = new Button(scene, { id: 'phone-taxi', label: '', kind: 'primary', size: 'sm' });
     this.rounds = scene.add.text(cx, 0, '', { ...textStyle('small', CSS.dim), fontSize: fontPx(16) });
     this.action.onPress = () => this.session.dispatch('phone-call', 'pointer');
     this.cancel.onPress = () => this.session.dispatch('phone-cancel', 'pointer');
     this.pocket.onPress = () => this.session.dispatch('phone-away', 'pointer');
-    this.add([this.panel, this.handset, this.wallet, this.hint, this.action, this.cancel, this.pocket, this.rounds]);
+    this.taxi.onPress = () => this.session.dispatch('phone-taxi', 'pointer');
+    this.add([this.panel, this.handset, this.wallet, this.hint, this.action, this.cancel, this.pocket, this.taxi, this.rounds]);
     this.setVisible(false).setAlpha(0);
 
     this.launcher = new Button(scene, { id: 'phone', label: '', kind: 'secondary', height: 52 });
@@ -70,6 +73,7 @@ export class PhoneDrawer extends Phaser.GameObjects.Container {
     this.action.setFocused(id === 'phone-call' && this.open);
     this.cancel.setFocused(id === 'phone-cancel');
     this.pocket.setFocused(id === 'phone-away');
+    this.taxi.setFocused(id === 'phone-taxi');
   }
 
   update(m: PhoneModel): void {
@@ -113,6 +117,12 @@ export class PhoneDrawer extends Phaser.GameObjects.Container {
     }
     this.action.set({ id: 'phone-call', label: m.action.label, kind: 'primary', size: 'sm', height: 60 }).setDisabled(m.action.disabled);
     this.action.setPosition(cx, top - 60);
+    top = this.action.y - 12;
+    this.taxi.setVisible(m.taxi.visible);
+    if (m.taxi.visible) {
+      this.taxi.set({ id: 'phone-taxi', label: m.taxi.label, kind: 'primary', size: 'sm', height: 60 }).setDisabled(m.taxi.disabled);
+      this.taxi.setPosition(cx, top - 60);
+    }
     this.drawHandset(m);
   }
 

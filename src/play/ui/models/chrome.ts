@@ -7,7 +7,7 @@ export interface ControlHint { keys: string; label: string }
 
 /** The controls strip below the game. It lists F only once D.D has given you his number. */
 export function controlsModel({ game }: UiContext): ControlHint[] {
-  if (game.busRide !== null) return [{ keys: 'ESC', label: t('ctl.pause') }, { keys: 'M', label: t('ctl.sound') }];
+  if (game.busRide !== null || game.taxi?.state === 'riding') return [{ keys: 'ESC', label: t('ctl.pause') }, { keys: 'M', label: t('ctl.sound') }];
   const keys: Array<[string, Key]> = game.level === 3
     ? game.heist.driving
       ? [['D', 'ctl.gas'], ['A', 'ctl.brakes'], ['W S / ↑ ↓', 'ctl.lane'], ['ESC', 'ctl.pause'], ['M', 'ctl.sound']]

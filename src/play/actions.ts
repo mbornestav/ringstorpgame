@@ -2,7 +2,7 @@
 export type UiAction =
   | 'start' | 'restart' | 'start-2' | 'answer' | 'start-3' | 'answer-3' | 'back' | 'menu'
   | 'resume' | 'continue' | 'pause' | 'interact' | 'sound' | 'lang' | 'chooser'
-  | 'phone' | 'phone-call' | 'phone-away' | 'phone-cancel'
+  | 'phone' | 'phone-call' | 'phone-away' | 'phone-cancel' | 'phone-taxi'
   | `floor-${number}`
   /** A level from a level file, by its id. */
   | `level-${string}`;

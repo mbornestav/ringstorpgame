@@ -66,7 +66,7 @@ export class UIScene extends Phaser.Scene {
 
   /** Every button that can be pressed by pointer, whether or not it is showing. */
   private controls(): Button[] {
-    return [...this.panels.actions, this.chrome.lang, this.chrome.sound, this.chrome.chooser, this.prompt.button, this.phone.launcher, this.phone.action, this.phone.cancel, this.phone.pocket, ...(this.touch ? [this.touch.pause] : [])];
+    return [...this.panels.actions, this.chrome.lang, this.chrome.sound, this.chrome.chooser, this.prompt.button, this.phone.launcher, this.phone.action, this.phone.cancel, this.phone.pocket, this.phone.taxi, ...(this.touch ? [this.touch.pause] : [])];
   }
 
   /**
@@ -97,7 +97,7 @@ export class UIScene extends Phaser.Scene {
     const panel = panelModel(session), prompt = promptModel(session), phone = phoneModel(session), world = worldHudModel(session);
     // On a touch screen the key hints are left out: the on-screen controls take their place.
     this.chrome.update(masthead, hud, footer, this.touch ? [] : controls);
-    this.touch?.update(controls, session.game.mode === 'playing' && !session.game.phoneOpen);
+    this.touch?.update(controls, session.game.mode === 'playing' && !session.game.phoneOpen && session.game.taxi?.state !== 'riding' && session.game.taxi?.state !== 'boarding');
     this.cards.update(hud, UI_W);
     this.worldHud.setLift(this.chrome.stripRows > 1 ? 36 : 0);
     this.worldHud.update(world, time / 1000);

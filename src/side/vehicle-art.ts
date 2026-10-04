@@ -15,6 +15,9 @@ interface Paint { body: string; light: string; dark: string; glass: string; shin
 const paint = (body: string): Paint => ({ body, light: mix(body, '#ffffff', 0.3), dark: shade(body, 0.68), glass: '#1a2430', shine: '#6f90aa' });
 /** Burnt orange, like the Taunus in the photos of that era. */
 export const TAUNUS_PAINT = paint('#b9612b');
+const TAXI_PAINT = paint('#f2c230');
+/** The taxi driver: grey hair, a white shirt. */
+const TAXI_DRIVER: Look = { skin: '#e8b995', hair: '#9a9a96', jacket: '#f1efe8', arms: '#f1efe8', trousers: '#2b3036', shoes: '#141517', height: 45, build: 10, limb: 4 };
 const TONES = ['#8c2231', '#a9b0b6', '#2b5140', '#e6e7e5', '#23282e', '#2f5f78', '#c9b25a', '#6a4a7a'].map(paint);
 
 export type TruckTone = 0 | 1 | 2;
@@ -27,6 +30,14 @@ const TARPS: Array<{ tarp: string; dark: string; light: string }> = [
 /** Extra cars for the heist: the Taunus, other traffic, and trucks. Returns false for the older kinds. */
 export function drawExtraCar(c: CanvasRenderingContext2D, car: Car, sx: number, elapsed: number): boolean {
   if (car.kind === 'taunus') { drawSaloon(c, car, sx, { half: 52, pal: TAUNUS_PAINT, cabin: 'taunus', people: car.crew === 1 ? [LOOKS.dd] : [LOOKS.dd, LOOKS.goran] }, elapsed); return true; }
+  if (car.kind === 'taxi') {
+    // Karlstad's taxi: a yellow saloon with a lit roof sign, and the courier in the back once he is in.
+    drawSaloon(c, car, sx, { half: 50, pal: TAXI_PAINT, cabin: 'sedan', people: car.crew === 2 ? [TAXI_DRIVER, LOOKS.player] : [TAXI_DRIVER] }, elapsed);
+    const gy = Math.round(car.y), cx = Math.round(sx) + car.dir * 4;
+    rect(c, cx - 10, gy - 38, 20, 7, '#2b2b2e'); rect(c, cx - 9, gy - 37, 18, 5, '#fff3b0');
+    rect(c, cx - 6, gy - 36, 3, 3, '#2b2b2e'); rect(c, cx - 1, gy - 36, 3, 3, '#2b2b2e'); rect(c, cx + 4, gy - 36, 3, 3, '#2b2b2e');
+    return true;
+  }
   if (car.kind === 'civil') {
     const style = car.id % 3 === 0 ? 'van' : car.id % 3 === 1 ? 'hatch' : 'sedan';
     drawSaloon(c, car, sx, { half: style === 'van' ? 56 : style === 'hatch' ? 44 : 49, pal: TONES[(car.tone ?? car.id) % TONES.length], cabin: style, people: [] }, elapsed);

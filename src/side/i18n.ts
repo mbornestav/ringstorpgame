@@ -116,6 +116,10 @@ const EN = {
   'ph.buy': 'BUY REFILL · {price} KR', 'ph.wallet': 'YOUR CASH  {cash} KR', 'ph.carrying': 'Currently carrying {ammo} / {clip} rounds',
   'ph.putAway': 'PUT AWAY <kbd>F</kbd> / <kbd>ESC</kbd>', 'ph.cancelVisit': 'Cancel visit',
   'ph.sendAway': 'No thanks · send D.D away', 'ph.cancelCall': 'Cancel call / visit',
+  'ph.taxi': 'CALL A TAXI · BUS STATION', 'ph.taxiAria': 'Call a taxi to the bus station', 'ph.noDD': 'NO NUMBER FOR D.D YET',
+  'ph.hintTaxi': 'Tired of walking? A taxi takes you all the way to the bus station.', 'ph.taxiContact': 'TAXI',
+  'level.taxiComing': 'THE TAXI IS ON ITS WAY · WAIT BY THE ROAD', 'level.taxiRide': 'By taxi · to the bus station',
+  'level.taxiArrived': 'HERE WE ARE! THE YELLOW BUS IS WAITING · PRESS E', 'level.taxiFare': 'THE TAXI COST {fare} KR · THE BUS IS WAITING · PRESS E',
   // ---- vehicles
   'car.dd': 'D.D · 100 KR', 'car.hey': 'D.D!', 'car.luck': 'LYCKA TILL',
   // ---- level 2: the Gods run
@@ -295,6 +299,10 @@ const SV: Record<Key, string> = {
   'ph.buy': 'KÖP PÅFYLLNING · {price} KR', 'ph.wallet': 'DINA PENGAR  {cash} KR', 'ph.carrying': 'Du har {ammo} av {clip} skott',
   'ph.putAway': 'LÄGG UNDAN <kbd>F</kbd> / <kbd>ESC</kbd>', 'ph.cancelVisit': 'Avbryt besöket',
   'ph.sendAway': 'Nej tack · skicka iväg D.D', 'ph.cancelCall': 'Avbryt samtal / besök',
+  'ph.taxi': 'RING TAXI · BUSSTATIONEN', 'ph.taxiAria': 'Ring en taxi till busstationen', 'ph.noDD': 'INGET NUMMER TILL D.D ÄN',
+  'ph.hintTaxi': 'Trött på att gå? En taxi kör dig hela vägen till busstationen.', 'ph.taxiContact': 'TAXI',
+  'level.taxiComing': 'TAXIN ÄR PÅ VÄG · VÄNTA VID VÄGEN', 'level.taxiRide': 'Med taxi · till busstationen',
+  'level.taxiArrived': 'FRAMME! DEN GULA BUSSEN VÄNTAR · TRYCK E', 'level.taxiFare': 'TAXIN KOSTADE {fare} KR · BUSSEN VÄNTAR · TRYCK E',
   'car.dd': 'D.D · 100 KR', 'car.hey': 'D.D!', 'car.luck': 'LYCKA TILL',
   'title.level2': '▶ &nbsp; NIVÅ 2 · GODSRUNDAN', 'title.level2Hint': 'SMYG FÖRBI POLISEN · INGA SLAGSMÅL',
   'top.level1': 'NIVÅ 1 · PAKETRUNDAN', 'top.level2': 'NIVÅ 2 · GODSRUNDAN',
