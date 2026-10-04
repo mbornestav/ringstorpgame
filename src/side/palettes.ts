@@ -139,14 +139,29 @@ const MORNING: string[] = [
   '#b07a4a', '#e2b98a', '#e2432f', '#fff3b0',
 ];
 
+/** Hemkomst: the hall by the front door. White walls and the panelled door, the frosted window, the pink living room
+ * through the doorway, the coats, the woven bench and the white cabinet, the dark floor and mat, the family's shoes, the
+ * yellow raincoat and the blue helmet, and a picture from the craft corner on the magnet board. */
+const HALL: string[] = [
+  '#2b3936', '#ffffff', '#fbfaf6', '#f1efe8', '#e8e6de', '#e2e0d8', '#cfcdc4', '#b8bab6', '#8c8e8a', '#3a3a3a',
+  '#dbe7ec', '#c4d6de', '#d9b8b0', '#a33a2f', '#2e4f7a', '#d9a441', '#5c8a5a', '#6b4a6e', '#c98078',
+  '#2e3a56', '#4d6a5a', '#5b4a6e', '#5b6b7a', '#d9733a',
+  '#c9a473', '#b08a5a', '#e8dcc0', '#e2d6bc', '#b4975c',
+  '#2f2b28', '#3d3835', '#45403b', '#3a3230',
+  '#8a5a36', '#d6372c', '#3157b8', '#f3f2ec',
+  '#f2c230', '#e8b420', '#3d3a38', '#4fb0e6', '#2d7fb8', '#1f5f8c',
+  '#c9a07a', '#9ab0c4', '#a8b89a', '#e2432f', '#62b046', '#6fbde8', '#f07fb0', '#8a56b8',
+  '#f0c197', '#c98f6a', '#e8c870', '#cfe2ec', '#8798ab', '#ffe9b0', '#fff3b0',
+];
+
 /** How far (in 0–255 units) the ordered dither may push a channel: enough to shade ramps, low enough to keep flats flat. */
-const SPREAD = { day: 10, night: 9, interior: 10, bike: 10, yard: 10, home: 10, craft: 7, kitchen: 9, bedroom: 9, morning: 9 } as const;
+const SPREAD = { day: 10, night: 9, interior: 10, bike: 10, yard: 10, home: 10, craft: 7, kitchen: 9, bedroom: 9, morning: 9, hall: 9 } as const;
 
 export type Lighting = keyof typeof SPREAD;
 const cache = new Map<Lighting, Palette>();
 
 export function paletteFor(lighting: Lighting): { palette: Palette; spread: number } {
   let palette = cache.get(lighting);
-  if (!palette) cache.set(lighting, palette = new Palette({ day: DAY, night: NIGHT, interior: INTERIOR, bike: BIKE, yard: YARD, home: HOME, craft: CRAFT, kitchen: KITCHEN, bedroom: BEDROOM, morning: MORNING }[lighting]));
+  if (!palette) cache.set(lighting, palette = new Palette({ day: DAY, night: NIGHT, interior: INTERIOR, bike: BIKE, yard: YARD, home: HOME, craft: CRAFT, kitchen: KITCHEN, bedroom: BEDROOM, morning: MORNING, hall: HALL }[lighting]));
   return { palette, spread: SPREAD[lighting] };
 }

@@ -312,7 +312,7 @@ export function drawRoom(c: C, run: GoodnightRun, t: number, cheerUntil: number)
     paintToy(c, toy.id, toy.at[0], toy.at[1], lifted ? 1.25 : 1.1);
   }
   // A toy in hand (or one that went to the wrong place) shows where it lives.
-  const glowing = run.held ?? run.glow?.toy ?? null;
+  const glowing = run.held ?? run.glow?.id ?? null;
   if (glowing) { const home = TOYS.find(x => x.id === glowing)!.home; oval(c, `rgba(242, 194, 48, ${0.3 + 0.2 * Math.sin(t * 8)})`, home[0], home[1] - 14, 46, 34); sparkles(c, home[0], home[1] - 14, t, 40); }
   // Carl-Otto stands in the middle of the room until he goes to bed.
   if (run.inBed < 0) {

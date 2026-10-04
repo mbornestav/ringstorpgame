@@ -57,6 +57,9 @@ const sv = {
   jumpOnBed: 'Hoppa i sängen', morningDone: 'God morgon, Carl-Otto!',
   morningDoneBody: 'Alla lampor lyser och alla är vakna. Hjälmen på – nu cyklar vi till förskolan!', toPreschool: 'Dags för förskolan!',
   morningKeys: 'MELLANSLAG · NÄSTA / HOPPA     ESC · KARTAN',
+  homecomingTitle: 'Hemkomst', homecomingDone: 'Välkommen hem!',
+  homecomingDoneBody: 'Skorna står i par, jackan hänger på kroken och hjälmen ligger på hyllan.', toCraft: 'Till pysselhörnan',
+  homecomingKeys: 'MELLANSLAG · NÄSTA     ESC · KARTAN',
 };
 
 const en: Record<keyof typeof sv, string> = {
@@ -114,6 +117,9 @@ const en: Record<keyof typeof sv, string> = {
   jumpOnBed: 'Bounce on the bed', morningDone: 'Good morning, Carl-Otto!',
   morningDoneBody: 'All the bulbs are lit and everyone is awake. Helmet on – let’s cycle to preschool!', toPreschool: 'Off to preschool!',
   morningKeys: 'SPACE · NEXT / BOUNCE     ESC · MAP',
+  homecomingTitle: 'Home again', homecomingDone: 'Welcome home!',
+  homecomingDoneBody: 'The shoes stand in pairs, the jacket hangs on its hook and the helmet is on the shelf.', toCraft: 'To the craft corner',
+  homecomingKeys: 'SPACE · NEXT     ESC · MAP',
 };
 
 export const familyText = (key: keyof typeof sv): string => (getLang() === 'sv' ? sv : en)[key];

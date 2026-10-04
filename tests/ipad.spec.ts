@@ -207,7 +207,7 @@ test('Hemma by touch: the map, movie night and drawing with a finger', async ({ 
 test('Godnatt by touch: toys dragged and tapped home, the piano, goodnight to the animals, lamp out', async ({ page }) => {
   test.setTimeout(60_000);
   await open(page, 'godnatt');
-  const g = () => page.evaluate(() => { const r = window.__ringstorp.goodnight(); return { phase: r.phase, placed: r.toys.filter(t => t.placed).map(t => t.id), asleep: r.asleep.length, piano: r.piano, won: r.won, glow: r.glow?.toy ?? null }; });
+  const g = () => page.evaluate(() => { const r = window.__ringstorp.goodnight(); return { phase: r.phase, placed: r.toys.filter(t => t.placed).map(t => t.id), asleep: r.asleep.length, piano: r.piano, won: r.won, glow: r.glow?.id ?? null }; });
   const toys = await page.evaluate(() => window.__ringstorp.goodnight().toys.map(t => ({ id: t.id, at: t.at })));
   const homes: Record<string, [number, number]> = { engine: [886, 518], doll: [890, 440], lego: [150, 318], ball: [286, 418], book: [118, 190], dino: [612, 404] };
   await canvas(page).screenshot({ path: 'test-results/ipad-goodnight-mess.png' });
@@ -268,4 +268,31 @@ test('God morgon by touch: curtains, tickles, Nallen on Mamma’s nose, eight bo
   // Off to preschool: the bike ride begins.
   await tap(page, 'morning-bike');
   await expect(page.locator('#bike-panel-title')).toHaveText('Till förskolan');
+});
+
+test('Hemkomst by touch: shoes dragged and tapped onto the bench in pairs, the raincoat on its hook, then the craft corner', async ({ page }) => {
+  test.setTimeout(60_000);
+  await open(page, 'hemkomst');
+  const g = () => page.evaluate(() => { const r = window.__ringstorp.homecoming(); return { left: r.left.map(t => t.id), pairs: r.pairs, glow: r.glow?.id ?? null, won: r.won }; });
+  const where = (id: string) => page.evaluate(i => window.__ringstorp.homecoming().things.find(t => t.id === i)!.at, id);
+  const line = (from: number[], to: number[]) => Array.from({ length: 12 }, (_, i) => [from[0] + (to[0] - from[0]) * i / 11, from[1] - 10 + (to[1] - from[1]) * i / 11] as [number, number]);
+  await canvas(page).screenshot({ path: 'test-results/ipad-hall-mess.png' });
+  // Pappa's left trainer dragged up onto the seat; then his right one dragged onto the sandals' place: back it goes.
+  await swipe(page, line(await where('pappa-L'), [628, 372]));
+  await expect.poll(async () => (await g()).left).not.toContain('pappa-L');
+  await swipe(page, line(await where('pappa-R'), [818, 446]));
+  expect((await g()).glow).toBe('pappa-R');
+  await canvas(page).screenshot({ path: 'test-results/ipad-hall-wrong.png' });
+  await page.waitForTimeout(700);
+  // The raincoat dragged to the low hook.
+  await swipe(page, line(await where('jacket'), [216, 258]));
+  await expect.poll(async () => (await g()).left).not.toContain('jacket');
+  // Everything else just tapped.
+  for (let i = 0; i < 12 && (await g()).left.length; i++) { const id = (await g()).left[0], at = await where(id); await tapWorld(page, at[0], at[1] - 10); await page.waitForTimeout(250); }
+  await expect.poll(async () => (await g()).pairs.length).toBe(4);
+  await expect.poll(async () => (await g()).won, { timeout: 6000 }).toBe(true);
+  await expect(page.locator('#homecoming-panel-title')).toHaveText('Välkommen hem!');
+  await canvas(page).screenshot({ path: 'test-results/ipad-hall-done.png' });
+  await tap(page, 'homecoming-craft');
+  await expect.poll(() => page.evaluate(() => window.__ringstorp.craft().mode)).toBe('drawing');
 });

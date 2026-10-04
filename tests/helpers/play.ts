@@ -8,6 +8,7 @@ import type { CraftRun } from '../../src/play/family/craft-run';
 import type { PancakeRun } from '../../src/play/family/pancake-run';
 import type { GoodnightRun } from '../../src/play/family/goodnight-run';
 import type { MorningRun } from '../../src/play/family/morning-run';
+import type { HomecomingRun } from '../../src/play/family/homecoming-run';
 
 // The dev build exposes `window.__ringstorp` (see src/play/testing/bridge.ts); `sim` is the running SideGame.
 export interface Bridge {
@@ -21,6 +22,7 @@ export interface Bridge {
   pancake(): PancakeRun;
   goodnight(): GoodnightRun;
   morning(): MorningRun;
+  homecoming(): HomecomingRun;
   house(): { selected: string; head: [number, number]; done: string[] };
   click(action: UiAction): boolean;
   available(action: UiAction): boolean;

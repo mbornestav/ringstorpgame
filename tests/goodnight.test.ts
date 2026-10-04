@@ -35,7 +35,7 @@ describe('Godnatt: tidying up', () => {
     const g = fresh(), dino = TOYS.find(t => t.id === 'dino')!, wrong = TOYS.find(t => t.id === 'book')!.home;
     g.grab(dino.start); g.drag(wrong); g.drop(wrong);
     expect(g.events).toContain('wrong:dino');
-    expect(g.glow?.toy).toBe('dino');
+    expect(g.glow?.id).toBe('dino');
     run(g, TUNING.hop + 0.05);
     const toy = g.toys.find(t => t.id === 'dino')!;
     expect(toy.placed).toBe(false); expect(toy.at).toEqual(dino.start);

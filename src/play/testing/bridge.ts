@@ -12,6 +12,7 @@ import type { CraftScene } from '../family/craft-scene';
 import type { PancakeScene } from '../family/pancake-scene';
 import type { GoodnightScene } from '../family/goodnight-scene';
 import type { MorningScene } from '../family/morning-scene';
+import type { HomecomingScene } from '../family/homecoming-scene';
 import { controlsModel, footerModel, hudModel, mastheadModel, panelModel, phoneModel, promptModel, worldHudModel } from '../ui/models';
 import { musicOf } from '../audio/music';
 
@@ -20,10 +21,10 @@ export function installBridge(game: Phaser.Game, session: Session): void {
   const world = () => game.scene.getScene('World') as WorldScene;
   const ui = () => game.scene.getScene('UI') as UIScene;
   /** Whichever running scene advances by frames: a Carl-Otto game, or Ringstorp Run's world. */
-  const family = ['Bike', 'Hide', 'Movie', 'House', 'Craft', 'Pancake', 'Goodnight', 'Morning'];
+  const family = ['Bike', 'Hide', 'Movie', 'House', 'Craft', 'Pancake', 'Goodnight', 'Morning', 'Homecoming'];
   const stepper = (): { frozen: boolean; step(dt: number): void } => {
     const active = family.find(key => game.scene.isActive(key));
-    return active ? game.scene.getScene(active) as BikeScene | HideScene | MovieScene | HouseScene | CraftScene | PancakeScene | GoodnightScene | MorningScene : world();
+    return active ? game.scene.getScene(active) as BikeScene | HideScene | MovieScene | HouseScene | CraftScene | PancakeScene | GoodnightScene | MorningScene | HomecomingScene : world();
   };
   const ready = new Promise<void>(resolve => {
     const check = () => { if ((game.scene.isActive('World') && world().view) || ['Hub', ...family].some(key => game.scene.isActive(key))) resolve(); else setTimeout(check, 16); };
@@ -37,6 +38,7 @@ export function installBridge(game: Phaser.Game, session: Session): void {
     bike: () => (game.scene.getScene('Bike') as BikeScene).run,
     hide: () => (game.scene.getScene('Hide') as HideScene).run,
     movie: () => (game.scene.getScene('Movie') as MovieScene).run,
+    homecoming: () => (game.scene.getScene('Homecoming') as HomecomingScene).run,
     morning: () => (game.scene.getScene('Morning') as MorningScene).run,
     goodnight: () => (game.scene.getScene('Goodnight') as GoodnightScene).run,
     pancake: () => (game.scene.getScene('Pancake') as PancakeScene).run,

@@ -60,7 +60,7 @@ export const DOORS: Rect[] = [
 export const FRONT_DOOR: Rect = [40, 480, 14, 40];
 
 export const ACTIVITIES: Activity[] = [
-  { id: 'hemkomst', room: 'hall', title: { sv: 'Hemkomst', en: 'Home again' }, scene: null,
+  { id: 'hemkomst', room: 'hall', title: { sv: 'Hemkomst', en: 'Home again' }, scene: 'Homecoming',
     blurb: { sv: 'Para ihop skorna och ställ dem på hyllan.', en: 'Match the shoes and put them on the rack.' } },
   { id: 'pyssel', room: 'hall', title: { sv: 'Pysselhörnan', en: 'The craft corner' }, scene: 'Craft',
     blurb: { sv: 'Rita, måla och klistra stjärnor.', en: 'Draw, colour in and stick on stars.' } },

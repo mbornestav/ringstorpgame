@@ -364,14 +364,22 @@ test('Pannkakor with only the keyboard: Space does the next thing, 1–5 pick a 
   await expect.poll(phase).toBe('whisk');
   for (let i = 0; i < 20 && await phase() === 'whisk'; i++) await page.keyboard.press('Space');
   await expect.poll(phase).toBe('fry');
+  // The game advances only by hand from here, so each key lands at a known moment.
+  const pan = () => page.evaluate(() => window.__ringstorp.pancake().pan.state);
+  await page.evaluate(() => window.__ringstorp.freeze());
   for (let n = 1; n <= 5; n++) {
     await page.keyboard.press('Space'); // pour
-    await page.evaluate(() => { window.__ringstorp.step(1 / 60, 60 * 4); window.__ringstorp.thaw(); });
+    await expect.poll(pan).toBe('pouring');
+    await page.evaluate(() => window.__ringstorp.step(1 / 60, 60 * 4));
     await page.keyboard.press('Space'); // flip
-    await page.evaluate(() => { window.__ringstorp.step(1 / 60, 60 * 3); window.__ringstorp.thaw(); });
+    await expect.poll(pan).toBe('flying');
+    await page.evaluate(() => window.__ringstorp.step(1 / 60, 60 * 3));
     await page.keyboard.press('Space'); // onto the plate
+    await expect.poll(pan).toBe('sliding');
+    await page.evaluate(() => window.__ringstorp.step(1 / 60, 60));
     await expect.poll(() => page.evaluate(() => window.__ringstorp.pancake().stack.length)).toBe(n);
   }
+  await page.evaluate(() => window.__ringstorp.thaw());
   await expect.poll(phase).toBe('toppings');
   await page.keyboard.press('2'); await page.keyboard.press('Space'); await page.keyboard.press('Space');
   expect(await page.evaluate(() => window.__ringstorp.pancake().toppings.map(t => t.kind))).toEqual(['cream', 'cream']);
@@ -414,4 +422,14 @@ test('God morgon with only the keyboard: Space wakes them, bounces and lights th
   await expect.poll(async () => (await g()).phase, { timeout: 8000 }).toBe('ready');
   await press(page, 'morning-bike');
   await expect(page.locator('#bike-panel-title')).toHaveText('Till förskolan');
+});
+
+test('Hemkomst with only the keyboard: Space puts each thing away, then on to the craft corner', async ({ page }) => {
+  await page.goto('/?game=hemkomst');
+  await page.waitForFunction(() => window.__ringstorp); await page.evaluate(() => window.__ringstorp.ready);
+  for (let i = 0; i < 10; i++) { await page.keyboard.press('Space'); await page.waitForTimeout(200); }
+  await expect.poll(() => page.evaluate(() => window.__ringstorp.homecoming().won), { timeout: 8000 }).toBe(true);
+  await expect(page.locator('#homecoming-panel-title')).toHaveText('Välkommen hem!');
+  await press(page, 'homecoming-craft');
+  await expect.poll(() => page.evaluate(() => window.__ringstorp.craft().mode)).toBe('drawing');
 });

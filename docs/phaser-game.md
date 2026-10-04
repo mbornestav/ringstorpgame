@@ -20,6 +20,7 @@ index.html ─ src/play/main.ts        fonts + brand logos load first, then Phas
                 → PancakeScene       Pannkakor in the kitchen (pancake-run.ts + pancake-art.ts)
                 → GoodnightScene     Godnatt in Carl-Otto's room (goodnight-run.ts + goodnight-art.ts)
                 → MorningScene       God morgon in the big bedroom, then on to BikeScene (morning-run.ts + morning-art.ts)
+                → HomecomingScene    Hemkomst by the front door (homecoming-run.ts + homecoming-art.ts; put-away.ts is shared with Godnatt)
 ```
 
 - **`WorldScene`** owns the cadence: `Controls.poll()` → `SideGame.update(dt)` → sound cues → `WorldView.update()`. It also turns a click on the lift's floor buttons into `floor-N`.
