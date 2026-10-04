@@ -7,6 +7,9 @@ import type { FamilySurface } from '../family/surface';
 import type { BikeScene } from '../family/bike-scene';
 import type { HideScene } from '../family/hide-scene';
 import type { MovieScene } from '../family/movie-scene';
+import type { DiningScene } from '../family/dining-scene';
+import type { BathScene } from '../family/bath-scene';
+import type { SillyScene } from '../family/silly-scene';
 import type { HouseScene } from '../family/house-scene';
 import type { CraftScene } from '../family/craft-scene';
 import type { PancakeScene } from '../family/pancake-scene';
@@ -21,10 +24,10 @@ export function installBridge(game: Phaser.Game, session: Session): void {
   const world = () => game.scene.getScene('World') as WorldScene;
   const ui = () => game.scene.getScene('UI') as UIScene;
   /** Whichever running scene advances by frames: a Carl-Otto game, or Ringstorp Run's world. */
-  const family = ['Bike', 'Hide', 'Movie', 'House', 'Craft', 'Pancake', 'Goodnight', 'Morning', 'Homecoming'];
+  const family = ['Bike', 'Hide', 'Movie', 'House', 'Craft', 'Pancake', 'Goodnight', 'Morning', 'Homecoming', 'Dining', 'Bath', 'Silly'];
   const stepper = (): { frozen: boolean; step(dt: number): void } => {
     const active = family.find(key => game.scene.isActive(key));
-    return active ? game.scene.getScene(active) as BikeScene | HideScene | MovieScene | HouseScene | CraftScene | PancakeScene | GoodnightScene | MorningScene | HomecomingScene : world();
+    return active ? game.scene.getScene(active) as BikeScene | HideScene | MovieScene | HouseScene | CraftScene | PancakeScene | GoodnightScene | MorningScene | HomecomingScene | DiningScene | BathScene | SillyScene : world();
   };
   const ready = new Promise<void>(resolve => {
     const check = () => { if ((game.scene.isActive('World') && world().view) || ['Hub', ...family].some(key => game.scene.isActive(key))) resolve(); else setTimeout(check, 16); };
@@ -43,6 +46,9 @@ export function installBridge(game: Phaser.Game, session: Session): void {
     goodnight: () => (game.scene.getScene('Goodnight') as GoodnightScene).run,
     pancake: () => (game.scene.getScene('Pancake') as PancakeScene).run,
     craft: () => (game.scene.getScene('Craft') as CraftScene).run,
+    dining: () => (game.scene.getScene('Dining') as DiningScene).run,
+    bath: () => (game.scene.getScene('Bath') as BathScene).run,
+    silly: () => (game.scene.getScene('Silly') as SillyScene).run,
     house: () => { const s = game.scene.getScene('House') as HouseScene; return { selected: s.selected, head: s.head, done: [...s.progress.done] }; },
     click: (action: UiAction) => session.dispatch(action),
     available: (action: UiAction) => session.available(action),

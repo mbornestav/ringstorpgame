@@ -21,6 +21,9 @@ index.html ─ src/play/main.ts        fonts + brand logos load first, then Phas
                 → GoodnightScene     Godnatt in Carl-Otto's room (goodnight-run.ts + goodnight-art.ts)
                 → MorningScene       God morgon in the big bedroom, then on to BikeScene (morning-run.ts + morning-art.ts)
                 → HomecomingScene    Hemkomst by the front door (homecoming-run.ts + homecoming-art.ts; put-away.ts is shared with Godnatt)
+                → DiningScene        Duka bordet in the dining room, then on to MovieScene (dining-run.ts + dining-art.ts)
+                → BathScene          Tänder och tvål in the bathroom, then on to GoodnightScene (bath-run.ts + bath-art.ts; mirror-face.ts is shared with the toilet)
+                → SillyScene         Fånig i spegeln in the little toilet; its photos hang on the walls like drawings (silly-run.ts + silly-art.ts)
 ```
 
 - **`WorldScene`** owns the cadence: `Controls.poll()` → `SideGame.update(dt)` → sound cues → `WorldView.update()`. It also turns a click on the lift's floor buttons into `floor-N`.

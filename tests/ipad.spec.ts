@@ -296,3 +296,78 @@ test('Hemkomst by touch: shoes dragged and tapped onto the bench in pairs, the r
   await tap(page, 'homecoming-craft');
   await expect.poll(() => page.evaluate(() => window.__ringstorp.craft().mode)).toBe('drawing');
 });
+
+test('Duka bordet by touch: plates dragged to places, stacks tapped, candles lit, food served, then movie night', async ({ page }) => {
+  test.setTimeout(60_000);
+  await open(page, 'duka');
+  const g = () => page.evaluate(() => { const r = window.__ringstorp.dining(); return { phase: r.phase, laid: r.laid.length, lit: r.lit, glow: r.glow?.ware ?? null }; });
+  const line = (from: number[], to: number[]) => Array.from({ length: 12 }, (_, i) => [from[0] + (to[0] - from[0]) * i / 11, from[1] + (to[1] - from[1]) * i / 11] as [number, number]);
+  await canvas(page).screenshot({ path: 'test-results/ipad-dining-empty.png' });
+  // A plate dragged to Nallen's place at the end of the table; a glass dragged off to the window goes back.
+  await swipe(page, line([372, 462], [734, 334]));
+  await expect.poll(async () => (await g()).laid).toBe(1);
+  await swipe(page, line([480, 462], [930, 200]));
+  expect((await g()).glow).toBe('glass');
+  await page.waitForTimeout(600);
+  // The rest by tapping the stacks.
+  for (let i = 0; i < 14 && (await g()).phase === 'set'; i++) { for (const x of [372, 480, 588]) { await tapWorld(page, x, 460); await page.waitForTimeout(120); } }
+  await expect.poll(async () => (await g()).phase).toBe('candles');
+  await canvas(page).screenshot({ path: 'test-results/ipad-dining-set.png' });
+  for (let i = 0; i < 5; i++) await tap(page, 'dining-candles');
+  await expect.poll(async () => (await g()).phase).toBe('serve');
+  await tap(page, 'dining-food');
+  await expect.poll(async () => (await g()).phase).toBe('eat');
+  await page.waitForTimeout(900);
+  await canvas(page).screenshot({ path: 'test-results/ipad-dining-eat.png' });
+  await expect.poll(async () => (await g()).phase, { timeout: 8000 }).toBe('done');
+  await expect(page.locator('#dining-panel-title')).toHaveText('Tack för maten!');
+  await tap(page, 'dining-movie');
+  await expect(page.locator('#movie-panel-title')).toHaveText('Filmkväll');
+});
+
+test('Tänder och tvål by touch: stool, soap, rubbing, bubbles, rinse, towel, then brushing the sugar bugs away', async ({ page }) => {
+  test.setTimeout(90_000);
+  await open(page, 'tander');
+  const g = () => page.evaluate(() => { const r = window.__ringstorp.bath(); return { phase: r.phase, lather: r.lather, bubbles: r.bubbles.map(b => [b.x, b.y]), left: r.left.length }; });
+  await canvas(page).screenshot({ path: 'test-results/ipad-bath-start.png' });
+  await tap(page, 'bath-stool');
+  await tap(page, 'bath-pump'); await tap(page, 'bath-pump');
+  await expect.poll(async () => (await g()).phase).toBe('rub');
+  // Rubbing back and forth over the hands.
+  for (let i = 0; i < 6 && (await g()).phase === 'rub'; i++) await swipe(page, Array.from({ length: 24 }, (_, k) => [420 + (k % 2) * 120, 430 + (k % 3) * 8] as [number, number]));
+  await expect.poll(async () => (await g()).phase).toBe('rinse');
+  await canvas(page).screenshot({ path: 'test-results/ipad-bath-bubbles.png' });
+  const bubble = (await g()).bubbles[0];
+  if (bubble) await tapWorld(page, bubble[0], bubble[1] - 4);
+  await tap(page, 'bath-tap');
+  await expect.poll(async () => (await g()).phase, { timeout: 5000 }).toBe('dry');
+  await tap(page, 'bath-towel'); await tap(page, 'bath-tube');
+  await expect.poll(async () => (await g()).phase).toBe('brush');
+  // A finger brushes over each bug in turn.
+  const bugs = await page.evaluate(() => window.__ringstorp.bath().bugs.map(b => b.at));
+  await swipe(page, [[bugs[0][0] - 14, bugs[0][1]], [bugs[0][0] - 6, bugs[0][1]]]);
+  await canvas(page).screenshot({ path: 'test-results/ipad-bath-bugs.png' });
+  for (const [bx, by] of bugs) await swipe(page, Array.from({ length: 16 }, (_, k) => [bx + (k % 2 ? 14 : -14), by + (k % 3) - 1] as [number, number]));
+  await canvas(page).screenshot({ path: 'test-results/ipad-bath-brush.png' });
+  for (let i = 0; i < 4 && (await g()).left > 0; i++) { const rest = await page.evaluate(() => window.__ringstorp.bath().left.map(b => b.at)); for (const [bx, by] of rest) await swipe(page, Array.from({ length: 16 }, (_, k) => [bx + (k % 2 ? 14 : -14), by] as [number, number])); }
+  await expect.poll(async () => (await g()).phase).toBe('spit');
+  await tap(page, 'bath-cup');
+  await expect(page.locator('#bath-panel-title')).toHaveText('Rena tänder!');
+  await canvas(page).screenshot({ path: 'test-results/ipad-bath-done.png' });
+  await tap(page, 'bath-bed');
+  await expect.poll(() => page.evaluate(() => window.__ringstorp.goodnight().phase)).toBe('tidy');
+});
+
+test('Fånig i spegeln by touch: a crown, star glasses and a moustache, a silly face, and a photo on the wall', async ({ page }) => {
+  await open(page, 'spegel');
+  for (const id of ['crown', 'stars', 'moustache', 'clown']) await tap(page, `wear-${id}`);
+  await tap(page, 'silly-face');
+  const worn = await page.evaluate(() => window.__ringstorp.silly().wearing);
+  expect(worn.sort()).toEqual(['clown', 'crown', 'moustache', 'stars']);
+  await canvas(page).screenshot({ path: 'test-results/ipad-silly.png' });
+  await tap(page, 'silly-photo');
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('carl-otto-hemma') ?? '{"done":[]}').done)).toEqual(['spegel']);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('carl-otto-hemma')!).drawings.length)).toBe(1);
+  await tap(page, 'silly-face'); await tap(page, 'wear-pirate');
+  await canvas(page).screenshot({ path: 'test-results/ipad-silly-pirate.png' });
+});

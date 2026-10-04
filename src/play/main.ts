@@ -16,6 +16,9 @@ import { HubScene } from './family/hub-scene';
 import { BikeScene } from './family/bike-scene';
 import { HideScene } from './family/hide-scene';
 import { MovieScene } from './family/movie-scene';
+import { DiningScene } from './family/dining-scene';
+import { BathScene } from './family/bath-scene';
+import { SillyScene } from './family/silly-scene';
 import { HouseScene } from './family/house-scene';
 import { CraftScene } from './family/craft-scene';
 import { PancakeScene } from './family/pancake-scene';
@@ -77,7 +80,7 @@ async function boot(): Promise<void> {
     setArtFont(FONT.display);
     // `?artlab=1` (development only) shows the art lab instead of the game.
     const lab = import.meta.env.DEV && params.has('artlab') ? (await import('./testing/artlab')).ArtLabScene : null;
-    game = new Phaser.Game(gameConfig(lab ? [lab] : [BootScene, WorldScene, UIScene, HubScene, BikeScene, HideScene, MovieScene, HouseScene, CraftScene, PancakeScene, GoodnightScene, MorningScene, HomecomingScene], {
+    game = new Phaser.Game(gameConfig(lab ? [lab] : [BootScene, WorldScene, UIScene, HubScene, BikeScene, HideScene, MovieScene, HouseScene, CraftScene, PancakeScene, GoodnightScene, MorningScene, HomecomingScene, DiningScene, BathScene, SillyScene], {
       preBoot: g => { g.registry.set('session', session); },
     }));
   } catch (error) {

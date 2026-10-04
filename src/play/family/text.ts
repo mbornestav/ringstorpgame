@@ -60,6 +60,12 @@ const sv = {
   homecomingTitle: 'Hemkomst', homecomingDone: 'Välkommen hem!',
   homecomingDoneBody: 'Skorna står i par, jackan hänger på kroken och hjälmen ligger på hyllan.', toCraft: 'Till pysselhörnan',
   homecomingKeys: 'MELLANSLAG · NÄSTA     ESC · KARTAN',
+  diningTitle: 'Duka bordet', lightCandles: 'Tänd ett ljus', serveFood: 'Bär in maten', diningDone: 'Tack för maten!',
+  diningDoneBody: 'Fint dukat och gott ätet. Nu är det snart filmkväll i vardagsrummet!', toMovie: 'Till filmkvällen',
+  bathTitle: 'Tänder och tvål', bathStool: 'Kliv upp på pallen', bathPump: 'Pumpa tvål', bathRub: 'Gnugga händerna',
+  bathTap: 'Sätt på kranen', bathTowel: 'Torka händerna', bathTube: 'Tandkräm på borsten', bathBrush: 'Borsta tänderna',
+  bathCup: 'Skölj munnen', bathDone: 'Rena tänder!', bathDoneBody: 'Rena händer och blanka tänder. Nu är det läggdags!', toBed: 'Till sängen',
+  sillyTitle: 'Fånig i spegeln', sillyFace: 'Ny min', sillyPhoto: 'Ta kort!', sillyClear: 'Ta av allt', sillyOff: 'av',
 };
 
 const en: Record<keyof typeof sv, string> = {
@@ -120,6 +126,12 @@ const en: Record<keyof typeof sv, string> = {
   homecomingTitle: 'Home again', homecomingDone: 'Welcome home!',
   homecomingDoneBody: 'The shoes stand in pairs, the jacket hangs on its hook and the helmet is on the shelf.', toCraft: 'To the craft corner',
   homecomingKeys: 'SPACE · NEXT     ESC · MAP',
+  diningTitle: 'Set the table', lightCandles: 'Light a candle', serveFood: 'Bring in the food', diningDone: 'Thank you for the food!',
+  diningDoneBody: 'Nicely set and nicely eaten. Movie night in the living room is next!', toMovie: 'To movie night',
+  bathTitle: 'Teeth and soap', bathStool: 'Step up on the stool', bathPump: 'Pump the soap', bathRub: 'Rub your hands',
+  bathTap: 'Turn on the tap', bathTowel: 'Dry your hands', bathTube: 'Toothpaste on the brush', bathBrush: 'Brush your teeth',
+  bathCup: 'Rinse your mouth', bathDone: 'Clean teeth!', bathDoneBody: 'Clean hands and shiny teeth. Now it’s bedtime!', toBed: 'To bed',
+  sillyTitle: 'Silly in the mirror', sillyFace: 'New face', sillyPhoto: 'Take a photo!', sillyClear: 'Take it all off', sillyOff: 'off',
 };
 
 export const familyText = (key: keyof typeof sv): string => (getLang() === 'sv' ? sv : en)[key];

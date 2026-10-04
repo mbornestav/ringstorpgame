@@ -154,14 +154,44 @@ const HALL: string[] = [
   '#f0c197', '#c98f6a', '#e8c870', '#cfe2ec', '#8798ab', '#ffe9b0', '#fff3b0',
 ];
 
+/** Duka bordet: the dining room. The pink wall and round mirrors, the crystal chandelier, the cream cloth and its dark border, green placemats, teak and striped seats, the seagrass rug and dark floor, the grey and red curtains, plates, glasses, cutlery and candles, the food, the family and Nallen. */
+const DINING: string[] = [
+  '#2b3936', '#ffffff', '#fbfaf6', '#f3f2ec', '#e2e0d8', '#d9d7cf', '#c9ced0', '#9a9c96', '#6b7076', '#d2a99c',
+  '#dcb8ac', '#c89a8c', '#eef3f4', '#b9c6cc', '#8fa0a8', '#cfe4ea', '#c9d6e0', '#efe8d6', '#e8dcc0', '#b4a07a',
+  '#5a4636', '#a9c47a', '#6f8a4a', '#a0683a', '#c8b48c', '#8f7a5a', '#8f6a3a', '#a8b4b8', '#8f9ca0', '#8a3a3a',
+  '#722c2e', '#e8eedf', '#7aa860', '#2f2b28', '#3d3835', '#c9a473', '#a07a4a', '#f2c230', '#fff3b0', '#ffe9b0',
+  '#e0a64c', '#c8243a', '#7a4a2a', '#f2dc9a', '#b07a4a', '#e2b98a', '#f0c197', '#c98f6a', '#e8c870', '#cfe2ec',
+  '#8798ab', '#8a5a36', '#6b4a2e', '#e6b8b0', '#7d93a8', '#4d5257',
+];
+
+/** Tänder och tvål: the bathroom. White and grey tiles and their patterned border, the mirror cabinet and the bluer room in the glass, the white sink and the chrome tap, the soap pump, the teal cup and the blue toothbrush, the red-striped and teal towels, water and bubbles, Carl-Otto's face up close, and the sugar bugs' colours. */
+const BATH: string[] = [
+  '#2b3936', '#ffffff', '#fbfaf6', '#eceae4', '#d6d4cc', '#c9c6bc', '#9a978e', '#e8e6de', '#d9d7cf', '#9aa0a6',
+  '#e2e8ea', '#cfd8dc', '#b4c8d2', '#dfe8ec', '#d9dde0', '#b8c4cc', '#6b7076', '#c9ced0', '#e8ecef', '#c9d2d6',
+  '#cfdbe0', '#3d6ab0', '#3d8fc0', '#6fbde8', '#9fd0e8', '#a0d2eb', '#9fd0c8', '#5aa8a0', '#b08a6a', '#d4a858',
+  '#f3e6e8', '#9a2f4a', '#e2432f', '#f0c197', '#e8b087', '#f6d8bc', '#c98f6a', '#e8c870', '#c8a850', '#f2dc9a',
+  '#cfe2ec', '#a8bcc8', '#7a2e2a', '#e2867a', '#a05a48', '#ec786e', '#f07fb0', '#62b046', '#f2c230', '#8a56b8',
+  '#f08a2c', '#fff3b0',
+];
+
+/** Fånig i spegeln: the little toilet. Coral-pink walls and the frames, the dark planks in the mirror and the crate shelf, brass, the paper fan, the light bar, the wooden tray, Carl-Otto's face up close, and the silly things' bright colours. */
+const TOILET: string[] = [
+  '#2b3936', '#ffffff', '#fbfaf6', '#f3f2ec', '#e8e6de', '#fffbe8', '#2b2b2e', '#e99a88', '#e8907e', '#d97a68',
+  '#c86a5a', '#4a3a2c', '#56443a', '#3e3128', '#5a4838', '#8a6a4a', '#9aa4a8', '#a07a4a', '#c9a85c', '#b4975c',
+  '#fff3c4', '#5aa89a', '#e8dcc0', '#6b8aa0', '#c8b48c', '#8a6a9a', '#a8c0a0', '#f0c197', '#e8b087', '#f6d8bc',
+  '#c98f6a', '#e8c870', '#c8a850', '#f2dc9a', '#cfe2ec', '#a8bcc8', '#7a2e2a', '#e2867a', '#a05a48', '#ec786e',
+  '#f2c230', '#e2432f', '#3157b8', '#62b046', '#6fbde8', '#f07fb0', '#e05a96', '#c8302a', '#d6372c', '#ff7a6a',
+  '#6b4a2e', '#1e1e28',
+];
+
 /** How far (in 0–255 units) the ordered dither may push a channel: enough to shade ramps, low enough to keep flats flat. */
-const SPREAD = { day: 10, night: 9, interior: 10, bike: 10, yard: 10, home: 10, craft: 7, kitchen: 9, bedroom: 9, morning: 9, hall: 9 } as const;
+const SPREAD = { day: 10, night: 9, interior: 10, bike: 10, yard: 10, home: 10, craft: 7, kitchen: 9, bedroom: 9, morning: 9, hall: 9, dining: 9, bath: 9, toilet: 9 } as const;
 
 export type Lighting = keyof typeof SPREAD;
 const cache = new Map<Lighting, Palette>();
 
 export function paletteFor(lighting: Lighting): { palette: Palette; spread: number } {
   let palette = cache.get(lighting);
-  if (!palette) cache.set(lighting, palette = new Palette({ day: DAY, night: NIGHT, interior: INTERIOR, bike: BIKE, yard: YARD, home: HOME, craft: CRAFT, kitchen: KITCHEN, bedroom: BEDROOM, morning: MORNING, hall: HALL }[lighting]));
+  if (!palette) cache.set(lighting, palette = new Palette({ day: DAY, night: NIGHT, interior: INTERIOR, bike: BIKE, yard: YARD, home: HOME, craft: CRAFT, kitchen: KITCHEN, bedroom: BEDROOM, morning: MORNING, hall: HALL, dining: DINING, bath: BATH, toilet: TOILET }[lighting]));
   return { palette, spread: SPREAD[lighting] };
 }

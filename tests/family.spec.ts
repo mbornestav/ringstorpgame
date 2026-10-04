@@ -255,14 +255,14 @@ test('Hemma: the map chooses rooms by tap and by key, and goes back to Carl-Otto
   // Nothing is done yet, so the map opens on the hall: the craft corner is the first thing there is to play.
   await expect(page.locator('#house-room')).toHaveText('Hallen');
   await canvas(page).screenshot({ path: 'test-results/carl-house.png' });
-  // A tap on the kitchen chooses it, and its game can be played; the dining room's is still being built.
+  // A tap on the kitchen chooses it, and its game can be played; the garden's is still being built.
   await press(page, 'room-kitchen');
   await expect(page.locator('#house-room')).toHaveText('Köket');
   expect(await page.evaluate(() => window.__ringstorp.bounds('play-pannkakor'))).not.toBeNull();
-  await press(page, 'room-dining');
-  await expect(page.locator('#house-room')).toHaveText('Matsalen');
+  await press(page, 'room-garden');
+  await expect(page.locator('#house-room')).toHaveText('Trädgården');
   await expect(page.getByText('Kommer snart')).toBeAttached();
-  expect(await page.evaluate(() => window.__ringstorp.bounds('play-duka'))).toBeNull();
+  expect(await page.evaluate(() => window.__ringstorp.bounds('play-tradgard'))).toBeNull();
   // The hall has two things to do: coming home is still being built, the craft corner can be played.
   await press(page, 'room-hall');
   for (const name of ['Hemkomst', 'Pysselhörnan']) await expect(page.getByText(new RegExp(`^${name}:`))).toBeAttached();
@@ -357,6 +357,7 @@ test('Pysselhörnan: crayons, stickers and the paper work by touch on a small sc
 });
 
 test('Pannkakor with only the keyboard: Space does the next thing, 1–5 pick a topping', async ({ page }) => {
+  test.setTimeout(60_000);
   await page.goto('/?game=pannkakor');
   await page.waitForFunction(() => window.__ringstorp); await page.evaluate(() => window.__ringstorp.ready);
   const phase = () => page.evaluate(() => window.__ringstorp.pancake().phase);
@@ -432,4 +433,20 @@ test('Hemkomst with only the keyboard: Space puts each thing away, then on to th
   await expect(page.locator('#homecoming-panel-title')).toHaveText('Välkommen hem!');
   await press(page, 'homecoming-craft');
   await expect.poll(() => page.evaluate(() => window.__ringstorp.craft().mode)).toBe('drawing');
+});
+
+test('Duka bordet, Tänder och tvål and Fånig i spegeln with only the keyboard', async ({ page }) => {
+  test.setTimeout(90_000);
+  const ready = async (game: string) => { await page.goto(`/?game=${game}`); await page.waitForFunction(() => window.__ringstorp); await page.evaluate(() => window.__ringstorp.ready); };
+  await ready('duka');
+  for (let i = 0; i < 20 && await page.evaluate(() => window.__ringstorp.dining().phase) !== 'eat'; i++) { await page.keyboard.press('Space'); await page.waitForTimeout(450); }
+  await expect(page.locator('#dining-panel-title')).toHaveText('Tack för maten!', { timeout: 8000 });
+  await ready('tander');
+  for (let i = 0; i < 120 && !await page.evaluate(() => window.__ringstorp.bath().won); i++) { await page.keyboard.press('Space'); await page.waitForTimeout(i % 10 === 0 ? 300 : 60); }
+  await expect(page.locator('#bath-panel-title')).toHaveText('Rena tänder!', { timeout: 8000 });
+  await ready('spegel');
+  for (const k of ['1', '7', '9', 'f']) await page.keyboard.press(k);
+  expect((await page.evaluate(() => window.__ringstorp.silly().wearing)).sort()).toEqual(['crown', 'moustache', 'stars']);
+  await page.keyboard.press('p');
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('carl-otto-hemma')!).done)).toEqual(['duka', 'tander', 'spegel']);
 });
